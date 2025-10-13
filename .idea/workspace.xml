@@ -5,61 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4661de6f-f95b-4985-9fa2-aa77ee6402e7" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/DSVision.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/controller/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/controller/app.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/linear/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/linear/base.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/linear/linked_list.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/linear/sequential_list.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/linear/stack.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/operation/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/operation/operation.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/tree/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/tree/avl_tree.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/tree/base.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/tree/binary_search_tree.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/tree/binary_tree.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dsvision/tree/huffman.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/uml_10:13.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/.editorconfig" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/.gitattributes" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/.prettierrc.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/.vite/deps/_metadata.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/.vite/deps/package.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/.vscode/extensions.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/eslint.config.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/index.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/jsconfig.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/package-lock.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/package.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/public/favicon.ico" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/App.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/components/ControlPanel.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/components/LinkedList.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/components/SequentialList.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/components/Stack.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/main.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/router/index.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/services/api.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/stores/counter.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/views/CategoryView.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/views/LinearAlgorithm.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/views/LinearView.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/views/TreeAlgorithm.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/views/TreeNode.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/views/TreeView.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/src/views/WelcomeView.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/view/vite.config.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/数据结构课设-题目1-线性与树形数据结构的可视化模拟器.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -101,25 +47,25 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Python.app.executor&quot;: &quot;Run&quot;,
-    &quot;Python.sousuo.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;editing.templates&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;/Applications/PyCharm.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.app.executor": "Run",
+    "Python.sousuo.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.fileTypes",
+    "ts.external.directory.path": "/Applications/PyCharm.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/View" />
@@ -196,7 +142,7 @@
       <updated>1758709391941</updated>
       <workItem from="1758709523212" duration="43405000" />
       <workItem from="1759465720794" duration="131031000" />
-      <workItem from="1760293815834" duration="7185000" />
+      <workItem from="1760293815834" duration="9115000" />
     </task>
     <servers />
   </component>
@@ -208,7 +154,19 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="main" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>
