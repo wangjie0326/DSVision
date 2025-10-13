@@ -1,0 +1,243 @@
+import axios from 'axios'; //用于调用Flask接口
+
+//const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = '/api';
+
+
+//创建axios实例
+const apiClient = axios.create({
+  baseURL:API_BASE_URL,
+  timeout: 10000,
+  headers:{
+    'Content-Type':'application/json'
+  },
+  withCredentials:false
+});
+
+apiClient.interceptors.request.use(
+  (config) => {
+    console.log('发送请求:', config.method.toUpperCase(), config.url);
+    return config;
+  },
+  (error) => {
+    console.error('请求错误:', error);
+    return Promise.reject(error);
+  }
+);
+
+// 响应拦截器
+apiClient.interceptors.response.use(
+  (response) => {
+    console.log('收到响应:', response.data);
+    return response.data;
+  },
+  (error) => {
+    console.error('API错误:', error.response?.data || error.message);
+    return Promise.reject(error);
+  }
+);
+
+
+export default{
+  //健康检查
+  checkHealth(){
+    return apiClient.get('/health');
+  },
+
+  //创建数据结构
+  createStructure(type,capacity = 100) {
+    return apiClient.post('/structure/create', {
+      type,
+      capacity
+    });
+  },
+
+  //获取数据结构状态
+  getState(structureId){
+    return apiClient.get(`/structure/${structureId}/state`);
+  },
+
+
+  //批量初始化元素
+  initBatch(structureId, values) {
+    return apiClient.post(`/structure/${structureId}/init_batch`, {
+      values
+    });
+  },
+
+  //插入元素
+  insertElement(structureId,index,value){
+    return apiClient.post(`/structure/${structureId}/insert`,{index,
+      value
+    });
+  },
+
+  //删除元素
+  deleteElement(structureId,index) {
+    return apiClient.post(`/structure/${structureId}/delete`, {
+      index
+    });
+  },
+
+  //搜索元素
+  searchElement(structureId,value) {
+    return apiClient.post(`/structure/${structureId}/search`, {
+      value
+    });
+  },
+
+  //清空结构
+  clearStructure(structureId) {
+    return apiClient.post(`/structure/${structureId}/clear`);
+  },
+
+  //删除结构
+  deleteStructure(structureId) {
+    return apiClient.delete(`/structure/${structureId}`);
+  },
+
+
+// ==================== 树结构接口 ====================
+
+  //创建树结构
+  createTreeStructure(type){
+    return apiClient.post('/tree/create',{
+      type
+    });
+  },
+  // 获取树数据结构状态
+  getTreeState(structureId) {
+    return apiClient.get(`/tree/${structureId}/state`);
+  },
+
+  // 插入树节点
+  insertTreeNode(structureId, value) {
+    return apiClient.post(`/tree/${structureId}/insert`, {
+      value
+    });
+  },
+
+  // 删除树节点
+  deleteTreeNode(structureId, value) {
+    return apiClient.post(`/tree/${structureId}/delete`, {
+      value
+    });
+  },
+
+  // 搜索树节点
+  searchTreeNode(structureId, value) {
+    return apiClient.post(`/tree/${structureId}/search`, {
+      value
+    });
+  },
+
+  // 清空树结构
+  clearTreeStructure(structureId) {
+    return apiClient.post(`/tree/${structureId}/clear`);
+  },
+
+  // 删除树结构
+  deleteTreeStructure(structureId) {
+    return apiClient.delete(`/tree/${structureId}`);
+  },
+
+  // ==================== Huffman树专用接口 ====================
+
+  // 从文本构建Huffman树
+  buildHuffmanTree(structureId, text) {
+    return apiClient.post(`/tree/${structureId}/huffman/build`, {
+      text
+    });
+  },
+
+  // 从权重字典构建Huffman树
+  buildHuffmanFromWeights(structureId, weights) {
+    return apiClient.post(`/tree/${structureId}/huffman/build-weights`, {
+      weights
+    });
+  },
+
+  // Huffman编码
+  encodeHuffman(structureId, text) {
+    return apiClient.post(`/tree/${structureId}/huffman/encode`, {
+      text
+    });
+  },
+
+  // Huffman解码
+  decodeHuffman(structureId, encoded) {
+    return apiClient.post(`/tree/${structureId}/huffman/decode`, {
+      encoded
+    });
+  },
+
+  // 获取Huffman编码表
+  getHuffmanCodes(structureId) {
+    return apiClient.get(`/tree/${structureId}/huffman/codes`);
+  },
+
+  // ==================== BST专用接口 ====================
+
+  // 从列表构建BST
+  buildBSTFromList(structureId, values) {
+    return apiClient.post(`/tree/${structureId}/bst/build`, {
+      values
+    });
+  },
+
+  // 获取BST的最小值
+  getBSTMin(structureId) {
+    return apiClient.get(`/tree/${structureId}/bst/min`);
+  },
+
+  // 获取BST的最大值
+  getBSTMax(structureId) {
+    return apiClient.get(`/tree/${structureId}/bst/max`);
+  },
+
+  // ==================== 二叉树专用接口 ====================
+
+  // 从列表构建二叉树（层序）
+  buildBinaryTreeFromList(structureId, values) {
+    return apiClient.post(`/tree/${structureId}/binary/build`, {
+      values
+    });
+  },
+
+  // ==================== 遍历接口 ====================
+
+  // 获取树的所有遍历结果
+  getTreeTraversals(structureId) {
+    return apiClient.get(`/tree/${structureId}/traversals`);
+  },
+
+  // 前序遍历
+  preorderTraversal(structureId) {
+    return apiClient.get(`/tree/${structureId}/traversal/preorder`);
+  },
+
+  // 中序遍历
+  inorderTraversal(structureId) {
+    return apiClient.get(`/tree/${structureId}/traversal/inorder`);
+  },
+
+  // 后序遍历
+  postorderTraversal(structureId) {
+    return apiClient.get(`/tree/${structureId}/traversal/postorder`);
+  },
+
+  // 层序遍历
+  levelorderTraversal(structureId) {
+    return apiClient.get(`/tree/${structureId}/traversal/levelorder`);
+  },
+
+  // 导出数据结构
+  exportStructure(structureId) {
+    return apiClient.get(`/structure/${structureId}/export`);
+  },
+
+  // 导入数据结构
+  importStructure(structureData) {
+    return apiClient.post('/structure/import', structureData);
+  },
+};
