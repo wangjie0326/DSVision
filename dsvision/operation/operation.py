@@ -10,6 +10,7 @@ class OperationType(Enum):
     SEARCH = "search"
     CLEAR = "clear"
     INIT = "init"
+
     #后面再加
     POINTER_MOVE = "pointer_move"  # 指针移动
     COMPARE = "compare"  # 比较操作

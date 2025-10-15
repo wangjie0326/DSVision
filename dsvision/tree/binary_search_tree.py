@@ -47,57 +47,75 @@ class BinarySearchTree(TreeStructureBase):
         self._root = self._insert_recursive(self._root, value)
         return True
 
-    def _insert_recursive(self, node: Optional[TreeNode], value: Any) -> Optional[TreeNode]:
-        """递归的插入辅助函数"""
-        # 临时调试
-        print(f"递归调用: node.value={node.value if node else 'None'}, 插入value={value}, value类型={type(value)}")
+    # binary_search_tree.py
+    def _insert_recursive(self, node: Optional[TreeNode], value: Any, path: str = "root") -> Optional[TreeNode]:
+        """递归插入 - 详细过程版"""
+
         if node is None:
+            # 找到插入位置
             self._size += 1
             step = OperationStep(
-                OperationType.INSERT,
+                OperationType.CREATE_NODE,
+                description=f'在 {path} 创建新节点 {value}',
                 value=value,
-                description= f"找到插入位置，插入节点{value}"
+                animation_type="fade",
+                duration=0.5
             )
             self.add_operation_step(step)
             return TreeNode(value)
 
-        try:
-            node_val = int(node.value)
-            insert_val = int(value)
-        except:
-            return node  # 类型错误直接返回
-
+        # === 比较当前节点 ===
         step = OperationStep(
-            OperationType.INSERT,
+            OperationType.COMPARE,
+            description=f'在 {path} 比较: {value} vs {node.value}',
             value=value,
-            description= f"比较{value}与当前节点{node.value}"
+            node_id=node.node_id,
+            compare_indices=[],
+            animation_type="highlight",
+            duration=0.4
         )
-
         self.add_operation_step(step)
 
         if value < node.value:
+            # === 向左遍历 ===
             step = OperationStep(
-                OperationType.INSERT,
+                OperationType.TRAVERSE_LEFT,
+                description=f'{value} < {node.value}, 向左子树移动',
                 value=value,
-                description =f"{value}<{node.value},向左子树搜索"
+                node_id=node.node_id,
+                animation_type="move",
+                duration=0.5
             )
             self.add_operation_step(step)
-            node.left = self._insert_recursive(node.left, value)
+
+            node.left = self._insert_recursive(node.left, value, f"{path} → left")
+
         elif value > node.value:
+            # === 向右遍历 ===
             step = OperationStep(
-                OperationType.INSERT,
+                OperationType.TRAVERSE_RIGHT,
+                description=f'{value} > {node.value}, 向右子树移动',
                 value=value,
-                description=f"{value} > {node.value}，向右子树搜索"
+                node_id=node.node_id,
+                animation_type="move",
+                duration=0.5
             )
             self.add_operation_step(step)
-            node.right = self._insert_recursive(node.right, value)
+
+            node.right = self._insert_recursive(node.right, value, f"{path} → right")
+
         else:
+            # === 值已存在 ===
             step = OperationStep(
-                OperationType.INSERT,
+                OperationType.COMPARE,
+                description=f'节点 {value} 已存在,不插入',
                 value=value,
-                description=f"节点 {value} 已存在，不插入"
+                node_id=node.node_id,
+                animation_type="highlight",
+                duration=0.5
             )
             self.add_operation_step(step)
+
         return node
 
     def search(self, value:Any) -> Optional[TreeNode]:

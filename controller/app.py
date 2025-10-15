@@ -21,7 +21,7 @@ import uuid
 from datetime import datetime
 import sys
 import os
-#添加项目根目录到Python路径，不知道为什么要这样？？？
+#添加项目根目录到Python路径
 #当前文件: DSVision/flask_interface/app.py
 #dsvision目录: DSVision/dsvision/
 #需要添加: DSVision/ 到 sys.path
