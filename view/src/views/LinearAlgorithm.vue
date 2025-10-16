@@ -114,6 +114,14 @@
               :key="`node-${index}`"
               class="linked-node-wrapper"
             >
+              <div v-if="currentPointerPosition === index"class="pointer-indicator">
+                <div class = "pointer-arrow">
+                  👆
+                </div>
+                <div class="pointer-label">
+                  current
+                </div>
+              </div>
               <div
                 class="linked-node"
                 :class="getNodeClass(index)"
@@ -202,6 +210,7 @@ const inputValue = ref('')
 const inputIndex = ref('')
 const isAnimating = ref(false)
 const highlightedIndices = ref([])
+const currentPointerPosition = ref(-1)
 const operationHistory = ref([])
 const lastOperation = ref('')
 const historyCollapsed = ref(true)
@@ -326,6 +335,22 @@ const executeOperation = async () => {
         highlightedIndices.value = lastOp.highlight_indices || []
       }
 
+      if (operationHistory.value.length > 0) {
+        const lastOp = operationHistory.value[operationHistory.value.length - 1]
+        lastOperation.value = lastOp.description
+        highlightedIndices.value = lastOp.highlight_indices || []
+
+        // 🆕 添加这部分
+        if (lastOp.pointer_position >= 0) {
+          // 显示指针位置（你可以用一个新的 ref 存储）
+          currentPointerPosition.value = lastOp.pointer_position // 🆕 添加这行
+          console.log('指针位置:', lastOp.pointer_position)
+        }
+        // 动画效果
+        await new Promise(resolve => setTimeout(resolve, 500))
+        highlightedIndices.value = []
+        currentPointerPosition.value = -1 // 🆕 动画结束后重置指针
+      }
       // 动画效果
       await new Promise(resolve => setTimeout(resolve, 500))
       highlightedIndices.value = []
@@ -661,6 +686,42 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+}
+
+.pointer-indicator {
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: pointerBounce 0.6s ease-in-out infinite;
+  z-index: 10;
+}
+
+.pointer-arrow {
+  font-size: 2rem;
+  animation: bounce 1s ease-in-out infinite;
+}
+
+.pointer-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ef4444;
+  background-color: #fee2e2;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 .linked-node {

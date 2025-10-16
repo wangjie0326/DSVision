@@ -139,7 +139,7 @@ def get_state(structure_id):
             'data':structure.to_list(),
             'size':structure.size(),
             'is_empty':structure.is_empty(),
-            'operation_history':[step.to_dict() for step in structure.get_operation_history],
+            'operation_history':[step.to_dict() for step in structure.get_operation_history()],
             'capacity':getattr(structure,'_capacity',None) #没懂getattr
         })
 
@@ -218,8 +218,11 @@ def insert_element(structure_id):
             index = int(index)
         print(f"插入参数 - index: {index}, value: {value}")  #调试输出
 
-        #调用你的insert方法
-        success = structure.insert(index,value)
+        # 清空历史，准备记录新的操作步骤
+        structure.clear_operation_history()
+
+        # 执行插入
+        success = structure.insert(index, value)
 
         #返回更新后的状态
         return jsonify({
@@ -251,6 +254,8 @@ def delete_element(structure_id):
         data = request.json
         index = data.get('index')
 
+        # 清空历史
+        structure.clear_operation_history()
         #调用delete方法
         deleted_value = structure.delete(index)
 
