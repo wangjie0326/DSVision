@@ -191,6 +191,19 @@ const lastOperation = ref('')
 const historyCollapsed = ref(true)
 const huffmanCodes = ref(null)
 
+
+const isPlaying = ref(false)  // 是否正在播放动画
+const currentStepIndex = ref(0)  // 当前播放到第几步
+const animationSpeed = ref(1)  // 动画速度倍数
+
+// 多指针状态 (替换原来的单一 highlightedIndices)
+const pointerStates = ref({
+  head: -1,
+  prev: -1,
+  current: -1,
+  new_node: -1
+})
+
 // 计算属性
 const structureTitle = computed(() => {
   const titles = {
@@ -260,7 +273,7 @@ const executeOperation = async () => {
 
   try {
     let response
-
+    const index = inputIndex.value === '' ? elements.value.length : parseInt(inputIndex.value)
     switch (currentOperation.value) {
       case 'insert':
         response = await api.insertTreeNode(structureId.value, inputValue.value)
@@ -279,22 +292,16 @@ const executeOperation = async () => {
     }
 
     if (response) {
-      treeData.value = response.tree_data
-      operationHistory.value = response.operation_history || []
+      // 🔥 关键修改: 不要立即更新 elements,而是播放动画
+      const steps = response.operation_history || []
 
-      // 更新Huffman编码表
-      if (structureType.value === 'huffman' && response.tree_data?.huffman_codes) {
-        huffmanCodes.value = response.tree_data.huffman_codes
+      if (steps.length > 0) {
+        await playOperationSteps(steps)  // 调用动画调度器
       }
 
-      if (operationHistory.value.length > 0) {
-        const lastOp = operationHistory.value[operationHistory.value.length - 1]
-        lastOperation.value = lastOp.description
-      }
-
-      // 动画效果
-      await new Promise(resolve => setTimeout(resolve, 500))
-      highlightedNodes.value = []
+      // 动画播放完后再更新最终状态
+      elements.value = response.data
+      operationHistory.value = steps
     }
 
     inputValue.value = ''
@@ -307,6 +314,47 @@ const executeOperation = async () => {
     isAnimating.value = false
   }
 }
+
+
+// ===== 🎬 核心: 动画调度器 =====
+const playOperationSteps = async (steps) => {
+  isPlaying.value = true
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i]
+    currentStepIndex.value = i
+
+    // 1. 更新描述
+    lastOperation.value = step.description || ''
+
+    // 2. 更新高亮索引
+    highlightedIndices.value = step.highlight_indices || []
+
+    // 3. 🔥 更新多指针状态
+    if (step.pointers) {
+      Object.keys(step.pointers).forEach(key => {
+        pointerStates.value[key] = step.pointers[key]
+      })
+    }
+
+    // 4. 🔥 更新数据快照 (如果有)
+    if (step.data_snapshot) {
+      elements.value = step.data_snapshot
+    }
+
+    // 5. 根据动画类型设置延迟
+    const baseDelay = step.duration || 0.5
+    const delay = (baseDelay / animationSpeed.value) * 1000
+
+    await new Promise(resolve => setTimeout(resolve, delay))
+  }
+
+  // 播放完毕,清除高亮和指针
+  highlightedIndices.value = []
+  pointerStates.value = { head: -1, prev: -1, current: -1, new_node: -1 }
+  isPlaying.value = false
+}
+
 
 const clearStructure = async () => {
   if (!structureId.value) return

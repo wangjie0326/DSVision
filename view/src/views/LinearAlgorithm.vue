@@ -25,6 +25,7 @@
 
     <!-- 操作面板 -->
     <div class="operation-panel">
+      <!-- 🔥 1. 操作类型选择器 -->
       <div class="operation-group">
         <label class="label">Operation:</label>
         <select v-model="currentOperation" class="select-input">
@@ -34,7 +35,18 @@
         </select>
       </div>
 
-      <!-- value 输入框 -->
+      <!-- 🔥 2. 动画速度选择器（新增） -->
+      <div class="operation-group">
+        <label class="label">Speed:</label>
+        <select v-model="animationSpeed" class="select-input">
+          <option :value="0.5">0.5x</option>
+          <option :value="1">1x</option>
+          <option :value="2">2x</option>
+          <option :value="4">4x</option>
+        </select>
+      </div>
+
+      <!-- 3. Value 输入框 -->
       <div v-if="needsValue" class="operation-group">
         <label class="label">Value:</label>
         <input
@@ -46,6 +58,7 @@
         />
       </div>
 
+      <!-- 4. Index 输入框 -->
       <div v-if="needsIndex" class="operation-group">
         <label class="label">Index:</label>
         <input
@@ -57,6 +70,7 @@
         />
       </div>
 
+      <!-- 5. 执行按钮 -->
       <button
         @click="executeOperation"
         :disabled="isAnimating || !canExecute"
@@ -66,6 +80,7 @@
         <span v-else class="loading-spinner">⟳</span>
       </button>
 
+      <!-- 6. 清空按钮 -->
       <button
         @click="clearStructure"
         :disabled="isAnimating"
@@ -87,7 +102,45 @@
         </div>
 
         <div v-else class="elements-container" :class="containerClass">
-          <!-- 顺序表/栈的可视化 -->
+          <!-- 🔥 链表的可视化 - 添加指针显示 -->
+          <template v-if="structureType === 'linked'">
+            <div
+              v-for="(element, index) in elements"
+              :key="`node-${index}`"
+              class="linked-node-wrapper"
+            >
+              <!-- 节点本身 -->
+              <div
+                class="linked-node"
+                :class="getNodeClass(index)"
+              >
+                <div class="node-value">{{ element }}</div>
+                <div class="node-pointer">→</div>
+              </div>
+
+              <!-- 🔥 多指针显示 -->
+              <div class="pointer-labels">
+                <span v-if="pointerStates.head === index" class="pointer-label head">HEAD</span>
+                <span v-if="pointerStates.prev === index" class="pointer-label prev">PREV</span>
+                <span v-if="pointerStates.current === index" class="pointer-label current">CURR</span>
+                <span v-if="pointerStates.new_node === index" class="pointer-label new">NEW</span>
+              </div>
+
+              <div class="node-index">[{{ index }}]</div>
+
+              <!-- 箭头连接线 -->
+              <div v-if="index < elements.length - 1" class="node-arrow">
+                <svg width="40" height="20" viewBox="0 0 40 20">
+                  <line x1="0" y1="10" x2="35" y2="10" stroke="#9ca3af" stroke-width="2"/>
+                  <polygon points="35,5 40,10 35,15" fill="#9ca3af"/>
+                </svg>
+              </div>
+            </div>
+            <!-- NULL 结束标记 -->
+            <div class="null-node">NULL</div>
+          </template>
+
+          <!-- 顺序表/栈的可视化 - 保持不变 -->
           <template v-if="structureType === 'sequential' || structureType === 'stack'">
             <div
               v-for="(element, index) in elements"
@@ -106,47 +159,11 @@
               </div>
             </div>
           </template>
-
-          <!-- 链表的可视化 -->
-          <template v-if="structureType === 'linked'">
-            <div
-              v-for="(element, index) in elements"
-              :key="`node-${index}`"
-              class="linked-node-wrapper"
-            >
-              <div v-if="currentPointerPosition === index"class="pointer-indicator">
-                <div class = "pointer-arrow">
-                  👆
-                </div>
-                <div class="pointer-label">
-                  current
-                </div>
-              </div>
-              <div
-                class="linked-node"
-                :class="getNodeClass(index)"
-              >
-                <div class="node-value">{{ element }}</div>
-                <div class="node-pointer">→</div>
-              </div>
-              <div class="node-index">[{{ index }}]</div>
-
-              <!-- 箭头连接线 -->
-              <div v-if="index < elements.length - 1" class="node-arrow">
-                <svg width="40" height="20" viewBox="0 0 40 20">
-                  <line x1="0" y1="10" x2="35" y2="10" stroke="#9ca3af" stroke-width="2"/>
-                  <polygon points="35,5 40,10 35,15" fill="#9ca3af"/>
-                </svg>
-              </div>
-            </div>
-            <!-- NULL 结束标记 -->
-            <div class="null-node">NULL</div>
-          </template>
         </div>
       </div>
     </div>
 
-    <!-- 状态栏 -->
+    <!-- 状态栏 - 保持不变 -->
     <div class="status-bar">
       <div class="status-info">
         <span class="status-label">Elements:</span>
@@ -161,7 +178,7 @@
       </div>
     </div>
 
-    <!-- 操作历史面板 -->
+    <!-- 操作历史面板 - 保持不变 -->
     <div class="history-panel" :class="{ 'collapsed': historyCollapsed }">
       <div class="history-header" @click="historyCollapsed = !historyCollapsed">
         <span class="history-title">Operation History</span>
@@ -205,12 +222,28 @@ const structureType = ref(route.params.type || 'sequential')
 const structureId = ref(null)
 const elements = ref([])
 const capacity = ref(100)
+
+// 🔥 操作相关 - 保持原有的操作类型
 const currentOperation = ref('insert')
 const inputValue = ref('')
 const inputIndex = ref('')
+
+// 🔥 动画相关 - 新增
 const isAnimating = ref(false)
+const isPlaying = ref(false)
+const animationSpeed = ref(1)  // 动画速度倍数
+const currentStepIndex = ref(0)
+
+// 🔥 可视化状态 - 修改
 const highlightedIndices = ref([])
-const currentPointerPosition = ref(-1)
+const pointerStates = ref({
+  head: -1,
+  prev: -1,
+  current: -1,
+  new_node: -1
+})
+
+// 历史记录
 const operationHistory = ref([])
 const lastOperation = ref('')
 const historyCollapsed = ref(true)
@@ -296,10 +329,58 @@ const createStructure = async () => {
   }
 }
 
+const playOperationSteps = async (steps) => {
+  isPlaying.value = true
+  console.log('开始播放动画，共', steps.length, '步')
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i]
+    currentStepIndex.value = i
+
+    console.log(`Step ${i + 1}:`, step.description)
+
+    // 1. 更新描述
+    lastOperation.value = step.description || ''
+
+    // 2. 更新高亮索引
+    highlightedIndices.value = step.highlight_indices || []
+
+    // 3. 更新多指针状态
+    if (step.pointers) {
+      // 先重置所有指针
+      pointerStates.value = { head: -1, prev: -1, current: -1, new_node: -1 }
+      // 然后更新指定的指针
+      Object.keys(step.pointers).forEach(key => {
+        pointerStates.value[key] = step.pointers[key]
+      })
+      console.log('指针状态:', step.pointers)
+    }
+
+    // 4. 更新数据快照
+    if (step.data_snapshot && step.data_snapshot.length > 0) {
+      elements.value = [...step.data_snapshot]
+      console.log('数据快照:', step.data_snapshot)
+    }
+
+    // 5. 延迟（根据速度调整）
+    const baseDelay = step.duration || 0.5
+    const delay = (baseDelay / animationSpeed.value) * 1000
+    await new Promise(resolve => setTimeout(resolve, delay))
+  }
+
+  console.log('动画播放完毕')
+
+  // 播放完毕，清除高亮和指针
+  highlightedIndices.value = []
+  pointerStates.value = { head: -1, prev: -1, current: -1, new_node: -1 }
+  isPlaying.value = false
+}
+
 const executeOperation = async () => {
   if (!structureId.value || !canExecute.value) return
 
   isAnimating.value = true
+  console.log('执行操作:', currentOperation.value)
 
   try {
     let response
@@ -307,7 +388,6 @@ const executeOperation = async () => {
 
     switch (currentOperation.value) {
       case 'batch_init':
-        // 处理批量初始化
         const values = inputValue.value.split(/[,\s]+/).filter(v => v.trim())
         response = await api.initBatch(structureId.value, values)
         break
@@ -326,46 +406,34 @@ const executeOperation = async () => {
     }
 
     if (response) {
+      console.log('收到响应:', response)
+      const steps = response.operation_history || []
+
+      // 🔥 关键修改：播放动画
+      if (steps.length > 0) {
+        await playOperationSteps(steps)
+      }
+
+      // 动画播放完后更新最终状态
       elements.value = response.data
-      operationHistory.value = response.operation_history || []
+      operationHistory.value = steps
 
-      if (operationHistory.value.length > 0) {
-        const lastOp = operationHistory.value[operationHistory.value.length - 1]
-        lastOperation.value = lastOp.description
-        highlightedIndices.value = lastOp.highlight_indices || []
+      if (steps.length > 0) {
+        lastOperation.value = steps[steps.length - 1].description
       }
-
-      if (operationHistory.value.length > 0) {
-        const lastOp = operationHistory.value[operationHistory.value.length - 1]
-        lastOperation.value = lastOp.description
-        highlightedIndices.value = lastOp.highlight_indices || []
-
-        // 🆕 添加这部分
-        if (lastOp.pointer_position >= 0) {
-          // 显示指针位置（你可以用一个新的 ref 存储）
-          currentPointerPosition.value = lastOp.pointer_position // 🆕 添加这行
-          console.log('指针位置:', lastOp.pointer_position)
-        }
-        // 动画效果
-        await new Promise(resolve => setTimeout(resolve, 500))
-        highlightedIndices.value = []
-        currentPointerPosition.value = -1 // 🆕 动画结束后重置指针
-      }
-      // 动画效果
-      await new Promise(resolve => setTimeout(resolve, 500))
-      highlightedIndices.value = []
     }
 
     inputValue.value = ''
     inputIndex.value = ''
 
   } catch (error) {
-    console.error('Operation failed:', error)
+    console.error('操作失败:', error)
     alert('Operation failed: ' + (error.response?.data?.error || error.message))
   } finally {
     isAnimating.value = false
   }
 }
+
 
 const clearStructure = async () => {
   if (!structureId.value) return
@@ -376,6 +444,7 @@ const clearStructure = async () => {
     operationHistory.value = []
     lastOperation.value = 'Structure cleared'
     highlightedIndices.value = []
+    pointerStates.value = { head: -1, prev: -1, current: -1, new_node: -1 }
   } catch (error) {
     console.error('Failed to clear structure:', error)
   }
@@ -872,6 +941,65 @@ onMounted(async () => {
 .history-description {
   color: #374151;
   flex: 1;
+}
+
+/* 指针标签容器 */
+.pointer-labels {
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  z-index: 10;
+}
+
+/* 指针标签样式 */
+.pointer-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  color: white;
+  white-space: nowrap;
+  animation: pointerPulse 0.5s ease-in-out;
+}
+
+.pointer-label.head {
+  background-color: #3b82f6; /* 蓝色 */
+}
+
+.pointer-label.prev {
+  background-color: #8b5cf6; /* 紫色 */
+}
+
+.pointer-label.current {
+  background-color: #10b981; /* 绿色 */
+}
+
+.pointer-label.new {
+  background-color: #f59e0b; /* 橙色 */
+}
+
+@keyframes pointerPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+/* 调整链表节点容器,为指针标签留出空间 */
+.linked-node-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 40px; /* 为指针标签留出空间 */
 }
 
 @media (max-width: 768px) {
