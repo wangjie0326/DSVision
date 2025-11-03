@@ -69,13 +69,15 @@ class TreeStructureBase(ABC):
         """将节点转换为字典格式"""
         if node is None:
             return None
-        return {
+        result = {
             'value': node.value,
             'node_id': node.node_id,
             'left': self._node_to_dict(node.left),
             'right': self._node_to_dict(node.right),
             'height': getattr(node, 'height', None)
         }
+        print(f"调试: 节点 {node.value} 转换为字典: {result}")
+        return result
 
     def inorder_traversal(self) -> List[Any]:
         """中序周游"""

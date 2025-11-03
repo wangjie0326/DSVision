@@ -52,7 +52,13 @@ class OperationStep:
             data_snapshot: List[Any] = None,
 
             # 新增：链表专用可视化数据
-            visual_hints: Dict[str, Any] = None  # {"show_arrow": True, "from": 1, "to": 2}
+            visual_hints: Dict[str, Any] = None, # {"show_arrow": True, "from": 1, "to": 2}
+
+            # 树结构专用
+            #node_id: int = -1,  # 当前操作的节点ID
+            path: str = "",  # 遍历路径
+            comparison_result: str = "",  # 比较结果: "equal", "less", "greater"
+            tree_snapshot: dict = None,  # 完整树快照
     ):
         self.operation = operation
         self.description = description
@@ -75,6 +81,11 @@ class OperationStep:
         self.data_snapshot = data_snapshot or []
         self.visual_hints = visual_hints or {}
         self.timestamp = None
+
+        # 树结构专用
+        self.path = path
+        self.comparison_result = comparison_result
+        self.tree_snapshot = tree_snapshot
 
     def to_dict(self) -> dict:
         """转字典"""
