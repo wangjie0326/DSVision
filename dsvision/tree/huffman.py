@@ -1,29 +1,34 @@
-from .base import TreeStructureBase,TreeNode
-from ..operation.operation import OperationType,OperationStep
-from typing import Optional,Any, Dict,List,Tuple
+from .base import TreeStructureBase, TreeNode
+from ..operation import OperationType, OperationStep
+from typing import Optional, Any, Dict, List, Tuple
+
 
 class HuffmanNode(TreeNode):
     """哈夫曼树节点"""
-    def __init__(self,value:Any,weight:int):
-        super().__init__(value)
-        self.weight = weight#权重
-        self.is_leaf = True #是否为叶子节点
 
-    def __lt__(self,other):
+    def __init__(self, value: Any, weight: int):
+        super().__init__(value)
+        self.weight = weight  # 权重
+        self.is_leaf = True  # 是否为叶子节点
+
+    def __lt__(self, other):
         """用于堆排序的比较方法"""
         return self.weight < other.weight
 
     def __repr__(self):
         return f"Huffman({self.value}, freq={self.weight})"
 
+
 class MinHeap:
     """最小堆实现"""
+
     def __init__(self):
-        self.heap : List[HuffmanNode] = []
+        self.heap: List[HuffmanNode] = []
         self.size = 0
-    def parent(self, i:int) -> int:
+
+    def parent(self, i: int) -> int:
         """获取父节点索引"""
-        return (i-1)//2
+        return (i - 1) // 2
 
     def left_child(self, i: int) -> int:
         """获取左子节点索引"""
@@ -44,7 +49,7 @@ class MinHeap:
         self._heapify_up(self.size - 1)
 
     def _heapify_up(self, i: int) -> None:
-        """向上调整堆（上浮）"""
+        """向上调整堆(上浮)"""
         while i > 0:
             parent_idx = self.parent(i)
             if self.heap[i].weight < self.heap[parent_idx].weight:
@@ -70,12 +75,13 @@ class MinHeap:
         self.size -= 1
 
         # 向下调整堆
-        self._heapify_down(0)
+        if self.size > 0:  # 🔥 关键修复: 只有堆非空时才调整
+            self._heapify_down(0)
 
         return min_node
 
     def _heapify_down(self, i: int) -> None:
-        """向下调整堆（下沉）"""
+        """向下调整堆(下沉)"""
         while True:
             smallest = i
             left = self.left_child(i)
@@ -88,7 +94,7 @@ class MinHeap:
             if right < self.size and self.heap[right].weight < self.heap[smallest].weight:
                 smallest = right
 
-            # 如果当前节点不是最小的，交换并继续下沉
+            # 如果当前节点不是最小的,交换并继续下沉
             if smallest != i:
                 self.swap(i, smallest)
                 i = smallest
@@ -100,14 +106,16 @@ class MinHeap:
         return self.size == 0
 
     def get_all_sorted(self) -> List[HuffmanNode]:
-        """获取堆中所有元素的排序列表（用于显示）"""
+        """获取堆中所有元素的排序列表(用于显示)"""
         return sorted(self.heap, key=lambda x: x.weight)
+
 
 class HuffmanTree(TreeStructureBase):
     """哈夫曼树实现"""
+
     def __init__(self):
         super().__init__()
-        self._huffman_codes: Dict[Any,str] = {} #存储哈夫曼编码
+        self._huffman_codes: Dict[Any, str] = {}  # 存储哈夫曼编码
         self._root: Optional[HuffmanNode] = None
 
         step = OperationStep(
@@ -116,7 +124,7 @@ class HuffmanTree(TreeStructureBase):
         )
         self.add_operation_step(step)
 
-    def build_from_weights(self,weights:Dict[Any, int]) -> bool:
+    def build_from_weights(self, weights: Dict[Any, int]) -> bool:
         """
         从频率字典构建哈夫曼树
         frequencies: {字符: 频率} 例如 {'A': 5, 'B': 9, 'C': 12}
@@ -124,22 +132,23 @@ class HuffmanTree(TreeStructureBase):
         if not weights:
             step = OperationStep(
                 OperationType.INIT,
-                description="构建失败：权重字典为空"
+                description="构建失败:权重字典为空"
             )
             self.add_operation_step(step)
             return False
+
         step = OperationStep(
             OperationType.INIT,
-            description=f"开始构建哈夫曼树，输入权重: {weights}"
+            description=f"开始构建哈夫曼树,输入权重: {weights}"
         )
         self.add_operation_step(step)
 
-        #创建初始节点列表
+        # 创建初始节点列表
         heap = MinHeap()
 
-        #给每个字符创建叶子节点并插入堆
-        for value,wei in weights.items():
-            node = HuffmanNode(value,wei)
+        # 给每个字符创建叶子节点并插入堆
+        for value, wei in weights.items():
+            node = HuffmanNode(value, wei)
             heap.insert(node)
             self._size += 1
 
@@ -153,17 +162,21 @@ class HuffmanTree(TreeStructureBase):
         sorted_nodes = heap.get_all_sorted()
         step = OperationStep(
             OperationType.INIT,
-            description=f"初始节点队列（按权重排序）: {[f'{n.value}({n.weight})' for n in sorted_nodes]}"
+            description=f"初始节点队列(按权重排序): {[f'{n.value}({n.weight})' for n in sorted_nodes]}"
         )
         self.add_operation_step(step)
 
-        #构建哈夫曼树的主循环
+        # 🔥 关键修复: 构建哈夫曼树的主循环
         merge_count = 0
-        while heap.size > 1:
+        while heap.size > 1:  # 🔥 修改条件: 当堆中还有多于1个节点时继续
             merge_count += 1
-            #取出频率最小的两个节点
+
+            # 取出频率最小的两个节点
             left = heap.extract_min()
             right = heap.extract_min()
+
+            if left is None or right is None:  # 🔥 安全检查
+                break
 
             step = OperationStep(
                 OperationType.INSERT,
@@ -173,9 +186,8 @@ class HuffmanTree(TreeStructureBase):
             )
             self.add_operation_step(step)
 
-            #创建新的内部节点
+            # 创建新的内部节点
             merged_wei = left.weight + right.weight
-            #内部节点值使用组合标记
             merged_value = f"[{left.value}+{right.value}]"
             merged_node = HuffmanNode(merged_value, merged_wei)
             merged_node.is_leaf = False
@@ -183,39 +195,43 @@ class HuffmanTree(TreeStructureBase):
             merged_node.right = right
 
             self._size += 1
+
             step = OperationStep(
                 OperationType.INSERT,
-                value = merged_value,
+                value=merged_value,
                 description=f"创建新的内部节点: "
                             f"值='{merged_value}', "
                             f"权重={left.weight}+{right.weight}={merged_wei}"
             )
             self.add_operation_step(step)
 
+            # 🔥 关键: 将新节点插入回堆
+            heap.insert(merged_node)
+
             step = OperationStep(
                 OperationType.INSERT,
-                description=f"将新节点插入堆，重新调整堆结构"
+                description=f"将新节点插入堆,重新调整堆结构"
             )
             self.add_operation_step(step)
 
-            #显示当前堆的状态
+            # 显示当前堆的状态
             remaining = heap.get_all_sorted()
             step = OperationStep(
                 OperationType.INSERT,
-                description=f"当前堆中节点（按权重排序）: {[f'{n.value}({n.weight})' for n in remaining]}"
+                description=f"当前堆中节点(按权重排序): {[f'{n.value}({n.weight})' for n in remaining]}"
             )
             self.add_operation_step(step)
 
-        #最后一个节点就是根节点
+        # 🔥 最后一个节点就是根节点
         if heap.size == 1:
             self._root = heap.extract_min()
 
         if self._root:
             step = OperationStep(
                 OperationType.INIT,
-                description=f"哈夫曼树构建完成！"
+                description=f"哈夫曼树构建完成!"
                             f"根节点权重={self._root.weight}, "
-                            f"共{self._size}个节点，"
+                            f"共{self._size}个节点,"
                             f"进行了{merge_count}次合并操作"
             )
             self.add_operation_step(step)
@@ -224,20 +240,22 @@ class HuffmanTree(TreeStructureBase):
             self._generate_codes()
 
             return True
+
         return False
 
-    def build_from_string(self,text:str) -> bool:
+    def build_from_string(self, text: str) -> bool:
         """
-        从字符串构建哈夫曼树（自动统计频率）
-        text: 输入字符串，例如 "ABRACADABRA"
+        从字符串构建哈夫曼树(自动统计频率)
+        text: 输入字符串,例如 "ABRACADABRA"
         """
         if not text:
             step = OperationStep(
                 OperationType.INIT,
-                description="构建失败：输入文本为空"
+                description="构建失败:输入文本为空"
             )
             self.add_operation_step(step)
             return False
+
         step = OperationStep(
             OperationType.INIT,
             description=f"分析输入文本: '{text}' (长度={len(text)})"
@@ -323,6 +341,7 @@ class HuffmanTree(TreeStructureBase):
         """
         if not self._huffman_codes:
             raise ValueError("哈夫曼树未构建或编码未生成")
+
         step = OperationStep(
             OperationType.SEARCH,
             description=f"开始编码文本: '{text}'"
@@ -334,7 +353,7 @@ class HuffmanTree(TreeStructureBase):
             if char in self._huffman_codes:
                 encoded += self._huffman_codes[char]
 
-        original_bits = len(text) * 8  # ASCII编码（8位/字符）
+        original_bits = len(text) * 8  # ASCII编码(8位/字符)
         compressed_bits = len(encoded)
         compression_ratio = (1 - compressed_bits / original_bits) * 100 if original_bits > 0 else 0
 
@@ -348,8 +367,8 @@ class HuffmanTree(TreeStructureBase):
 
         step = OperationStep(
             OperationType.SEARCH,
-            description=f"编码完成，结果: {encoded[:50]}{'...' if len(encoded) > 50 else ''}\n"
-                        f"原始大小: {original_bits}位，经压缩后: {compressed_bits}位, "
+            description=f"编码完成,结果: {encoded[:50]}{'...' if len(encoded) > 50 else ''}\n"
+                        f"原始大小: {original_bits}位,经压缩后: {compressed_bits}位, "
                         f"节省: {stats['savings_bits']}位, "
                         f"压缩率: {compression_ratio:.2f}%"
         )
@@ -384,7 +403,7 @@ class HuffmanTree(TreeStructureBase):
             else:
                 current = current.right
 
-            # 到达叶子节点，记录字符并返回根节点
+            # 到达叶子节点,记录字符并返回根节点
             if current and current.is_leaf:
                 decoded += str(current.value)
 
@@ -400,7 +419,7 @@ class HuffmanTree(TreeStructureBase):
 
         step = OperationStep(
             OperationType.SEARCH,
-            description=f"✓ 解码完成，结果: '{decoded}'"
+            description=f"✓ 解码完成,结果: '{decoded}'"
         )
         self.add_operation_step(step)
 
@@ -411,7 +430,7 @@ class HuffmanTree(TreeStructureBase):
         return self._huffman_codes.copy()
 
     def get_tree_data(self) -> dict:
-        """获取树的结构数据，用于前端可视化"""
+        """获取树的结构数据,用于前端可视化"""
         return {
             'root': self._node_to_dict_huffman(self._root),
             'size': self._size,
@@ -426,7 +445,7 @@ class HuffmanTree(TreeStructureBase):
         }
 
     def _node_to_dict_huffman(self, node: Optional[HuffmanNode]) -> Optional[dict]:
-        """将哈夫曼节点转换为字典格式（包含权重信息）"""
+        """将哈夫曼节点转换为字典格式(包含权重信息)"""
         if node is None:
             return None
         return {
@@ -438,12 +457,12 @@ class HuffmanTree(TreeStructureBase):
             'right': self._node_to_dict_huffman(node.right)
         }
 
-    #实现抽象方法（不常用这些操作）
+    # 实现抽象方法(不常用这些操作)
     def insert(self, value: Any) -> bool:
-        """哈夫曼树不支持单个插入，使用build_from_weights"""
+        """哈夫曼树不支持单个插入,使用build_from_weights"""
         step = OperationStep(
             OperationType.INSERT,
-            description="提示：哈夫曼树不支持单个节点插入"
+            description="提示:哈夫曼树不支持单个节点插入"
         )
         self.add_operation_step(step)
         return False
@@ -452,7 +471,7 @@ class HuffmanTree(TreeStructureBase):
         """哈夫曼树不支持删除操作"""
         step = OperationStep(
             OperationType.DELETE,
-            description="提示：哈夫曼树不支持删除操作"
+            description="提示:哈夫曼树不支持删除操作"
         )
         self.add_operation_step(step)
         return False

@@ -34,6 +34,17 @@
         </select>
       </div>
 
+      <!-- 🔥 新增: 动画速度控制 -->
+      <div class="operation-group">
+        <label class="label">Speed:</label>
+        <select v-model="animationSpeed" class="select-input">
+          <option :value="0.5">0.5x (慢)</option>
+          <option :value="1">1x (正常)</option>
+          <option :value="2">2x (快)</option>
+          <option :value="4">4x (很快)</option>
+        </select>
+      </div>
+
       <!-- Huffman树特殊输入 -->
       <template v-if="structureType === 'huffman' && currentOperation === 'build'">
         <div class="operation-group">
@@ -81,7 +92,7 @@
     <!-- 可视化区域 -->
     <div class="visualization-area">
       <div class="canvas-wrapper">
-        <div v-if="!treeData || !treeData.root" class="empty-state">
+        <div v-if="!treeData || !treeData.root || treeData.size === 0" class="empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
             <circle cx="12" cy="5" r="3"/>
             <circle cx="6" cy="15" r="3"/>
@@ -91,11 +102,13 @@
           <p>Start building the tree...</p>
         </div>
 
+
         <div v-else class="tree-canvas">
           <TreeNode
             :node="treeData.root"
             :highlighted="highlightedNodes"
             :isHuffman="structureType === 'huffman'"
+            :currentAnimation="showDirectionArrow"
           />
         </div>
       </div>
@@ -196,6 +209,9 @@ const isPlaying = ref(false)  // 是否正在播放动画
 const currentStepIndex = ref(0)  // 当前播放到第几步
 const animationSpeed = ref(1)  // 动画速度倍数
 
+const currentHighlightedNodes = ref([])  // 当前高亮的节点
+const showDirectionArrow = ref(null)  // 'arrow_left' | 'arrow_right' | null
+
 // 多指针状态 (替换原来的单一 highlightedIndices)
 const pointerStates = ref({
   head: -1,
@@ -203,6 +219,12 @@ const pointerStates = ref({
   current: -1,
   new_node: -1
 })
+
+// 🔥 新增缺失的响应式变量
+const animationSteps = ref([])  // 动画步骤
+const animatingPath = ref([])  // 当前遍历路径
+const comparingNode = ref(-1)  // 正在比较的节点
+const comparisonResult = ref('')  // 比较结果
 
 // 计算属性
 const structureTitle = computed(() => {
@@ -266,92 +288,171 @@ const createStructure = async () => {
   }
 }
 
+
+
+// 🔥 树结构的动画调度器（不同于线性结构）
+const playTreeAnimationSteps = async (steps) => {
+  isPlaying.value = true
+  animationSteps.value = steps
+  console.log('开始播放树动画，共', steps.length, '步')
+
+  for (let i = 0; i < steps.length; i++) {
+    if (!isPlaying.value) break  // 支持暂停
+
+    const step = steps[i]
+    currentStepIndex.value = i
+
+    console.log(`Step ${i + 1}:`, step.description)
+
+    // 1. 更新描述
+    lastOperation.value = step.description || ''
+
+    // 2. 更新高亮节点（树结构用 node_id）
+    if (step.node_id && step.node_id !== -1) {
+      highlightedNodes.value = [step.node_id]
+    } else {
+      highlightedNodes.value = []
+    }
+
+    // 3. 更新遍历路径（用于显示搜索/插入的遍历过程）
+    if (step.operation === 'TRAVERSE_LEFT' || step.operation === 'TRAVERSE_RIGHT') {
+      animatingPath.value.push(step.node_id)
+      console.log('当前遍历路径:', animatingPath.value)
+    }
+
+    // 4. 更新比较结果（用于显示比较的节点）
+    if (step.operation === 'COMPARE') {
+      comparingNode.value = step.node_id
+      comparisonResult.value = step.comparison_result || ''
+    } else {
+      comparingNode.value = -1
+      comparisonResult.value = ''
+    }
+
+    // 5. 如果有树快照，实时更新树结构（用于插入/删除动画）
+    if (step.tree_snapshot) {
+      treeData.value = step.tree_snapshot
+      console.log('更新树快照:', step.tree_snapshot)
+    }
+
+    // 6. 延迟（根据速度调整）
+    const baseDelay = step.duration || 0.5
+    const delay = (baseDelay / animationSpeed.value) * 1000
+    await new Promise(resolve => setTimeout(resolve, delay))
+  }
+
+  console.log('动画播放完毕')
+
+  // 播放完毕，清除高亮和路径
+  highlightedNodes.value = []
+  animatingPath.value = []
+  comparingNode.value = -1
+  comparisonResult.value = ''
+  isPlaying.value = false
+}
+
+
 const executeOperation = async () => {
   if (!structureId.value || !canExecute.value) return
 
   isAnimating.value = true
+  console.log('=== 开始执行操作 ===')
 
   try {
     let response
-    const index = inputIndex.value === '' ? elements.value.length : parseInt(inputIndex.value)
+
     switch (currentOperation.value) {
-      case 'insert':
-        response = await api.insertTreeNode(structureId.value, inputValue.value)
-        break
-      case 'delete':
-        response = await api.deleteTreeNode(structureId.value, inputValue.value)
-        break
-      case 'search':
-        response = await api.searchTreeNode(structureId.value, inputValue.value)
-        break
       case 'build':
         if (structureType.value === 'huffman') {
+          console.log('🔥 构建Huffman树, 文本:', huffmanText.value)
           response = await api.buildHuffmanTree(structureId.value, huffmanText.value)
         }
         break
+      // ... 其他 case
     }
 
     if (response) {
-      // 🔥 关键修改: 不要立即更新 elements,而是播放动画
-      const steps = response.operation_history || []
+      console.log('收到响应:', response)
 
+      // ❌ 错误做法: 直接更新树数据
+      // treeData.value = response.tree_data
+
+      // ✅ 正确做法: 先获取步骤
+      const steps = response.operation_history || []
+      console.log('操作步骤数:', steps.length)
+
+      // 🔥 关键: 先播放动画,再更新最终数据
       if (steps.length > 0) {
-        await playOperationSteps(steps)  // 调用动画调度器
+        await playTreeAnimationSteps(steps)  // 等待动画播放完成
       }
 
-      // 动画播放完后再更新最终状态
-      elements.value = response.data
+      // 动画播放完后更新最终状态
+      treeData.value = response.tree_data  // 🔥 移到这里
       operationHistory.value = steps
+
+      if (structureType.value === 'huffman' && response.tree_data?.huffman_codes) {
+        huffmanCodes.value = response.tree_data.huffman_codes
+      }
+
+      if (steps.length > 0) {
+        lastOperation.value = steps[steps.length - 1].description
+      }
     }
 
     inputValue.value = ''
     huffmanText.value = ''
 
   } catch (error) {
-    console.error('Operation failed:', error)
+    console.error('❌ 操作失败:', error)
     alert('Operation failed: ' + (error.response?.data?.error || error.message))
   } finally {
     isAnimating.value = false
   }
 }
 
-
 // ===== 🎬 核心: 动画调度器 =====
 const playOperationSteps = async (steps) => {
   isPlaying.value = true
+  console.log('开始播放树操作动画,共', steps.length, '步')
 
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]
     currentStepIndex.value = i
 
-    // 1. 更新描述
+    console.log(`Step ${i + 1}/${steps.length}:`, step.description)
+
+    // 1. 更新描述文字
     lastOperation.value = step.description || ''
 
-    // 2. 更新高亮索引
-    highlightedIndices.value = step.highlight_indices || []
-
-    // 3. 🔥 更新多指针状态
-    if (step.pointers) {
-      Object.keys(step.pointers).forEach(key => {
-        pointerStates.value[key] = step.pointers[key]
-      })
+    // 2. 🔥 高亮当前节点
+    if (step.node_id && step.node_id !== -1) {
+      highlightedNodes.value = [step.node_id]
+    } else if (step.highlight_indices) {
+      highlightedNodes.value = step.highlight_indices
+    } else {
+      highlightedNodes.value = []
     }
 
-    // 4. 🔥 更新数据快照 (如果有)
-    if (step.data_snapshot) {
-      elements.value = step.data_snapshot
+
+
+    // 4. 🔥 特殊动画效果
+    if (step.animation_type === 'arrow_left' || step.animation_type === 'arrow_right') {
+      // 显示箭头动画 (CSS 实现)
+      showDirectionArrow.value = step.animation_type
+      await new Promise(resolve => setTimeout(resolve, 300))
+      showDirectionArrow.value = null
     }
 
-    // 5. 根据动画类型设置延迟
+    // 5. 延迟 (根据速度调整)
     const baseDelay = step.duration || 0.5
     const delay = (baseDelay / animationSpeed.value) * 1000
-
     await new Promise(resolve => setTimeout(resolve, delay))
   }
 
-  // 播放完毕,清除高亮和指针
-  highlightedIndices.value = []
-  pointerStates.value = { head: -1, prev: -1, current: -1, new_node: -1 }
+  console.log('树动画播放完毕')
+
+  // 清除高亮
+  highlightedNodes.value = []
   isPlaying.value = false
 }
 

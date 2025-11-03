@@ -403,14 +403,19 @@ def insert_tree_node(structure_id):
         data = request.json
         value = data.get('value')
 
-        try:
-            value = int(value)  # 尝试转为整数
-        except (ValueError, TypeError):
-            pass  # 保持原类型
+        # 🔥 关键: 清空历史记录
+        structure.clear_operation_history()
 
         value = _convert_tree_value(value)
 
         success = structure.insert(value)
+
+        # 🔥 打印调试信息
+        tree_data = structure.get_tree_data()
+        operation_history = structure.get_operation_history()
+        print(f"插入节点 {value}, 成功: {success}")
+        print(f"树大小: {tree_data.get('size', 0)}")
+        print(f"操作步骤数: {len(operation_history)}")
 
         return jsonify({
             'success': success,
@@ -516,14 +521,23 @@ def build_huffman_tree(structure_id):
         data = request.json
         text = data.get('text')
 
+        print(f"收到构建请求, 文本: {text}")  # 调试日志
+
         success = structure.build_from_string(text)
+
+        tree_data = structure.get_tree_data()
+        print(f"树数据: {tree_data}")  # 调试日志
+        print(f"root: {tree_data.get('root')}")  # 调试日志
 
         return jsonify({
             'success': success,
-            'tree_data': structure.get_tree_data(),
+            'tree_data': tree_data,
             'operation_history': [step.to_dict() for step in structure.get_operation_history()]
         })
     except Exception as e:
+        print(f"错误: {e}")  # 调试日志
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 

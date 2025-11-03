@@ -39,7 +39,8 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.INSERT,
                 value=value,
-                description=f"插入节点 {value} 作为根节点"
+                description=f"插入节点 {value} 作为根节点",
+                tree_snapshot=self._get_tree_snapshot()
             )
             self.add_operation_step(step)
             return True
@@ -49,69 +50,76 @@ class BinarySearchTree(TreeStructureBase):
 
     # binary_search_tree.py
     def _insert_recursive(self, node: Optional[TreeNode], value: Any, path: str = "root") -> Optional[TreeNode]:
-        """递归插入 - 详细过程版"""
+        """递归插入 - 完整详细步骤版"""
 
         if node is None:
             # 找到插入位置
             self._size += 1
             step = OperationStep(
                 OperationType.CREATE_NODE,
-                description=f'在 {path} 创建新节点 {value}',
+                description=f'✓ 在 {path} 创建新节点 {value}',
                 value=value,
+                node_id=-1,  # 新节点暂时用-1
                 animation_type="fade",
-                duration=0.5
+                duration=0.8,
+                # 🔥 关键: 添加当前树的快照
+                tree_snapshot=self._get_tree_snapshot()
             )
             self.add_operation_step(step)
             return TreeNode(value)
 
-        # === 比较当前节点 ===
+        # === 🔥 第1步: 高亮当前比较的节点 ===
         step = OperationStep(
             OperationType.COMPARE,
-            description=f'在 {path} 比较: {value} vs {node.value}',
+            description=f'📍 当前在节点 {node.value}, 比较 {value} vs {node.value}',
             value=value,
             node_id=node.node_id,
-            compare_indices=[],
+            highlight_indices=[node.node_id],  # 高亮当前节点
             animation_type="highlight",
-            duration=0.4
+            duration=0.6,
+            tree_snapshot=self._get_tree_snapshot()
         )
         self.add_operation_step(step)
 
         if value < node.value:
-            # === 向左遍历 ===
+            # === 🔥 第2步: 决策提示 ===
             step = OperationStep(
                 OperationType.TRAVERSE_LEFT,
-                description=f'{value} < {node.value}, 向左子树移动',
+                description=f'↙️ {value} < {node.value}, 向左子树移动',
                 value=value,
                 node_id=node.node_id,
-                animation_type="move",
-                duration=0.5
+                highlight_indices=[node.node_id],
+                animation_type="arrow_left",  # 新增动画类型
+                duration=0.5,
+                tree_snapshot=self._get_tree_snapshot()
             )
             self.add_operation_step(step)
 
-            node.left = self._insert_recursive(node.left, value, f"{path} → left")
+            node.left = self._insert_recursive(node.left, value, f"{path}→left")
 
         elif value > node.value:
-            # === 向右遍历 ===
+            # === 🔥 第3步: 向右移动 ===
             step = OperationStep(
                 OperationType.TRAVERSE_RIGHT,
-                description=f'{value} > {node.value}, 向右子树移动',
+                description=f'↘️ {value} > {node.value}, 向右子树移动',
                 value=value,
                 node_id=node.node_id,
-                animation_type="move",
-                duration=0.5
+                highlight_indices=[node.node_id],
+                animation_type="arrow_right",
+                duration=0.5,
+                tree_snapshot=self._get_tree_snapshot()
             )
             self.add_operation_step(step)
 
-            node.right = self._insert_recursive(node.right, value, f"{path} → right")
-
+            node.right = self._insert_recursive(node.right, value, f"{path}→right")
         else:
-            # === 值已存在 ===
+            # 值已存在
             step = OperationStep(
                 OperationType.COMPARE,
-                description=f'节点 {value} 已存在,不插入',
+                description=f'⚠️ 节点 {value} 已存在,不插入',
                 value=value,
                 node_id=node.node_id,
-                animation_type="highlight",
+                animation_type="shake",
                 duration=0.5
             )
             self.add_operation_step(step)
@@ -307,7 +315,12 @@ class BinarySearchTree(TreeStructureBase):
 
     def get_tree_data(self) -> dict:
         """获取树的结构数据，用于前端可视化"""
-        return {
+        print(f"调试: get_tree_data 被调用")
+        print(f"调试: _root = {self._root}")
+        print(f"调试: _root.value = {self._root.value if self._root else None}")
+        print(f"调试: _size = {self._size}")
+        
+        tree_data = {
             'root': self._node_to_dict(self._root),
             'size': self._size,
             'height': self.get_height(),
@@ -320,6 +333,8 @@ class BinarySearchTree(TreeStructureBase):
                 'levelorder': self.level_order_traversal()
             }
         }
+        print(f"调试: 返回的树数据 = {tree_data}")
+        return tree_data
 
     def build_from_list(self, values: List[Any]) -> bool:
         """从列表构建BST"""
@@ -341,5 +356,13 @@ class BinarySearchTree(TreeStructureBase):
         )
         self.add_operation_step(step)
         return True
+
+    def _get_tree_snapshot(self) -> dict:
+        """获取当前树的完整快照,用于动画回放"""
+        return {
+            'root': self._node_to_dict(self._root),
+            'size': self._size,
+            'height': self.get_height()
+        }
 
 

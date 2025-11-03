@@ -1,14 +1,18 @@
 <template>
-  <div class="tree-node-container">
+  <div class="tree-node-container":data-node-id="node.node_id">
     <div class="node-wrapper">
       <!-- 当前节点 -->
       <div
         class="tree-node"
+        ref="nodeEl"
         :class="{
           'highlighted': isHighlighted,
+          'comparing': isComparing,
+          'creating': isCreating,
           'leaf-node': !node.left && !node.right,
           'huffman-node': isHuffman
         }"
+        @contextmenu.prevent="handleRightClick"
       >
         <div class="node-content">
           <!-- 普通节点显示值 -->
@@ -20,10 +24,21 @@
             <span class="node-weight">{{ node.weight }}</span>
           </template>
         </div>
+        <!-- 新增: 右键菜单 -->
+        <div v-if="showContextMenu" class="context-menu" :style="menuPosition">
+          <div class="menu-item" @click="insertLeft">插入左节点</div>
+          <div class="menu-item" @click="insertRight">插入右节点</div>
+          <div class="menu-item danger" @click="deleteNode">删除节点</div>
+        </div>
       </div>
+
+
 
       <!-- 子节点容器 -->
       <div v-if="node.left || node.right" class="children-container">
+        <!-- 🔥 新增: 方向箭头动画 -->
+        <div v-if="showLeftArrow" class="direction-arrow left-arrow">↙️</div>
+        <div v-if="showRightArrow" class="direction-arrow right-arrow">↘️</div>
         <!-- 左子树 -->
         <div class="child-wrapper left-child">
           <div v-if="node.left" class="connection-line left-line"></div>
@@ -32,6 +47,10 @@
             :node="node.left"
             :highlighted="highlighted"
             :isHuffman="isHuffman"
+            :currentAnimation="currentAnimation"
+            @insert-left="$emit('insert-left', $event)"
+            @insert-right="$emit('insert-right', $event)"
+            @delete-node="$emit('delete-node', $event)"
           />
           <div v-else class="null-node">NULL</div>
         </div>
@@ -44,6 +63,10 @@
             :node="node.right"
             :highlighted="highlighted"
             :isHuffman="isHuffman"
+            :currentAnimation="currentAnimation"
+            @insert-left="$emit('insert-left', $event)"
+            @insert-right="$emit('insert-right', $event)"
+            @delete-node="$emit('delete-node', $event)"
           />
           <div v-else class="null-node">NULL</div>
         </div>
@@ -53,7 +76,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 
 const props = defineProps({
   node: {
@@ -67,15 +90,173 @@ const props = defineProps({
   isHuffman: {
     type: Boolean,
     default: false
+  },
+  currentAnimation: {  // 🔥 新增
+    type: String,
+    default: ''
   }
 })
+
+const emit = defineEmits(['insert-left', 'insert-right', 'delete-node'])
+
+const nodeEl = ref(null)
+
+// 注册到上层：发送一个带 node_id 和元素引用的事件
+const registerNode = () => {
+  // 使用 nextTick 确保 DOM 已定位
+  nextTick(() => {
+    if (nodeEl.value) {
+      emit('register-node', { id: props.node.node_id, el: nodeEl.value })
+    }
+  })
+}
+const unregisterNode = () => {
+  emit('unregister-node', { id: props.node.node_id })
+}
+
+onMounted(() => {
+  registerNode()
+})
+
+onBeforeUnmount(() => {
+  unregisterNode()
+})
+
+// 右键菜单状态
+const showContextMenu = ref(false)
+const menuPosition = ref({ top: '0px', left: '0px' })
 
 const isHighlighted = computed(() => {
   return props.highlighted.includes(props.node.node_id)
 })
+
+const isComparing = computed(() => {
+  return props.currentAnimation === 'comparing' && isHighlighted.value
+})
+
+const isCreating = computed(() => {
+  return props.currentAnimation === 'creating' && isHighlighted.value
+})
+
+const showLeftArrow = computed(() => {
+  return props.currentAnimation === 'arrow_left' && isHighlighted.value
+})
+
+const showRightArrow = computed(() => {
+  return props.currentAnimation === 'arrow_right' && isHighlighted.value
+})
+
+// 🔥 右键菜单处理
+const handleRightClick = (event) => {
+  showContextMenu.value = true
+  menuPosition.value = {
+    top: `${event.offsetY}px`,
+    left: `${event.offsetX}px`
+  }
+
+  // 3秒后自动关闭
+  setTimeout(() => {
+    showContextMenu.value = false
+  }, 3000)
+}
+
+const insertLeft = () => {
+  emit('insert-left', props.node.node_id)
+  showContextMenu.value = false
+}
+
+const insertRight = () => {
+  emit('insert-right', props.node.node_id)
+  showContextMenu.value = false
+}
+
+const deleteNode = () => {
+  emit('delete-node', props.node.node_id)
+  showContextMenu.value = false
+}
 </script>
 
 <style scoped>
+/* 🔥 新增动画效果 */
+.tree-node.comparing {
+  animation: compareAnimation 0.6s ease-in-out;
+}
+
+@keyframes compareAnimation {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.tree-node.creating {
+  animation: createAnimation 0.8s ease-out;
+}
+
+@keyframes createAnimation {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(180deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* 🔥 方向箭头 */
+.direction-arrow {
+  position: absolute;
+  font-size: 2rem;
+  z-index: 10;
+  animation: arrowBounce 0.5s ease-in-out infinite;
+}
+
+.left-arrow {
+  left: -40px;
+  top: 50%;
+}
+
+.right-arrow {
+  right: -40px;
+  top: 50%;
+}
+
+@keyframes arrowBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* 🔥 右键菜单 */
+.context-menu {
+  position: absolute;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  min-width: 120px;
+}
+
+.menu-item {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: #2c3e50;
+  font-size: 0.875rem;
+}
+
+.menu-item:hover {
+  background-color: #f3f4f6;
+}
+
+.menu-item.danger {
+  color: #ef4444;
+}
+
+.menu-item.danger:hover {
+  background-color: #fee2e2;
+}
+
+
 .tree-node-container {
   display: flex;
   flex-direction: column;
@@ -175,35 +356,99 @@ const isHighlighted = computed(() => {
   position: relative;
 }
 
-/* 连接线 */
+/* 连接线 - 从父节点边缘到子节点边缘 */
 .connection-line {
   position: absolute;
   top: -3rem;
+  left: 50%;
+  transform: translateX(-50%);
   width: 2px;
   height: 3rem;
-  background-color: #9ca3af;
+  background-color: #6b7280;
   z-index: 1;
+  transition: all 0.3s ease;
 }
 
-.connection-line::before {
+.connection-line:hover {
+  background-color: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+}
+
+/* 左连接线 - 从父节点左下边缘到左子节点上边缘 */
+.left-line {
+  position: absolute;
+  top: -3.1rem;
+  left: 120%;
+  transform: translateX(-50%) rotate(30deg);
+  transform-origin: top left;
+  width: 2px;
+  height: 3.3rem;
+  background-color: #6b7280;
+  z-index: 1;
+  transition: all 0.3s ease;
+
+}
+
+.left-line:hover {
+  background-color: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+}
+
+/* 左连接线的三角形箭头 - 指向左子节点 */
+.left-line::after {
   content: '';
   position: absolute;
-  top: 0;
-  width: 2rem;
-  height: 2px;
-  background-color: #9ca3af;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid #6b7280;
+  transition: all 0.3s ease;
 }
 
-.left-line::before {
-  left: 0;
-  transform-origin: left;
-  transform: rotate(-45deg);
+.left-line:hover::after {
+  border-top-color: #3b82f6;
 }
 
-.right-line::before {
-  right: 0;
-  transform-origin: right;
-  transform: rotate(45deg);
+/* 右连接线 - 从父节点右下边缘到右子节点上边缘 */
+.right-line {
+  position: absolute;
+  top: -3.3rem;
+  left: 33%;
+  transform: translateX(-50%) rotate(-30deg);
+  transform-origin: top right;
+  width: 2px;
+  height: 3.3rem;
+  background-color: #6b7280;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+
+.right-line:hover {
+  background-color: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+}
+
+/* 右连接线的三角形箭头 - 指向右子节点 */
+.right-line::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid #6b7280;
+  transition: all 0.3s ease;
+}
+
+.right-line:hover::after {
+  border-top-color: #3b82f6;
 }
 
 /* NULL节点 */
@@ -238,8 +483,11 @@ const isHighlighted = computed(() => {
     gap: 2rem;
   }
 
-  .connection-line::before {
-    width: 1.5rem;
+  .left-line::after,
+  .right-line::after {
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid #6b7280;
   }
 }
 </style>
