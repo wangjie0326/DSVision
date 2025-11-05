@@ -109,15 +109,31 @@
             :height="canvasSize.height"
             class="connection-svg"
           >
+            <defs>
+              <marker
+                id="arrowhead"
+                markerWidth="10"
+                markerHeight="10"
+                refX="9"
+                refY="3"
+                orient="auto"
+                markerUnits="strokeWidth"
+              >
+                <path d="M0,0 L0,6 L9,3 z" fill="#6b7280" />
+              </marker>
+            </defs>
             <g class="edges-layer">
-              <path
+              <line
                 v-for="edge in edges"
                 :key="edge.id"
-                :d="edge.path"
+                :x1="edge.start.x"
+                :y1="edge.start.y"
+                :x2="edge.end.x"
+                :y2="edge.end.y"
                 stroke="#6b7280"
                 stroke-width="2"
-                fill="none"
                 stroke-linecap="round"
+                marker-end="url(#arrowhead)"
                 class="edge-line"
               />
             </g>

@@ -79,6 +79,7 @@ class OperationStep:
 
         # 状态数据
         self.data_snapshot = data_snapshot or []
+        self.tree_snapshot = tree_snapshot  # 🔥 新增
         self.visual_hints = visual_hints or {}
         self.timestamp = None
 
