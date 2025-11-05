@@ -201,7 +201,8 @@ class HuffmanTree(TreeStructureBase):
                 value=merged_value,
                 description=f"创建新的内部节点: "
                             f"值='{merged_value}', "
-                            f"权重={left.weight}+{right.weight}={merged_wei}"
+                            f"权重={left.weight}+{right.weight}={merged_wei}",
+                node_id = merged_node.node_id  # 高亮新创建的节点
             )
             self.add_operation_step(step)
 
@@ -213,6 +214,17 @@ class HuffmanTree(TreeStructureBase):
                 description=f"将新节点插入堆,重新调整堆结构"
             )
             self.add_operation_step(step)
+
+            # 🔥 关键: 生成当前树快照
+            # 临时设置根节点为新合并的节点来展示部分树
+            temp_root = merged_node
+            step = OperationStep(
+                OperationType.INSERT,
+                description=f"展示合并后的子树结构",
+                tree_snapshot=self._get_partial_tree_data(merged_node)
+            )
+            self.add_operation_step(step)
+
 
             # 显示当前堆的状态
             remaining = heap.get_all_sorted()
@@ -518,4 +530,49 @@ class HuffmanTree(TreeStructureBase):
             return left_result
 
         return self._search_recursive(node.right, value)
+
+    def _get_partial_tree_data(self, root: Optional[HuffmanNode]) -> dict:
+        """
+        从当前节点（可为部分树的根）生成用于前端可视化的结构快照。
+        包含节点值、权重、左右子节点、node_id。
+        """
+        if root is None:
+            return {
+                'root': None,
+                'size': 0,
+                'height': 0,
+            }
+
+        def _copy_subtree(node: Optional[HuffmanNode]) -> Optional[dict]:
+            if node is None:
+                return None
+            return {
+                'value': node.value,
+                'weight': node.weight,
+                'is_leaf': node.is_leaf,
+                'node_id': node.node_id,
+                'left': _copy_subtree(node.left),
+                'right': _copy_subtree(node.right)
+            }
+
+        # 计算子树大小与高度（辅助统计）
+        def _count_nodes(n: Optional[HuffmanNode]) -> int:
+            if n is None:
+                return 0
+            return 1 + _count_nodes(n.left) + _count_nodes(n.right)
+
+        def _get_height(n: Optional[HuffmanNode]) -> int:
+            if n is None:
+                return 0
+            return 1 + max(_get_height(n.left), _get_height(n.right))
+
+        return {
+            'root': _copy_subtree(root),
+            'size': _count_nodes(root),
+            'height': _get_height(root)
+        }
+
+
+
+
 
