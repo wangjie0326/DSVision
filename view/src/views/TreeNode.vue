@@ -41,7 +41,7 @@
         <div v-if="showRightArrow" class="direction-arrow right-arrow">↘️</div>
         <!-- 左子树 -->
         <div class="child-wrapper left-child">
-          <div v-if="node.left" class="connection-line left-line"></div>
+          <div v-if="node.left && !useExternalEdges" class="connection-line left-line"></div>
           <TreeNode
             v-if="node.left"
             :node="node.left"
@@ -57,7 +57,7 @@
 
         <!-- 右子树 -->
         <div class="child-wrapper right-child">
-          <div v-if="node.right" class="connection-line right-line"></div>
+          <div v-if="node.right && !useExternalEdges" class="connection-line right-line"></div>
           <TreeNode
             v-if="node.right"
             :node="node.right"
@@ -94,6 +94,10 @@ const props = defineProps({
   currentAnimation: {  // 🔥 新增
     type: String,
     default: ''
+  },
+  useExternalEdges: {
+    type: Boolean,
+    default: false
   }
 })
 

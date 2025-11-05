@@ -1,19 +1,35 @@
 <template>
   <div class="tree-canvas" ref="canvasEl" @resize="onResize">
     <!-- SVG overlay for lines -->
+    <!-- SVG overlay for lines -->
     <svg class="connection-svg" ref="svgEl" :width="canvasSize.width" :height="canvasSize.height">
+      <defs>
+        <marker
+          id="arrowhead"
+          markerWidth="10"
+          markerHeight="7"
+          refX="10"
+          refY="3.5"
+          orient="auto"
+        >
+          <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280" />
+        </marker>
+      </defs>
+
       <g v-for="edge in edges" :key="edge.id">
-        <path
-          :d="edge.path"
+        <line
+          :x1="edge.start.x"
+          :y1="edge.start.y"
+          :x2="edge.end.x"
+          :y2="edge.end.y"
           stroke="#6b7280"
           stroke-width="2"
-          fill="none"
           stroke-linecap="round"
+          marker-end="url(#arrowhead)"
         />
-        <!-- 可选箭头 -->
-        <!-- <circle :cx="edge.end.x" :cy="edge.end.y" r="3" fill="#6b7280" /> -->
       </g>
     </svg>
+
 
     <!-- 你的树节点插槽/渲染区域 -->
     <div class="nodes-layer">
@@ -21,6 +37,10 @@
       <!-- 假设你使用递归 TreeNode 的渲染方式：根节点 -->
       <TreeNode
         :node="root"
+        :highlighted="highlighted"
+        :isHuffman="isHuffman"
+        :currentAnimation="currentAnimation"
+        :useExternalEdges="true"
         @register-node="handleRegister"
         @unregister-node="handleUnregister"
         @insert-left="$emit('insert-left', $event)"
@@ -36,7 +56,10 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } 
 import TreeNode from './TreeNode.vue' // 你的节点文件路径
 
 const props = defineProps({
-  root: { type: Object, required: true }
+  root: { type: Object, required: true },
+  highlighted: { type: Array, default: () => [] },
+  isHuffman: { type: Boolean, default: false },
+  currentAnimation: { type: String, default: '' }
 })
 const emit = defineEmits(['insert-left','insert-right','delete-node'])
 
@@ -103,77 +126,55 @@ function updateAllRects() {
 }
 
 // 计算所有边（父->子）
+// 计算所有边（父->子）
 function computeEdges() {
-  const list = []
-  // 遍历树（递归）
+  const list = [];
+  const radius = 30; // 节点半径（可与 nodeWidth/2 保持一致）
+
   const traverse = (node) => {
-    if (!node || !nodes.has(node.node_id)) return
-    const parent = nodes.get(node.node_id)
-    if (!parent || !parent.rect) return
+    if (!node || !nodes.has(node.node_id)) return;
+    const parentRec = nodes.get(node.node_id)?.rect;
+    if (!parentRec) return;
 
-    const parentRect = parent.rect
+    const parentCenter = { x: parentRec.centerX, y: parentRec.centerY };
 
-    // 父节点圆半径（假设圆形；如果方形或其它，按最大半径）
-    const radius = Math.max(parentRect.width, parentRect.height) / 2
+    const makeEdge = (childNode) => {
+      if (!childNode || !nodes.has(childNode.node_id)) return;
+      const childRec = nodes.get(childNode.node_id)?.rect;
+      if (!childRec) return;
 
-    // 我们要求：从父节点 4点钟 (-30deg) 与 8点钟 (-150deg) 发出
-    // 右子节点使用 -30° 起点，左子节点使用 -150° 起点
-    const angleRight = (-30 * Math.PI) / 180
-    const angleLeft  = (-150 * Math.PI) / 180
+      const childCenter = { x: childRec.centerX, y: childRec.centerY };
 
-    const makeEdge = (childNode, angle, side) => {
-      if (!childNode) return
-      const childRec = nodes.get(childNode.node_id)
-      if (!childRec || !childRec.rect) return
+      // 向量方向
+      const dx = childCenter.x - parentCenter.x;
+      const dy = childCenter.y - parentCenter.y;
+      const angle = Math.atan2(dy, dx);
 
-      const startX = parentRect.centerX + radius * Math.cos(angle)
-      const startY = parentRect.centerY + radius * Math.sin(angle)
-
-      // end is child top-center (12点钟)
-      const endX = childRec.rect.centerX
-      const endY = childRec.rect.y // top edge
-
-      // 计算贝塞尔控制点，向下/向外拉伸以形成自然弯曲
-      const dx = endX - startX
-      const dy = endY - startY
-
-      // 基础控制点距离 = 0.5 * abs(dx) + 40 （经验值）
-      const cpDist = Math.max(Math.abs(dx) * 0.4, 40)
-
-      // 控制点1 在起点的垂直方向延伸（朝向子节点）
-      // 控制点2 在终点的垂直方向上方一些，使曲线向上接触子节点顶部
-      let cp1x = startX + (side === 'right' ? cpDist : -cpDist) * 0.4
-      let cp1y = startY + cpDist * 0.6
-
-      let cp2x = endX
-      let cp2y = endY - cpDist * 0.6
-
-      // 调整：如果 start 已经在 end 左侧/右侧，控制点调整为更水平/更垂直
-      if (Math.abs(dx) < 30) {
-        cp1x = startX
-        cp2x = endX
-      }
-
-      const path = `M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}`
+      // 起点在父节点圆边缘，终点在子节点圆边缘
+      const startX = parentCenter.x + radius * Math.cos(angle);
+      const startY = parentCenter.y + radius * Math.sin(angle);
+      const endX = childCenter.x - radius * Math.cos(angle);
+      const endY = childCenter.y - radius * Math.sin(angle);
 
       list.push({
         id: `${node.node_id}-${childNode.node_id}`,
-        path,
         start: { x: startX, y: startY },
-        end: { x: endX, y: endY }
-      })
-    }
+        end: { x: endX, y: endY },
+      });
+    };
 
-    if (node.left) makeEdge(node.left, angleLeft, 'left')
-    if (node.right) makeEdge(node.right, angleRight, 'right')
+    // 左右子树
+    if (node.left) makeEdge(node.left);
+    if (node.right) makeEdge(node.right);
 
-    if (node.left) traverse(node.left)
-    if (node.right) traverse(node.right)
-  }
+    if (node.left) traverse(node.left);
+    if (node.right) traverse(node.right);
+  };
 
-  traverse(props.root)
-  edges.value = list
+  traverse(props.root);
+  edges.value = list;
 }
+
 
 // 防抖更新
 let updateTimer = null
@@ -204,6 +205,11 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
 })
+
+// 监听 root 变化，动画步骤的每一步都会触发快照更新
+watch(() => props.root, () => {
+  nextTick(() => scheduleRecompute())
+}, { deep: true })
 </script>
 
 <style scoped>
