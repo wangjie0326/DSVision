@@ -34,7 +34,7 @@
         </select>
       </div>
 
-      <!-- 🔥 新增: 动画速度控制 -->
+      <!-- 动画速度控制 -->
       <div class="operation-group">
         <label class="label">Speed:</label>
         <select v-model="animationSpeed" class="select-input">
@@ -90,7 +90,7 @@
     </div>
 
     <!-- 可视化区域 -->
-    <div class="visualization-area">
+    <div class="visualization-area" ref="visualAreaRef">
       <div class="canvas-wrapper">
         <div v-if="!treeData || !treeData.root || treeData.size === 0" class="empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
@@ -102,14 +102,44 @@
           <p>Start building the tree...</p>
         </div>
 
-
         <div v-else class="tree-canvas">
-          <TreeNode
-            :node="treeData.root"
-            :highlighted="highlightedNodes"
-            :isHuffman="structureType === 'huffman'"
-            :currentAnimation="showDirectionArrow"
-          />
+          <!-- SVG层：绘制连接线 -->
+          <svg
+            :width="canvasSize.width"
+            :height="canvasSize.height"
+            class="connection-svg"
+          >
+            <g class="edges-layer">
+              <path
+                v-for="edge in edges"
+                :key="edge.id"
+                :d="edge.path"
+                stroke="#6b7280"
+                stroke-width="2"
+                fill="none"
+                stroke-linecap="round"
+                class="edge-line"
+              />
+            </g>
+          </svg>
+
+          <!-- 节点层：绝对定位 -->
+          <div
+            class="nodes-layer"
+            :style="{
+              width: `${canvasSize.width}px`,
+              height: `${canvasSize.height}px`
+            }"
+          >
+            <TreeNodeComponent
+              v-for="(position, nodeId) in nodePositions"
+              :key="nodeId"
+              :node="findNodeById(treeData.root, parseInt(nodeId))"
+              :position="position"
+              :highlighted="highlightedNodes"
+              :isHuffman="structureType === 'huffman'"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -182,10 +212,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '../services/api.js'
-import TreeNode from '../views/TreeNode.vue'
+import TreeNodeComponent from './TreeNodeSimple.vue'
+import { TreeLayoutEngine } from '../utils/treeLayout.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -203,34 +234,21 @@ const operationHistory = ref([])
 const lastOperation = ref('')
 const historyCollapsed = ref(true)
 const huffmanCodes = ref(null)
+const animationSpeed = ref(1)
+const visualAreaRef = ref(null)
 
-
-const isPlaying = ref(false)  // 是否正在播放动画
-const currentStepIndex = ref(0)  // 当前播放到第几步
-const animationSpeed = ref(1)  // 动画速度倍数
-
-const currentHighlightedNodes = ref([])  // 当前高亮的节点
-const showDirectionArrow = ref(null)  // 'arrow_left' | 'arrow_right' | null
-
-// 多指针状态 (替换原来的单一 highlightedIndices)
-const pointerStates = ref({
-  head: -1,
-  prev: -1,
-  current: -1,
-  new_node: -1
-})
-
-// 🔥 新增缺失的响应式变量
-const animationSteps = ref([])  // 动画步骤
-const animatingPath = ref([])  // 当前遍历路径
-const comparingNode = ref(-1)  // 正在比较的节点
-const comparisonResult = ref('')  // 比较结果
+// 🔥 布局相关状态
+const nodePositions = ref({})  // { nodeId: { x, y } }
+const edges = ref([])          // [{ id, path, start, end }]
+const canvasSize = ref({ width: 1200, height: 800 })
+const layoutEngine = new TreeLayoutEngine(60, 60, 120, 80)
 
 // 计算属性
 const structureTitle = computed(() => {
   const titles = {
     'binary': 'Binary Tree Visualization',
     'bst': 'Binary Search Tree Visualization',
+    'avl': 'AVL Tree Visualization',
     'huffman': 'Huffman Tree Visualization'
   }
   return titles[structureType.value] || 'Tree Structure Visualization'
@@ -248,7 +266,7 @@ const availableOperations = computed(() => {
       { value: 'delete', label: 'Delete' },
       { value: 'search', label: 'Search' }
     ],
-    'avl': [  // 添加这个
+    'avl': [
       { value: 'insert', label: 'Insert' },
       { value: 'delete', label: 'Delete' },
       { value: 'search', label: 'Search' }
@@ -276,6 +294,83 @@ const canExecute = computed(() => {
   return true
 })
 
+// 🔥 核心方法：计算树的布局
+const calculateTreeLayout = () => {
+  if (!treeData.value?.root) {
+    nodePositions.value = {}
+    edges.value = []
+    return
+  }
+
+  console.log('🔄 重新计算树布局...')
+
+  // 使用布局引擎计算
+  const layout = layoutEngine.getLayout(treeData.value.root)
+
+  nodePositions.value = layout.positions
+  edges.value = layout.edges
+  canvasSize.value = {
+    width: layout.width,
+    height: layout.height
+  }
+
+  console.log('✓ 布局计算完成:', {
+    节点数: Object.keys(layout.positions).length,
+    连接线数: layout.edges.length,
+    画布大小: layout.width + 'x' + layout.height
+  })
+}
+
+// 🔥 辅助方法：根据ID查找节点
+const findNodeById = (node, targetId) => {
+  if (!node) return null
+  if (node.node_id === targetId) return node
+
+  const leftResult = findNodeById(node.left, targetId)
+  if (leftResult) return leftResult
+
+  return findNodeById(node.right, targetId)
+}
+
+// 🔥 动画播放器（每步重新计算布局）
+const playTreeAnimationSteps = async (steps) => {
+  isAnimating.value = true
+  console.log('🎬 开始播放动画，共', steps.length, '步')
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i]
+    console.log(`Step ${i + 1}/${steps.length}:`, step.description)
+
+    // 1. 更新描述
+    lastOperation.value = step.description || ''
+
+    // 2. 🔥 如果有树快照，更新树数据并重新计算布局
+    if (step.tree_snapshot) {
+      treeData.value = step.tree_snapshot
+      await nextTick()  // 等待DOM更新
+      calculateTreeLayout()  // 重新计算布局
+    }
+
+    // 3. 更新高亮节点
+    if (step.node_id && step.node_id !== -1) {
+      highlightedNodes.value = [step.node_id]
+    } else if (step.highlight_indices) {
+      highlightedNodes.value = step.highlight_indices
+    } else {
+      highlightedNodes.value = []
+    }
+
+    // 4. 延迟
+    const baseDelay = step.duration || 0.5
+    const delay = (baseDelay / animationSpeed.value) * 1000
+    await new Promise(resolve => setTimeout(resolve, delay))
+  }
+
+  console.log('✓ 动画播放完毕')
+  highlightedNodes.value = []
+  isAnimating.value = false
+}
+
 // 方法
 const createStructure = async () => {
   try {
@@ -287,70 +382,6 @@ const createStructure = async () => {
     alert('Failed to create tree structure')
   }
 }
-
-
-
-// 🔥 树结构的动画调度器（不同于线性结构）
-const playTreeAnimationSteps = async (steps) => {
-  isPlaying.value = true
-  animationSteps.value = steps
-  console.log('开始播放树动画，共', steps.length, '步')
-
-  for (let i = 0; i < steps.length; i++) {
-    if (!isPlaying.value) break  // 支持暂停
-
-    const step = steps[i]
-    currentStepIndex.value = i
-
-    console.log(`Step ${i + 1}:`, step.description)
-
-    // 1. 更新描述
-    lastOperation.value = step.description || ''
-
-    // 2. 更新高亮节点（树结构用 node_id）
-    if (step.node_id && step.node_id !== -1) {
-      highlightedNodes.value = [step.node_id]
-    } else {
-      highlightedNodes.value = []
-    }
-
-    // 3. 更新遍历路径（用于显示搜索/插入的遍历过程）
-    if (step.operation === 'TRAVERSE_LEFT' || step.operation === 'TRAVERSE_RIGHT') {
-      animatingPath.value.push(step.node_id)
-      console.log('当前遍历路径:', animatingPath.value)
-    }
-
-    // 4. 更新比较结果（用于显示比较的节点）
-    if (step.operation === 'COMPARE') {
-      comparingNode.value = step.node_id
-      comparisonResult.value = step.comparison_result || ''
-    } else {
-      comparingNode.value = -1
-      comparisonResult.value = ''
-    }
-
-    // 5. 如果有树快照，实时更新树结构（用于插入/删除动画）
-    if (step.tree_snapshot) {
-      treeData.value = step.tree_snapshot
-      console.log('更新树快照:', step.tree_snapshot)
-    }
-
-    // 6. 延迟（根据速度调整）
-    const baseDelay = step.duration || 0.5
-    const delay = (baseDelay / animationSpeed.value) * 1000
-    await new Promise(resolve => setTimeout(resolve, delay))
-  }
-
-  console.log('动画播放完毕')
-
-  // 播放完毕，清除高亮和路径
-  highlightedNodes.value = []
-  animatingPath.value = []
-  comparingNode.value = -1
-  comparisonResult.value = ''
-  isPlaying.value = false
-}
-
 
 const executeOperation = async () => {
   if (!structureId.value || !canExecute.value) return
@@ -368,26 +399,42 @@ const executeOperation = async () => {
           response = await api.buildHuffmanTree(structureId.value, huffmanText.value)
         }
         break
-      // ... 其他 case
+      case 'insert': {
+        const val = isNaN(Number(inputValue.value)) ? inputValue.value : Number(inputValue.value)
+        response = await api.insertTreeNode(structureId.value, val)
+        break
+      }
+      case 'delete': {
+        const val = isNaN(Number(inputValue.value)) ? inputValue.value : Number(inputValue.value)
+        response = await api.deleteTreeNode(structureId.value, val)
+        break
+      }
+      case 'search': {
+        const val = isNaN(Number(inputValue.value)) ? inputValue.value : Number(inputValue.value)
+        response = await api.searchTreeNode(structureId.value, val)
+        break
+      }
+      default:
+        console.warn('未处理的操作:', currentOperation.value)
+        break
     }
 
     if (response) {
       console.log('收到响应:', response)
 
-      // ❌ 错误做法: 直接更新树数据
-      // treeData.value = response.tree_data
-
-      // ✅ 正确做法: 先获取步骤
       const steps = response.operation_history || []
       console.log('操作步骤数:', steps.length)
 
       // 🔥 关键: 先播放动画,再更新最终数据
       if (steps.length > 0) {
-        await playTreeAnimationSteps(steps)  // 等待动画播放完成
+        await playTreeAnimationSteps(steps)
       }
 
       // 动画播放完后更新最终状态
-      treeData.value = response.tree_data  // 🔥 移到这里
+      treeData.value = response.tree_data
+      await nextTick()
+      calculateTreeLayout()  // 🔥 最终布局计算
+
       operationHistory.value = steps
 
       if (structureType.value === 'huffman' && response.tree_data?.huffman_codes) {
@@ -410,53 +457,6 @@ const executeOperation = async () => {
   }
 }
 
-// ===== 🎬 核心: 动画调度器 =====
-const playOperationSteps = async (steps) => {
-  isPlaying.value = true
-  console.log('开始播放树操作动画,共', steps.length, '步')
-
-  for (let i = 0; i < steps.length; i++) {
-    const step = steps[i]
-    currentStepIndex.value = i
-
-    console.log(`Step ${i + 1}/${steps.length}:`, step.description)
-
-    // 1. 更新描述文字
-    lastOperation.value = step.description || ''
-
-    // 2. 🔥 高亮当前节点
-    if (step.node_id && step.node_id !== -1) {
-      highlightedNodes.value = [step.node_id]
-    } else if (step.highlight_indices) {
-      highlightedNodes.value = step.highlight_indices
-    } else {
-      highlightedNodes.value = []
-    }
-
-
-
-    // 4. 🔥 特殊动画效果
-    if (step.animation_type === 'arrow_left' || step.animation_type === 'arrow_right') {
-      // 显示箭头动画 (CSS 实现)
-      showDirectionArrow.value = step.animation_type
-      await new Promise(resolve => setTimeout(resolve, 300))
-      showDirectionArrow.value = null
-    }
-
-    // 5. 延迟 (根据速度调整)
-    const baseDelay = step.duration || 0.5
-    const delay = (baseDelay / animationSpeed.value) * 1000
-    await new Promise(resolve => setTimeout(resolve, delay))
-  }
-
-  console.log('树动画播放完毕')
-
-  // 清除高亮
-  highlightedNodes.value = []
-  isPlaying.value = false
-}
-
-
 const clearStructure = async () => {
   if (!structureId.value) return
 
@@ -467,6 +467,8 @@ const clearStructure = async () => {
     huffmanCodes.value = null
     lastOperation.value = 'Structure cleared'
     highlightedNodes.value = []
+    nodePositions.value = {}
+    edges.value = []
   } catch (error) {
     console.error('Failed to clear structure:', error)
   }
@@ -476,10 +478,7 @@ const saveStructure = async () => {
   if (!structureId.value) return
 
   try {
-    // 调用导出API
     const data = await api.exportStructure(structureId.value)
-
-    // 创建下载
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -487,7 +486,6 @@ const saveStructure = async () => {
     a.download = `${structureType.value}_${new Date().getTime()}.json`
     a.click()
     URL.revokeObjectURL(url)
-
     alert('保存成功！')
   } catch (error) {
     console.error('保存失败:', error)
@@ -495,10 +493,17 @@ const saveStructure = async () => {
   }
 }
 
-
 const goBack = () => {
   router.push('/tree')
 }
+
+// 🔥 监听树数据变化，自动重新计算布局
+watch(() => treeData.value, async (newData) => {
+  if (newData?.root) {
+    await nextTick()
+    calculateTreeLayout()
+  }
+}, { deep: true })
 
 // 生命周期
 onMounted(async () => {
@@ -507,6 +512,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* ... 保持原有样式不变 ... */
 .visualization-container {
   position: fixed;
   inset: 0;
@@ -515,7 +521,6 @@ onMounted(async () => {
   background-color: #f9fafb;
 }
 
-/* 控制栏 */
 .control-bar {
   display: flex;
   justify-content: space-between;
@@ -574,7 +579,6 @@ onMounted(async () => {
   border-color: #9ca3af;
 }
 
-/* 操作面板 */
 .operation-panel {
   display: flex;
   gap: 1rem;
@@ -670,7 +674,6 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-/* 可视化区域 */
 .visualization-area {
   flex: 1;
   padding: 2rem;
@@ -682,7 +685,6 @@ onMounted(async () => {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 2rem;
 }
 
 .empty-state {
@@ -702,13 +704,35 @@ onMounted(async () => {
   font-size: 1.125rem;
 }
 
+/* 🔥 关键样式：树画布 */
 .tree-canvas {
+  position: relative;
   width: 100%;
-  display: flex;
-  justify-content: center;
+  min-height: 600px;
 }
 
-/* 状态栏 */
+.connection-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.nodes-layer {
+  position: relative;
+  z-index: 2;
+}
+
+.edge-line {
+  transition: stroke 0.3s ease;
+}
+
+.edge-line:hover {
+  stroke: #3b82f6;
+  stroke-width: 3;
+}
+
 .status-bar {
   display: flex;
   gap: 2rem;
@@ -739,7 +763,6 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-/* Huffman编码表 */
 .huffman-panel {
   position: fixed;
   top: 50%;
@@ -791,7 +814,6 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-/* 操作历史面板 */
 .history-panel {
   position: fixed;
   bottom: 0;
