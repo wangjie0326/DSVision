@@ -592,7 +592,7 @@ def import_structure():
 
         structure_type_name = data['structure_type']
         category = data.get('category', 'linear')
-        structure_id = str(uuid.uuid4())
+        structure_id = str(uuid.uuid4()) #生成新id
 
         # 根据类型创建结构
         type_mapping = {
@@ -632,8 +632,14 @@ def import_structure():
                 # Huffman树需要特殊处理
                 if 'huffman_text' in data:
                     structure.build_from_string(data['huffman_text'])
-                elif 'huffman_weights' in data:
-                    structure.build_from_weights(data['huffman_weights'])
+                elif 'huffman_weights' in data.get('tree_data', {}):
+                    # 修正：从 tree_data 中提取权重
+                    weights = {}
+                    # 需要从树结构中提取字符和权重
+                    traversal = data.get('tree_data', {}).get('traversals', {}).get('inorder', [])
+                    # 简化处理：直接用层序遍历重建
+                    for value in traversal:
+                        structure.insert(value)
             else:
                 # 普通树：通过遍历序列重建
                 tree_data = data.get('tree_data', {})
@@ -641,6 +647,7 @@ def import_structure():
                 for value in traversal:
                     structure.insert(value)
 
+        #保存到全局字典
         structures[structure_id] = structure
 
         return jsonify({

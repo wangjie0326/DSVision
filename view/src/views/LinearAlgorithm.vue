@@ -210,7 +210,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted,watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '../services/api.js'
 
@@ -480,7 +480,63 @@ const goBack = () => {
 
 // 生命周期
 onMounted(async () => {
-  await createStructure()
+  await createOrLoadStructure()
+})
+
+const createOrLoadStructure = async()=>{
+  const importId = route.query.importId
+  if(importId){
+    //如果有importid说明是导入进来的
+    console.log('检测到了id，加载已有数据结构',importId)
+    structureId.value = importId
+
+    try{
+      //从后端获取数据结构
+      const response = response.data || []
+      console.log('加载的数据:', response)
+      //恢复状态
+      elements.value = response.data || []
+      capacity.value = response.capacity || 100
+      operationHistory.value = response.operation_history || []
+
+      if (response.operation_history && response.operation_history.length > 0) {
+        const lastStep = response.operation_history[response.operation_history.length - 1]
+        lastOperation.value = lastStep.description || '已加载保存的数据结构'
+      } else {
+        lastOperation.value = '已加载保存的数据结构'
+      }
+      console.log('✅ 数据结构加载完成:', {
+        elements: elements.value,
+        size: elements.value.length
+      })
+    }catch (error) {
+      console.error('加载数据结构失败:', error)
+      alert('加载失败，将创建新的数据结构')
+      // 如果加载失败，创建新的
+      await createNewStructure()
+    }
+  }else {
+    //没有 importId，创建新的数据结构
+    await createNewStructure()
+  }
+}
+//新增创建数据结构的独立函数
+const createNewStructure = async () => {
+  try {
+    const response = await api.createStructure(structureType.value, capacity.value)
+    structureId.value = response.structure_id
+    console.log('新建数据结构:', response)
+  } catch (error) {
+    console.error('创建数据结构失败:', error)
+    alert('创建数据结构失败')
+  }
+}
+
+//监听路由变化（可选，用于热重载场景）
+watch(() => route.query.importId, async (newId) => {
+  if (newId && newId !== structureId.value) {
+    await createOrLoadStructure()
+  }
 })
 </script>
 
