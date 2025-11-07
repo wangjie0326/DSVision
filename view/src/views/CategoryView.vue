@@ -75,7 +75,7 @@ const selectCategory = (categoryId) => {
   }, 800)
 }
 
-const handleImport = () => {
+const handleImport = async () => {
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = '.json'
@@ -87,15 +87,40 @@ const handleImport = () => {
     try {
       const text = await file.text()
       const data = JSON.parse(text)
+      //调用后段api
       const response = await api.importStructure(data)
 
       if (response.success) {
         alert('导入成功！')
         const category = data.category || 'linear'
+        const structureType = data.structure_type
+
+        //带上 structure_id，这样可以直接加载已有数据
         if (category === 'linear') {
-          router.push(`/linear/${response.type}`)
-        } else {
-          router.push(`/tree/${response.type}`)
+          //映射结构类型名称
+          const typeMap = {
+            'SequentialList': 'sequential',
+            'LinearLinkedList': 'linked',
+            'SequentialStack': 'stack'
+          }
+          const route = typeMap[structureType] || 'sequential'
+          router.push({
+            path: `/linear/${route}`,
+            query: { importId: response.structure_id }
+          })
+        } else if(category === 'tree') {
+          const typeMap = {
+            'BinaryTree': 'binary',
+            'BinarySearchTree': 'bst',
+            'AVLTree': 'avl',
+            'HuffmanTree': 'huffman'
+          }
+          const route = typeMap[structureType] || 'binary'
+
+          router.push({
+            path: `/tree/${route}`,
+            query: { importId: response.structure_id }
+          })
         }
       }
     } catch (error) {

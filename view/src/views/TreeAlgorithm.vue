@@ -513,7 +513,7 @@ const goBack = () => {
   router.push('/tree')
 }
 
-// 🔥 监听树数据变化，自动重新计算布局
+// 监听树数据变化，自动重新计算布局
 watch(() => treeData.value, async (newData) => {
   if (newData?.root) {
     await nextTick()
@@ -523,8 +523,73 @@ watch(() => treeData.value, async (newData) => {
 
 // 生命周期
 onMounted(async () => {
-  await createStructure()
+  await createOrLoadTreeStructure()
 })
+
+// 创建或加载树结构
+const createOrLoadTreeStructure = async () => {
+  const importId = route.query.importId
+
+  if (importId) {
+    // 如果有 importId，加载已有数据
+    console.log('📦 检测到导入ID，加载树结构:', importId)
+    structureId.value = importId
+
+    try {
+      // 从后端获取树状态
+      const response = await api.getTreeState(importId)
+      console.log('✅ 加载的树数据:', response)
+
+      // 恢复状态
+      treeData.value = response.tree_data
+      operationHistory.value = response.operation_history || []
+
+      if (structureType.value === 'huffman' && response.tree_data?.huffman_codes) {
+        huffmanCodes.value = response.tree_data.huffman_codes
+      }
+
+      if (response.operation_history && response.operation_history.length > 0) {
+        const lastStep = response.operation_history[response.operation_history.length - 1]
+        lastOperation.value = lastStep.description || '已加载保存的树结构'
+      } else {
+        lastOperation.value = '已加载保存的树结构'
+      }
+
+      // 重新计算布局
+      await nextTick()
+      calculateTreeLayout()
+
+      console.log('树结构加载完成')
+
+    } catch (error) {
+      console.error('加载树结构失败:', error)
+      alert('加载失败，将创建新的树结构')
+      await createNewTreeStructure()
+    }
+  } else {
+    // 创建新树结构
+    await createNewTreeStructure()
+  }
+}
+
+// 新增：创建新树结构
+const createNewTreeStructure = async () => {
+  try {
+    const response = await api.createTreeStructure(structureType.value)
+    structureId.value = response.structure_id
+    console.log('新建树结构:', response)
+  } catch (error) {
+    console.error('创建树结构失败:', error)
+    alert('创建树结构失败')
+  }
+}
+// 监听路由变化
+watch(() => route.query.importId, async (newId) => {
+  if (newId && newId !== structureId.value) {
+    await createOrLoadTreeStructure()
+  }
+})
+
 </script>
 
 <style scoped>
