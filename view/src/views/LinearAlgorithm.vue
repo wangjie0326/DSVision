@@ -231,6 +231,7 @@
 import { ref, computed, onMounted,watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '../services/api.js'
+import DSLInputBar from './DSLInputBar.vue'  // 🔥 添加导入
 
 const router = useRouter()
 const route = useRoute()

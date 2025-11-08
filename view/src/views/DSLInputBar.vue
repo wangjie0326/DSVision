@@ -131,16 +131,13 @@ const executeDSL = async () => {
     statusMessage.value = '正在执行 DSL 代码...'
     statusType.value = 'info'
 
-    const response = await fetch('/api/dsl/execute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: dslInput.value })
-    })
+    // 🔥 修复: 使用正确的 API 调用
+    const response = await api.executeDSL(dslInput.value)
 
-    const result = await response.json()
+    console.log('✅ DSL 执行成功:', response)
 
-    if (!response.ok) {
-      statusMessage.value = `错误: ${result.error}`
+    if (!response.success) {
+      statusMessage.value = `错误: ${response.error}`
       statusType.value = 'error'
       setTimeout(() => { statusMessage.value = '' }, 5000)
       return
@@ -149,12 +146,14 @@ const executeDSL = async () => {
     statusMessage.value = '✓ 执行成功! 正在跳转...'
     statusType.value = 'success'
 
-    // 跳转到可视化页面
-    if (result.structures && result.structures.length > 0) {
-      const firstStruct = result.structures[0]
-      const category = firstStruct.category
+    // 🔥 修复: 正确处理返回数据
+    if (response.structures && response.structures.length > 0) {
+      const firstStruct = response.structures[0]
+      const category = firstStruct.category  // 'linear' 或 'tree'
       const type = firstStruct.type
       const structureId = firstStruct.structure_id
+
+      console.log('📊 跳转信息:', { category, type, structureId })
 
       setTimeout(() => {
         if (category === 'linear') {
@@ -169,10 +168,14 @@ const executeDSL = async () => {
           })
         }
       }, 800)
+    } else {
+      statusMessage.value = '⚠️ 执行成功但没有返回数据结构'
+      statusType.value = 'error'
+      setTimeout(() => { statusMessage.value = '' }, 3000)
     }
   } catch (error) {
-    console.error('DSL 执行失败:', error)
-    statusMessage.value = '执行失败: ' + error.message
+    console.error('❌ DSL 执行失败:', error)
+    statusMessage.value = '执行失败: ' + (error.response?.data?.error || error.message)
     statusType.value = 'error'
     setTimeout(() => { statusMessage.value = '' }, 5000)
   }
