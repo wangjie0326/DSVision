@@ -719,6 +719,7 @@ def execute_dsl():
     }
     """
     try:
+        ##获取请求数据
         data = request.json
         dsl_code = data.get('code', '')
         session_id = data.get('session_id', str(uuid.uuid4()))
@@ -748,8 +749,8 @@ def execute_dsl():
 
         interpreter = interpreters[session_id]
 
-        #执行dsl
-        result = interpreter.interpret(ast)
+        # 执行dsl
+        result = interpreter.execute(ast)  # 修复: 使用正确的方法名
         print(f"✓ DSL 执行完成")
 
         #提取结构信息
@@ -757,11 +758,11 @@ def execute_dsl():
             'success': True,
             'session_id': session_id,
             'execution_log':result['execution_log'],
-            'structure': []
+            'structures': []
         }
 
         #遍历每个创建的结构
-        for struct_name, struct_result in result['result'].items():
+        for struct_name, struct_result in result['results'].items():
             struct_type = struct_result['type']
 
             # 从解释器上下文中获取实际的结构实例
