@@ -560,23 +560,27 @@ def export_structure(structure_id):
                 'category': 'linear',
                 'data': structure.to_list(),
                 'size': structure.size(),
-                'capacity': getattr(structure, '_capacity', None),
-                'operation_history': [step.to_dict() for step in structure.get_operation_history()]
+                'capacity': getattr(structure, '_capacity', None)
             }
         else:
-            # 树结构
+            #树结构
+            tree_data = structure.get_tree_data()
             export_data = {
                 'version': '1.0',
                 'timestamp': datetime.now().isoformat(),
                 'structure_type': type(structure).__name__,
                 'category': 'tree',
-                'tree_data': structure.get_tree_data(),
-                'operation_history': [step.to_dict() for step in structure.get_operation_history()]
+                'tree_data': tree_data,
+                'huffman_codes': tree_data.get('huffman_codes') if hasattr(structure, '_huffman_codes') else None,
             }
 
+        print(f"导出数据结构: {export_data['structure_type']}, size={export_data.get('size', 'N/A')}")
         return jsonify(export_data)
 
     except Exception as e:
+        print(f"导出失败: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -621,40 +625,78 @@ def import_structure():
         if category == 'linear':
             # 线性结构：批量插入数据
             linear_data = data.get('data', [])
-            for value in linear_data:
-                if structure_type == 'stack':
+            if structure_type == 'stack':
+                # 栈：依次 push
+                for value in linear_data:
                     structure.push(value)
+                    print(f"  ✓ Push: {value}")
+            else:
+                # 顺序表/链表：使用 initlist 批量初始化
+                if hasattr(structure, 'initlist') and linear_data:
+                    structure.clear_operation_history()  # 清空初始化时的历史
+                    structure.initlist(linear_data)
+                    print(f"  ✓ 批量初始化: {linear_data}")
                 else:
-                    structure.insert(structure.size(), value)
+                    # 如果没有 initlist，逐个插入
+                    for i, value in enumerate(linear_data):
+                        structure.insert(i, value)
+                        print(f"  ✓ Insert[{i}]: {value}")
+            print(f"线性结构恢复完成，当前大小: {structure.size()}")
+
         else:
+            tree_data = data.get('tree_data', {})
             # 树结构：根据类型恢复
             if structure_type == 'huffman':
                 # Huffman树需要特殊处理
                 if 'huffman_text' in data:
-                    structure.build_from_string(data['huffman_text'])
-                elif 'huffman_weights' in data.get('tree_data', {}):
-                    # 修正：从 tree_data 中提取权重
-                    weights = {}
-                    # 需要从树结构中提取字符和权重
-                    traversal = data.get('tree_data', {}).get('traversals', {}).get('inorder', [])
-                    # 简化处理：直接用层序遍历重建
-                    for value in traversal:
-                        structure.insert(value)
+                    text = data['huffman_text']
+                    structure.build_from_string(text)
+                    print(f"  ✓ 从文本重建: {text}")
+                elif tree_data.get('huffman_codes'):
+                    # 从编码表重建（需要反推权重）
+                    # 简化：从层序遍历重建
+                    levelorder = tree_data.get('traversals', {}).get('levelorder', [])
+                    if levelorder:
+                        # Huffman树无法直接从遍历序列重建，需要保存权重信息
+                        print("Huffman树需要保存原始文本或权重信息")
+                else:
+                    print("Huffman树缺少重建信息")
             else:
-                # 普通树：通过遍历序列重建
-                tree_data = data.get('tree_data', {})
-                traversal = tree_data.get('traversals', {}).get('levelorder', [])
-                for value in traversal:
-                    structure.insert(value)
+                # 普通树：从层序遍历重建
+                levelorder = tree_data.get('traversals', {}).get('levelorder', [])
+                print(f"📊 恢复树数据 (层序): {levelorder}")
+
+                # 清空初始化历史
+                structure.clear_operation_history()
+
+                # 逐个插入节点
+                for value in levelorder:
+                    # 转换类型（重要！）
+                    converted_value = _convert_tree_value(value)
+                    structure.insert(converted_value)
+                    print(f"  ✓ Insert: {converted_value}")
+
+                print(f"树结构恢复完成，节点数: {structure.size()}")
 
         #保存到全局字典
         structures[structure_id] = structure
+
+        # 验证恢复结果
+        if category == 'linear':
+            restored_data = structure.to_list()
+            print(f"🔍 验证恢复数据: {restored_data}")
+        else:
+            restored_tree = structure.get_tree_data()
+            print(f"🔍 验证恢复树: size={restored_tree.get('size')}")
+
 
         return jsonify({
             'success': True,
             'structure_id': structure_id,
             'type': structure_type,
-            'message': f'成功导入{structure_type_name}'
+            'message': f'成功导入{structure_type_name}',
+            #用于前端验证
+            'restored_size': structure.size()
         })
 
     except Exception as e:

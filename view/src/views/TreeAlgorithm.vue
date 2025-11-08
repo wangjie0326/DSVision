@@ -532,38 +532,59 @@ const createOrLoadTreeStructure = async () => {
 
   if (importId) {
     // 如果有 importId，加载已有数据
-    console.log('📦 检测到导入ID，加载树结构:', importId)
+    console.log('检测到导入ID，加载树结构:', importId)
     structureId.value = importId
 
     try {
       // 从后端获取树状态
       const response = await api.getTreeState(importId)
-      console.log('✅ 加载的树数据:', response)
+      console.log('加载的树数据:', response)
 
-      // 恢复状态
-      treeData.value = response.tree_data
-      operationHistory.value = response.operation_history || []
-
-      if (structureType.value === 'huffman' && response.tree_data?.huffman_codes) {
-        huffmanCodes.value = response.tree_data.huffman_codes
-      }
-
-      if (response.operation_history && response.operation_history.length > 0) {
-        const lastStep = response.operation_history[response.operation_history.length - 1]
-        lastOperation.value = lastStep.description || '已加载保存的树结构'
+      // 🔥 验证树数据
+      if (!response.tree_data || !response.tree_data.root) {
+        console.warn('⚠️ 后端返回的树数据为空')
+        lastOperation.value = '导入的树结构为空'
       } else {
-        lastOperation.value = '已加载保存的树结构'
+        console.log(`✅ 成功加载树结构: ${response.tree_data.size} 个节点`)
+
+        // 🔥 恢复状态
+        treeData.value = response.tree_data
+        operationHistory.value = response.operation_history || []
+
+        // 🔥 Huffman树的编码表
+        if (structureType.value === 'huffman' && response.tree_data?.huffman_codes) {
+          huffmanCodes.value = response.tree_data.huffman_codes
+          console.log('✅ 恢复Huffman编码表:', huffmanCodes.value)
+        }
+
+        // 🔥 显示加载提示
+        lastOperation.value = `✅ 已加载保存的树 (${response.tree_data.size} 个节点)`
+
+        // 🔥 重新计算布局
+        await nextTick()
+        calculateTreeLayout()
+
+        // 🔥 可选：高亮所有节点
+        if (response.tree_data.traversals?.levelorder) {
+          const allNodeIds = []
+          const collectIds = (node) => {
+            if (!node) return
+            allNodeIds.push(node.node_id)
+            collectIds(node.left)
+            collectIds(node.right)
+          }
+          collectIds(response.tree_data.root)
+
+          highlightedNodes.value = allNodeIds
+          setTimeout(() => {
+            highlightedNodes.value = []
+          }, 1500)
+        }
       }
-
-      // 重新计算布局
-      await nextTick()
-      calculateTreeLayout()
-
-      console.log('树结构加载完成')
 
     } catch (error) {
       console.error('加载树结构失败:', error)
-      alert('加载失败，将创建新的树结构')
+      alert('加载失败，将创建新的树结构'+ (error.response?.data?.error || error.message))
       await createNewTreeStructure()
     }
   } else {
