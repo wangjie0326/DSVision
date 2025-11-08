@@ -9,6 +9,22 @@
           </svg>
         </button>
         <h2 class="structure-title">{{ structureTitle }}</h2>
+        <!-- 🔥 新增: 显示来源标识 -->
+        <span v-if="fromDSL" class="source-badge dsl">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          DSL
+        </span>
+        <span v-else-if="fromImport" class="source-badge import">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Imported
+        </span>
       </div>
 
       <div class="control-right">
@@ -91,7 +107,7 @@
     </div>
 
     <!-- 可视化区域 -->
-    <div class="visualization-area">
+    <div class="visualization-area" :style="{ paddingBottom: '180px' }">
       <div class="canvas-wrapper">
         <div v-if="elements.length === 0" class="empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
@@ -206,6 +222,8 @@
         </div>
       </div>
     </div>
+    <!-- 🔥 新增: DSL 输入栏 -->
+    <DSLInputBar />
   </div>
 </template>
 
@@ -222,6 +240,10 @@ const structureType = ref(route.params.type || 'sequential')
 const structureId = ref(null)
 const elements = ref([])
 const capacity = ref(100)
+
+// 🔥 新增: 来源标识
+const fromDSL = ref(route.query.fromDSL === 'true')
+const fromImport = ref(route.query.fromImport === 'true')
 
 // 🔥 操作相关 - 保持原有的操作类型
 const currentOperation = ref('insert')
@@ -496,21 +518,26 @@ const createOrLoadStructure = async()=>{
       console.log('加载的数据:', response)
 
 
-      // 关键：验证数据是否存在
+      // 🔥 关键：验证数据是否存在
       if (!response.data || response.data.length === 0) {
         console.warn('后端返回的数据为空')
         lastOperation.value = '导入的数据结构为空'
       } else {
-        console.log(`成功加载 ${response.data.length} 个元素:`, response.data)
+        console.log(`✓ 成功加载 ${response.data.length} 个元素:`, response.data)
 
         // 恢复状态
         elements.value = response.data
         capacity.value = response.capacity || 100
+        operationHistory.value = response.operation_history || []
 
-        // 显示加载提示
-        lastOperation.value = `已加载保存的数据 (${elements.value.length} 个元素)`
+        // 🔥 根据来源显示不同提示
+        if (fromDSL.value) {
+          lastOperation.value = `✓ 已加载 DSL 执行结果 (${elements.value.length} 个元素)`
+        } else {
+          lastOperation.value = `✓ 已加载保存的数据 (${elements.value.length} 个元素)`
+        }
 
-        // 可选：显示一个短暂的高亮动画
+        // 🔥 可选：高亮动画
         highlightedIndices.value = elements.value.map((_, idx) => idx)
         setTimeout(() => {
           highlightedIndices.value = []
@@ -1047,6 +1074,30 @@ watch(() => route.query.importId, async (newId) => {
   background-color: #f59e0b; /* 橙色 */
 }
 
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.source-badge.dsl {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.source-badge.import {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
+}
 @keyframes pointerPulse {
   0%, 100% {
     transform: scale(1);

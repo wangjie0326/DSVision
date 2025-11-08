@@ -240,4 +240,30 @@ export default{
   importStructure(structureData) {
     return apiClient.post('/structure/import', structureData);
   },
+  // ==================== DSL 相关接口 ====================
+
+  // 执行 DSL 代码
+  executeDSL(code, sessionId = null) {
+    return apiClient.post('/dsl/execute', {
+      code,
+      session_id: sessionId
+    });
+  },
+
+  // 验证 DSL 语法
+  validateDSL(code) {
+    return apiClient.post('/dsl/validate', {
+      code
+    });
+  },
+
+  // 获取 DSL 示例
+  getDSLExamples() {
+    return apiClient.get('/dsl/examples');
+  },
+
+  // 删除 DSL 会话
+  deleteDSLSession(sessionId) {
+    return apiClient.delete(`/dsl/session/${sessionId}`);
+  }
 };
