@@ -704,6 +704,264 @@ def import_structure():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+from dsvision.extend1_dsl.lexer import Lexer
+from dsvision.extend1_dsl.parser import Parser
+from dsvision.extend1_dsl.interpreter import Interpreter, SimpleStructureManager
+# 全局解释器管理器
+interpreters = {}
+@app.route('/dsl/execute', methods=['POST'])
+def execute_dsl():
+    """
+    执行dsl代码
+    请求体: {
+        "code": "Sequential myList { init [1,2,3] insert 10 at 2 }",
+        "session_id": "optional-session-id"  # 可选,用于保持会话
+    }
+    """
+    try:
+        data = request.json
+        dsl_code = data.get('code', '')
+        session_id = data.get('session_id', str(uuid.uuid4()))
+
+        if not dsl_code.strip():
+            return jsonify({'error': 'DSL 代码不能为空'}), 400
+
+        print(f"\n{'=' * 60}")
+        print(f"收到 DSL 执行请求 (Session: {session_id})")
+        print(f"代码:\n{dsl_code}")
+        print(f"{'=' * 60}\n")
+
+        #词法分析
+        lexer = Lexer(dsl_code)
+        tokens = lexer.tokenize()
+        print(f"✓ 词法分析完成, Token 数: {len(tokens)}")
+
+        #语法分析
+        parser = Parser(tokens)
+        ast = parser.parse()
+        print(f"✓ 语法分析完成, 结构数: {len(ast.structures)}")
+
+        #创建或获取解释器
+        if session_id not in interpreters:
+            manager = SimpleStructureManager()
+            interpreters[session_id] = Interpreter(manager)
+
+        interpreter = interpreters[session_id]
+
+        #执行dsl
+        result = interpreter.interpret(ast)
+        print(f"✓ DSL 执行完成")
+
+        #提取结构信息
+        response_data = {
+            'success': True,
+            'session_id': session_id,
+            'execution_log':result['execution_log'],
+            'structure': []
+        }
+
+        #遍历每个创建的结构
+        for struct_name, struct_result in result['result'].items():
+            struct_type = struct_result['type']
+
+            # 从解释器上下文中获取实际的结构实例
+            if struct_name in interpreter.context.structures:
+                struct_info = interpreter.context.structures[struct_name]
+                structure = struct_info['instance']
+
+                # 注册到全局 structures 字典,生成 ID
+                structure_id = str(uuid.uuid4())
+                structures[structure_id] = structure
+
+                # 准备返回数据
+                struct_data = {
+                    'name': struct_name,
+                    'type': struct_type,
+                    'structure_id': structure_id,
+                    'operations_count': struct_result['operations_count']
+                }
+
+                # 根据结构类型返回数据
+                if struct_type in ['sequential', 'linked', 'stack', 'queue']:
+                    # 线性结构
+                    struct_data['data'] = structure.to_list()
+                    struct_data['size'] = structure.size()
+                    struct_data['category'] = 'linear'
+                elif struct_type in ['binary', 'bst', 'avl', 'huffman']:
+                    # 树结构
+                    struct_data['tree_data'] = structure.get_tree_data()
+                    struct_data['size'] = structure.size()
+                    struct_data['category'] = 'tree'
+
+                    # Huffman 特殊处理
+                    if struct_type == 'huffman' and hasattr(structure, 'get_huffman_codes'):
+                        struct_data['huffman_codes'] = structure.get_huffman_codes()
+
+                response_data['structures'].append(struct_data)
+
+        print(f"\n✓ 成功执行,返回 {len(response_data['structures'])} 个结构\n")
+        return jsonify(response_data)
+
+    except SyntaxError as e:
+        print(f"✗ 语法错误: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'语法错误: {str(e)}',
+            'error_type': 'SyntaxError'
+        }), 400
+
+    except Exception as e:
+        print(f"✗ 执行错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'error_type': type(e).__name__
+        }), 500
+
+@app.route('/dsl/validate', methods=['POST'])
+def validate_dsl():
+    """
+    验证 DSL 代码语法
+    请求体: { "code": "..." }
+    """
+    try:
+        data = request.json
+        dsl_code = data.get('code', '')
+
+        # 词法分析
+        lexer = Lexer(dsl_code)
+        tokens = lexer.tokenize()
+
+        # 语法分析
+        parser = Parser(tokens)
+        ast = parser.parse()
+
+        return jsonify({
+            'valid': True,
+            'token_count': len(tokens),
+            'structure_count': len(ast.structures),
+            'message': '代码语法正确'
+        })
+
+    except SyntaxError as e:
+        return jsonify({
+            'valid': False,
+            'error': str(e),
+            'error_type': 'SyntaxError'
+        }), 400
+
+    except Exception as e:
+        return jsonify({
+            'valid': False,
+            'error': str(e),
+            'error_type': type(e).__name__
+        }), 400
+
+
+@app.route('/dsl/session/<session_id>', methods=['DELETE'])
+def delete_dsl_session(session_id):
+    """删除 DSL 会话"""
+    try:
+        if session_id in interpreters:
+            # 清理解释器中的结构
+            interpreter = interpreters[session_id]
+            for struct_name in list(interpreter.context.structures.keys()):
+                struct_info = interpreter.context.structures[struct_name]
+                # 从全局 structures 中移除
+                for sid, s in list(structures.items()):
+                    if s is struct_info['instance']:
+                        del structures[sid]
+
+            del interpreters[session_id]
+            return jsonify({
+                'success': True,
+                'message': f'会话 {session_id} 已删除'
+            })
+        else:
+            return jsonify({'error': '会话不存在'}), 404
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/dsl/examples', methods=['GET'])
+def get_dsl_examples():
+    """获取 DSL 示例代码"""
+    examples = {
+        'sequential': """Sequential myList {
+    init [1, 2, 3, 4, 5]
+    insert 10 at 2
+    search 10
+    delete at 3
+}""",
+        'linked': """Linked myLinkedList {
+    init [1, 2, 3]
+    insert_head 0
+    insert_tail 4
+    search 2
+}""",
+        'stack': """Stack myStack {
+    push 1
+    push 2
+    push 3
+    peek
+    pop
+}""",
+        'bst': """BST myBST {
+    insert 50
+    insert 30
+    insert 70
+    insert 20
+    insert 40
+    traverse inorder
+    min
+    max
+}""",
+        'avl': """AVL myAVL {
+    insert 10
+    insert 20
+    insert 30
+    insert 40
+    insert 50
+    traverse levelorder
+}""",
+        'huffman': """Huffman myHuffman {
+    build_text "ABRACADABRA"
+    show_codes
+    encode "ABRA"
+}""",
+        'complex': """// 复杂示例：多个结构
+Sequential list1 {
+    init [1, 2, 3, 4, 5]
+    insert 10 at 2
+}
+
+BST tree1 {
+    insert 50
+    insert 30
+    insert 70
+    traverse inorder
+}
+
+Stack stack1 {
+    push 1
+    push 2
+    push 3
+}"""
+    }
+
+    return jsonify({
+        'examples': examples,
+        'categories': {
+            'linear': ['sequential', 'linked', 'stack'],
+            'tree': ['bst', 'avl', 'huffman'],
+            'complex': ['complex']
+        }
+    })
+
+
 if __name__ == '__main__':
     app.run()
     print("-"*50)

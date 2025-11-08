@@ -16,6 +16,7 @@
     <div class="categories-wrapper">
       <div class="categories">
         <div class="choose-text">Hi! You can choose structure first.</div>
+        <div class="choose-text">Or you can also use DSL or LLM to explore!</div>
         <div class="category-buttons">
           <button
             v-for="(category, index) in categories"
@@ -34,27 +35,76 @@
       </div>
     </div>
 
-    <!-- ChatGPT风格底部输入栏 -->
-    <div class="chat-input-bar">
-      <input
-        v-model="userInput"
-        @keyup.enter="handleSend"
-        type="text"
-        placeholder="Send an instruction here..."
-        class="chat-input"
-      />
-      <button @click="handleSend" class="send-button">
-        <svg xmlns="http://www.w3.org/2000/svg" class="send-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M5 12l14-7-4 7 4 7-14-7z" />
-        </svg>
-      </button>
+    <!-- DSL/LLM 模式选择 + 输入框 -->
+    <div class="input-section">
+      <!-- 模式选择按钮 -->
+      <div class="mode-selector">
+        <button
+          @click="currentMode = 'dsl'"
+          class="mode-button"
+          :class="{ active: currentMode === 'dsl' }"
+        >
+          <span>DSL Coding</span>
+        </button>
+        <button
+          @click="currentMode = 'llm'"
+          class="mode-button"
+          :class="{ active: currentMode === 'llm' }"
+        >
+          <span>LLM</span>
+        </button>
+      </div>
+
+
+
+    <!-- 输入框 -->
+      <div class="chat-input-bar">
+        <textarea
+          v-if="currentMode === 'dsl'"
+          v-model="dslInput"
+          @keydown.ctrl.enter="handleExecute"
+          placeholder="Enter DSL code here... (Ctrl+Enter to execute)
+Example:
+Sequential myList {
+    init [1, 2, 3, 4, 5]
+    insert 10 at 2
+}"
+          class="dsl-input"
+          rows="4"
+        />
+        <input
+          v-else
+          v-model="llmInput"
+          @keyup.enter="handleExecute"
+          type="text"
+          placeholder="Send a natural language instruction here..."
+          class="chat-input"
+        />
+        <button @click="handleExecute" class="send-button" :disabled="!canExecute">
+          <svg xmlns="http://www.w3.org/2000/svg" class="send-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12l14-7-4 7 4 7-14-7z" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- 🔥 DSL 模式下显示示例按钮 -->
+      <div v-if="currentMode === 'dsl'" class="examples-row">
+        <span class="examples-label">Quick Examples:</span>
+        <button
+          v-for="example in exampleButtons"
+          :key="example.type"
+          @click="loadExample(example.type)"
+          class="example-btn"
+        >
+          {{ example.label }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref,computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api.js'
 
@@ -63,10 +113,29 @@ const hoveredIndex = ref(null)
 const fadeOut = ref(false)
 const userInput = ref('')
 
+const currentMode = ref('dsl')  // 'dsl' 或 'llm'
+const dslInput = ref('')
+const llmInput = ref('')
+
 const categories = [
   { id: 'linear', label: 'Linear Structure' },
   { id: 'tree', label: 'Tree Structure' }
 ]
+
+const exampleButtons = [
+  { type: 'sequential', label: 'Sequential' },
+  { type: 'linked', label: 'Linked' },
+  { type: 'stack', label: 'Stack' },
+  { type: 'bst', label: 'BST' },
+  { type: 'huffman', label: 'Huffman' }
+]
+
+const canExecute = computed(() => {
+  if (currentMode.value === 'dsl') {
+    return dslInput.value.trim().length > 0
+  }
+  return llmInput.value.trim().length > 0
+})
 
 const selectCategory = (categoryId) => {
   fadeOut.value = true
@@ -132,6 +201,81 @@ const handleImport = async () => {
   input.click()
 }
 
+// 执行 DSL 或 LLM
+const handleExecute = async () => {
+  if (!canExecute.value) return
+
+  if (currentMode.value === 'dsl') {
+    await executeDSL()
+  } else {
+    await executeLLM()
+  }
+}
+// 执行 DSL 代码
+const executeDSL = async () => {
+  try {
+    console.log('执行 DSL 代码:', dslInput.value)
+
+    const response = await fetch('/api/dsl/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: dslInput.value })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      alert(`DSL 错误: ${result.error}`)
+      return
+    }
+
+    console.log('✓ DSL 执行成功:', result)
+
+    // 跳转到对应的可视化页面
+    if (result.structures && result.structures.length > 0) {
+      const firstStruct = result.structures[0]
+      const category = firstStruct.category  // 'linear' 或 'tree'
+      const type = firstStruct.type
+      const structureId = firstStruct.structure_id
+
+      // 跳转并携带 structure_id
+      if (category === 'linear') {
+        router.push({
+          path: `/linear/${type}`,
+          query: { importId: structureId, fromDSL: 'true' }
+        })
+      } else {
+        router.push({
+          path: `/tree/${type}`,
+          query: { importId: structureId, fromDSL: 'true' }
+        })
+      }
+    }
+  } catch (error) {
+    console.error('DSL 执行失败:', error)
+    alert('执行失败: ' + error.message)
+  }
+}
+
+// 🔥 执行 LLM (暂时提示未实现)
+const executeLLM = async () => {
+  alert('LLM 功能正在开发中...\n\n您输入的指令: ' + llmInput.value)
+  llmInput.value = ''
+}
+
+// 加载示例代码 //?
+const loadExample = async (exampleType) => {
+  try {
+    const response = await fetch('/api/dsl/examples')
+    const data = await response.json()
+
+    if (data.examples && data.examples[exampleType]) {
+      dslInput.value = data.examples[exampleType]
+    }
+  } catch (error) {
+    console.error('加载示例失败:', error)
+  }
+}
 const handleSend = () => {
   if (!userInput.value.trim()) return
   console.log('用户输入:', userInput.value)
@@ -233,33 +377,99 @@ const handleSend = () => {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
 }
 
-/* ChatGPT风格底部输入栏 */
-.chat-input-bar {
+/* 底部输入区域 */
+.input-section {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   background: #f9fafb;
   border-top: 1px solid #e5e7eb;
+  padding: 0rem 0 1.5rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  padding: 0.75rem 1rem;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 }
 
-.chat-input {
+/* 模式选择器 */
+.mode-selector {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  position: absolute;
+  top: -2.46rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.mode-button {
+  padding: 0.4rem 1.5rem;
+  border-radius: 9999px;
+  border: 2px solid #b3b3b3;
+  background: white;
+  color: #555555;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mode-button.active {
+  background: #8a8a8a;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mode-button:hover:not(.active) {
+  background: #f3f4f6;
+}
+
+
+/* ChatGPT风格底部输入栏 */
+.chat-input-bar {
+  width: 100%;
+  position: relative;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: flex-end;
+  padding: 0.75rem 1rem;
+  gap: 0.75rem;
+}
+
+.chat-input,
+.dsl-input{
   flex: 1;
+  width: 100%;
   padding: 1rem 1rem;
   border-radius: 1.5rem;
   border: 1px solid #d1d5db;
   outline: none;
   font-size: 1rem;
   background-color: white;
+  font-family: 'Consolas', 'Monaco', monospace;
+  resize: vertical;
+  transition: all 0.1s;
+}
+.chat-input {
+  min-height: 48px;
 }
 
-.chat-input:focus {
+.dsl-input {
+  min-height: 100px;
+  line-height: 1.6;
+}
+.chat-input:focus,
+.dsl-input:focus{
   border-color: black;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
 .send-button {
@@ -267,22 +477,61 @@ const handleSend = () => {
   color: white;
   border: none;
   border-radius: 50%;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 3.25rem;
+  height: 3.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: background 0.2s;
+  flex-shrink: 0;
 }
 
-.send-button:hover {
-  background: black;
+.send-button:hover:not(:disabled) {
+  background: #374151;
+  transform: scale(1.05);
+}
+
+.send-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .send-icon {
   width: 1.25rem;
   height: 1.25rem;
+}
+/* 🔥 示例按钮行 */
+.examples-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.examples-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.example-btn {
+  padding: 0.4rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.example-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
 }
 
 @media (max-width: 768px) {
@@ -295,5 +544,19 @@ const handleSend = () => {
     padding: 1.5rem 3rem;
     font-size: 1.25rem;
   }
+  .mode-selector {
+    flex-direction: row;
+    top: -2rem;
+  }
+
+  .examples-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .chat-input-bar {
+    width: 95%;
+    padding: 0.75rem;
+  }
+
 }
 </style>
