@@ -492,26 +492,34 @@ const createOrLoadStructure = async()=>{
 
     try{
       //从后端获取数据结构
-      const response = response.data || []
+      const response = await api.getState(importId)
       console.log('加载的数据:', response)
-      //恢复状态
-      elements.value = response.data || []
-      capacity.value = response.capacity || 100
-      operationHistory.value = response.operation_history || []
 
-      if (response.operation_history && response.operation_history.length > 0) {
-        const lastStep = response.operation_history[response.operation_history.length - 1]
-        lastOperation.value = lastStep.description || '已加载保存的数据结构'
+
+      // 关键：验证数据是否存在
+      if (!response.data || response.data.length === 0) {
+        console.warn('后端返回的数据为空')
+        lastOperation.value = '导入的数据结构为空'
       } else {
-        lastOperation.value = '已加载保存的数据结构'
+        console.log(`成功加载 ${response.data.length} 个元素:`, response.data)
+
+        // 恢复状态
+        elements.value = response.data
+        capacity.value = response.capacity || 100
+
+        // 显示加载提示
+        lastOperation.value = `已加载保存的数据 (${elements.value.length} 个元素)`
+
+        // 可选：显示一个短暂的高亮动画
+        highlightedIndices.value = elements.value.map((_, idx) => idx)
+        setTimeout(() => {
+          highlightedIndices.value = []
+        }, 1500)
       }
-      console.log('✅ 数据结构加载完成:', {
-        elements: elements.value,
-        size: elements.value.length
-      })
+
     }catch (error) {
       console.error('加载数据结构失败:', error)
-      alert('加载失败，将创建新的数据结构')
+      alert('加载失败，将创建新的数据结构'+ (error.response?.data?.error || error.message))
       // 如果加载失败，创建新的
       await createNewStructure()
     }
