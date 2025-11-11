@@ -1,17 +1,23 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from ..dsvision.extend2_llm.llm_service import LLMService
 import os
+import sys
+# 添加项目根目录到 Python 路径
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)).replace('/controller', ''))
+from dsvision.extend2_llm.llm_service import LLMService
 
 # 初始化LLM服务 (选择提供商)
 LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'openai')
-LLM_API_KEY = os.getenv('LLM_API_KEY', '')
+LLM_API_KEY = os.getenv('LLM_API_KEY')
+LLM_BASE_URL = os.getenv('LLM_BASE_URL')  # 支持自定义URL
 
 try:
-    import os
-    API_KEY = os.getenv("OPENAI_API_KEY")
-    llm_service = LLMService(provider=LLM_PROVIDER, api_key=API_KEY)
+    llm_service = LLMService(
+        provider=LLM_PROVIDER,
+        api_key=LLM_API_KEY,
+        base_url=LLM_BASE_URL
+    )
     print(f"LLM服务已启用 - 提供商: {LLM_PROVIDER}")
 except Exception as e:
     llm_service = None
@@ -985,7 +991,7 @@ Stack stack1 {
 
 # ==================== LLM 路由 ====================
 
-@app.route('/llm/chat', methods=['POST'])
+@app.route('/api/llm/chat', methods=['POST'])
 def llm_chat():
     """
     LLM对话接口 - 自然语言转DSL
@@ -1068,7 +1074,9 @@ def llm_chat():
                             'name': struct_name,
                             'type': struct_result['type'],
                             'structure_id': structure_id,
-                            'operations_count': struct_result['operations_count']
+                            'operations_count': struct_result['operations_count'],
+                            # 🔥 添加操作历史以支持动画播放
+                            'operation_history': [step.to_dict() for step in structure.get_operation_history()]
                         }
 
                         # 根据类型添加数据
@@ -1120,7 +1128,7 @@ def llm_chat():
         }), 500
 
 
-@app.route('/llm/status', methods=['GET'])
+@app.route('/api/llm/status', methods=['GET'])
 def llm_status():
     """检查LLM服务状态"""
     if llm_service:
@@ -1136,19 +1144,21 @@ def llm_status():
         }), 503
 
 
-@app.route('/llm/config', methods=['GET', 'POST'])
+@app.route('/api/llm/config', methods=['GET', 'POST'])
 def llm_config():
     """
     获取或更新LLM配置
-    POST: { "provider": "openai", "api_key": "sk-..." }
+    GET: 返回当前配置
+    POST: { "provider": "openai", "api_key": "sk-...", "base_url": "https://..." (可选) }
     """
-    global llm_service, LLM_PROVIDER, LLM_API_KEY
+    global llm_service, LLM_PROVIDER, LLM_API_KEY, LLM_BASE_URL
 
     if request.method == 'GET':
         return jsonify({
             'provider': LLM_PROVIDER,
             'api_key_set': bool(LLM_API_KEY),
-            'available_providers': ['openai', 'claude', 'tongyi']
+            'base_url': LLM_BASE_URL or '(使用默认)',
+            'available_providers': ['openai']
         })
 
     elif request.method == 'POST':
@@ -1156,20 +1166,23 @@ def llm_config():
             data = request.json
             provider = data.get('provider', LLM_PROVIDER)
             api_key = data.get('api_key', LLM_API_KEY)
+            base_url = data.get('base_url', LLM_BASE_URL)
 
             if not api_key:
                 return jsonify({'error': 'API密钥不能为空'}), 400
 
-            # 更新配置
+            # 更新全局配置
             LLM_PROVIDER = provider
             LLM_API_KEY = api_key
+            LLM_BASE_URL = base_url
 
             # 重新初始化服务
-            llm_service = LLMService(provider=provider, api_key=api_key)
+            llm_service = LLMService(provider=provider, api_key=api_key, base_url=base_url)
 
             return jsonify({
                 'success': True,
                 'provider': provider,
+                'base_url': base_url or '(使用默认)',
                 'message': 'LLM配置已更新'
             })
 
