@@ -20,7 +20,14 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:5000', // Flask 后端运行地址
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '') // 把 /api 去掉再发给 Flask
+        rewrite: (path) => {
+          // /api/llm/* 和其他新 API 保留 /api 前缀
+          if (path.startsWith('/api/llm') || path.startsWith('/api/dsl')) {
+            return path
+          }
+          // 旧 API (/api/structure 等) 去掉 /api 前缀
+          return path.replace(/^\/api/, '')
+        }
       }
     }
   }

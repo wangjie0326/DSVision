@@ -257,10 +257,62 @@ const executeDSL = async () => {
   }
 }
 
-// 🔥 执行 LLM (暂时提示未实现)
+// 🔥 执行 LLM - 自然语言转DSL并执行
 const executeLLM = async () => {
-  alert('LLM 功能正在开发中...\n\n您输入的指令: ' + llmInput.value)
-  llmInput.value = ''
+  try {
+    console.log('执行 LLM 推理:', llmInput.value)
+
+    const response = await api.llmChat(llmInput.value)
+
+    console.log('✅ LLM 推理成功:', response)
+
+    if (!response.success) {
+      alert(`错误: ${response.error}`)
+      return
+    }
+
+    // 显示推理结果
+    const llmResponse = response.llm_response
+    const dslCode = llmResponse.dsl_code
+    const explanation = llmResponse.explanation
+
+    // 如果 DSL 代码为空，显示 LLM 的解释（通常是拒绝信息）
+    if (!dslCode || dslCode.trim() === '') {
+      alert(explanation || '无法生成 DSL 代码')
+      return
+    }
+
+    alert(`✓ 推理成功!\n\nDSL 代码:\n${dslCode}\n\n说明: ${explanation}`)
+
+    // 如果有执行结果，跳转到对应视图
+    if (response.execution?.success && response.execution?.structures?.length > 0) {
+      const firstStruct = response.execution.structures[0]
+      const category = firstStruct.category  // 'linear' 或 'tree'
+      const type = firstStruct.type
+      const structureId = firstStruct.structure_id
+
+      console.log('📊 跳转信息:', { category, type, structureId })
+
+      setTimeout(() => {
+        if (category === 'linear') {
+          router.push({
+            path: `/linear/${type}`,
+            query: { importId: structureId, fromDSL: 'true' }
+          })
+        } else {
+          router.push({
+            path: `/tree/${type}`,
+            query: { importId: structureId, fromDSL: 'true' }
+          })
+        }
+      }, 800)
+    }
+
+    llmInput.value = ''
+  } catch (error) {
+    console.error('❌ LLM 推理失败:', error)
+    alert('推理失败: ' + (error.response?.data?.error || error.message))
+  }
 }
 
 // 加载示例代码 //?

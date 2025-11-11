@@ -118,42 +118,13 @@
         </div>
 
         <div v-else class="elements-container" :class="containerClass">
-          <!-- 🔥 链表的可视化 - 添加指针显示 -->
+          <!-- 🔥 链表的可视化 - 使用SVG组件 -->
           <template v-if="structureType === 'linked'">
-            <div
-              v-for="(element, index) in elements"
-              :key="`node-${index}`"
-              class="linked-node-wrapper"
-            >
-              <!-- 节点本身 -->
-              <div
-                class="linked-node"
-                :class="getNodeClass(index)"
-              >
-                <div class="node-value">{{ element }}</div>
-                <div class="node-pointer">→</div>
-              </div>
-
-              <!-- 🔥 多指针显示 -->
-              <div class="pointer-labels">
-                <span v-if="pointerStates.head === index" class="pointer-label head">HEAD</span>
-                <span v-if="pointerStates.prev === index" class="pointer-label prev">PREV</span>
-                <span v-if="pointerStates.current === index" class="pointer-label current">CURR</span>
-                <span v-if="pointerStates.new_node === index" class="pointer-label new">NEW</span>
-              </div>
-
-              <div class="node-index">[{{ index }}]</div>
-
-              <!-- 箭头连接线 -->
-              <div v-if="index < elements.length - 1" class="node-arrow">
-                <svg width="40" height="20" viewBox="0 0 40 20">
-                  <line x1="0" y1="10" x2="35" y2="10" stroke="#9ca3af" stroke-width="2"/>
-                  <polygon points="35,5 40,10 35,15" fill="#9ca3af"/>
-                </svg>
-              </div>
-            </div>
-            <!-- NULL 结束标记 -->
-            <div class="null-node">NULL</div>
+            <LinkedList
+              :data="elements"
+              :highlightIndices="highlightedIndices"
+              :pointerStates="pointerStates"
+            />
           </template>
 
           <!-- 顺序表/栈的可视化 - 保持不变 -->
@@ -232,6 +203,7 @@ import { ref, computed, onMounted,watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '../services/api.js'
 import DSLInputBar from './DSLInputBar.vue'  // 🔥 添加导入
+import LinkedList from '../components/LinkedList.vue'  // 🔥 链表SVG组件
 
 const router = useRouter()
 const route = useRoute()
@@ -527,22 +499,31 @@ const createOrLoadStructure = async()=>{
         console.log(`✓ 成功加载 ${response.data.length} 个元素:`, response.data)
 
         // 恢复状态
-        elements.value = response.data
         capacity.value = response.capacity || 100
         operationHistory.value = response.operation_history || []
 
-        // 🔥 根据来源显示不同提示
-        if (fromDSL.value) {
-          lastOperation.value = `✓ 已加载 DSL 执行结果 (${elements.value.length} 个元素)`
+        // 🔥 如果来自DSL且有操作历史，播放动画
+        if (fromDSL.value && operationHistory.value.length > 0) {
+          console.log(`🎬 播放DSL动画，共 ${operationHistory.value.length} 步`)
+          lastOperation.value = '▶ 正在播放操作动画...'
+          await playOperationSteps(operationHistory.value)
+          elements.value = response.data
+          lastOperation.value = `✓ DSL 执行完成 (${elements.value.length} 个元素)`
         } else {
-          lastOperation.value = `✓ 已加载保存的数据 (${elements.value.length} 个元素)`
-        }
+          // 没有操作历史，直接显示结果
+          elements.value = response.data
+          if (fromDSL.value) {
+            lastOperation.value = `✓ 已加载 DSL 执行结果 (${elements.value.length} 个元素)`
+          } else {
+            lastOperation.value = `✓ 已加载保存的数据 (${elements.value.length} 个元素)`
+          }
 
-        // 🔥 可选：高亮动画
-        highlightedIndices.value = elements.value.map((_, idx) => idx)
-        setTimeout(() => {
-          highlightedIndices.value = []
-        }, 1500)
+          // 高亮动画
+          highlightedIndices.value = elements.value.map((_, idx) => idx)
+          setTimeout(() => {
+            highlightedIndices.value = []
+          }, 1500)
+        }
       }
 
     }catch (error) {

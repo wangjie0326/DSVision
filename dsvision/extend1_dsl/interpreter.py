@@ -57,8 +57,6 @@ class Interpreter:
 
     def execute_structure_declaration(self, decl: StructureDeclaration) -> Dict[str, Any]:
         """执行数据结构声明"""
-        self.log(f"\n创建数据结构: {decl.structure_type} {decl.name}")
-
         #映射dsl类型到后端类型
         type_mapping = {
             'Sequential': 'sequential',
@@ -75,13 +73,22 @@ class Interpreter:
         if not backend_type:
             self.error(f"Unknown structure type: {decl.structure_type}")
 
-        # 创建结构实例
-        structure = self.structure_manager.create_structure(backend_type)
-        self.context.structures[decl.name] = {
-            'type': backend_type,
-            'instance': structure,
-            'data': []
-        }
+        # 检查结构是否已存在（会话内存）
+        if decl.name in self.context.structures:
+            existing_struct = self.context.structures[decl.name]
+            # 验证类型匹配
+            if existing_struct['type'] != backend_type:
+                self.error(f"Structure {decl.name} already exists with different type: {existing_struct['type']} vs {backend_type}")
+            self.log(f"\n复用现有数据结构: {decl.structure_type} {decl.name} (会话内存)")
+        else:
+            # 创建新结构实例
+            self.log(f"\n创建新数据结构: {decl.structure_type} {decl.name}")
+            structure = self.structure_manager.create_structure(backend_type)
+            self.context.structures[decl.name] = {
+                'type': backend_type,
+                'instance': structure,
+                'data': []
+            }
 
         # 执行操作
         for operation in decl.operations:

@@ -50,24 +50,28 @@
         </div>
       </div>
 
-      <!-- 输入框 -->
+      <!-- 输入框 + LLM 模型显示 -->
       <div class="input-wrapper">
-        <textarea
-          v-if="currentMode === 'dsl'"
-          v-model="dslInput"
-          @keydown.ctrl.enter="handleExecute"
-          placeholder="Enter DSL code... (Ctrl+Enter to execute)"
-          class="dsl-textarea"
-          rows="3"
-        />
-        <input
-          v-else
-          v-model="llmInput"
-          @keyup.enter="handleExecute"
-          type="text"
-          placeholder="Natural language instruction..."
-          class="llm-input"
-        />
+        <div class="input-section">
+          <textarea
+            v-if="currentMode === 'dsl'"
+            v-model="dslInput"
+            @keydown.ctrl.enter="handleExecute"
+            placeholder="Enter DSL code... (Ctrl+Enter to execute)"
+            class="dsl-textarea"
+            rows="3"
+          />
+          <div v-else class="llm-input-container">
+            <input
+              v-model="llmInput"
+              @keyup.enter="handleExecute"
+              type="text"
+              placeholder="Natural language instruction..."
+              class="llm-input"
+            />
+            <span class="llm-model-badge">{{ currentLLMModel }}</span>
+          </div>
+        </div>
         <button
           @click="handleExecute"
           class="execute-button"
@@ -88,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api.js'
 
@@ -101,12 +105,32 @@ const dslInput = ref('')
 const llmInput = ref('')
 const statusMessage = ref('')
 const statusType = ref('info')  // 'info' | 'success' | 'error'
+const currentLLMModel = ref('gpt-3.5-turbo')  // LLM 模型显示
+
+// LLM 会话状态
+const currentStructureInfo = ref(null)  // 当前结构信息 {id, type, data, sessionId}
+const llmSessionId = ref(null)  // LLM 会话 ID
 
 const exampleButtons = [
   { type: 'sequential', label: 'Sequential' },
   { type: 'bst', label: 'BST' },
   { type: 'stack', label: 'Stack' }
 ]
+
+// 初始化：加载 LLM 配置
+onMounted(async () => {
+  try {
+    const config = await api.getLLMConfig()
+    if (config.provider && config.base_url) {
+      currentLLMModel.value = `${config.provider} - ${config.base_url.split('//')[1]?.split('.')[0] || 'custom'}`
+    } else if (config.provider) {
+      currentLLMModel.value = config.provider
+    }
+  } catch (e) {
+    console.error('Failed to load LLM config:', e)
+    currentLLMModel.value = 'LLM'
+  }
+})
 
 const canExecute = computed(() => {
   if (currentMode.value === 'dsl') {
@@ -184,9 +208,98 @@ const executeDSL = async () => {
 
 // 执行 LLM
 const executeLLM = async () => {
-  statusMessage.value = 'LLM 功能开发中...'
-  statusType.value = 'info'
-  setTimeout(() => { statusMessage.value = '' }, 3000)
+  try {
+    statusMessage.value = '正在推理中...'
+    statusType.value = 'info'
+
+    // 构建上下文消息
+    let userMessage = llmInput.value
+    if (currentStructureInfo.value) {
+      // 如果有当前结构，添加上下文信息
+      const { type, data } = currentStructureInfo.value
+      userMessage = `[当前数据结构：${type}，数据：${data}]\n${userMessage}`
+    }
+
+    const response = await api.llmChat(userMessage, llmSessionId.value)
+
+    console.log('✅ LLM 推理成功:', response)
+
+    if (!response.success) {
+      statusMessage.value = `错误: ${response.error}`
+      statusType.value = 'error'
+      setTimeout(() => { statusMessage.value = '' }, 5000)
+      return
+    }
+
+    // 显示推理结果
+    const llmResponse = response.llm_response
+    const dslCode = llmResponse.dsl_code
+    const explanation = llmResponse.explanation
+
+    // 如果 DSL 代码为空，显示 LLM 的解释（通常是拒绝信息）
+    if (!dslCode || dslCode.trim() === '') {
+      statusMessage.value = explanation || '无法生成 DSL 代码'
+      statusType.value = 'info'
+      setTimeout(() => { statusMessage.value = '' }, 5000)
+      return
+    }
+
+    statusMessage.value = `✓ 推理成功! DSL: ${dslCode.substring(0, 50)}...`
+    statusType.value = 'success'
+
+    // 如果有执行结果，保存结构信息并跳转到对应视图
+    if (response.execution?.success && response.execution?.structures?.length > 0) {
+      const firstStruct = response.execution.structures[0]
+      const category = firstStruct.category  // 'linear' 或 'tree'
+      const type = firstStruct.type
+      const structureId = firstStruct.structure_id
+
+      // 保存当前结构信息以便下次 LLM 调用时使用
+      currentStructureInfo.value = {
+        id: structureId,
+        type: type,
+        category: category,
+        data: firstStruct.data?.join(',') || '[]'
+      }
+
+      // 保存 LLM session ID 用于会话记忆
+      if (response.session_id) {
+        llmSessionId.value = response.session_id
+      }
+
+      console.log('📊 跳转信息:', { category, type, structureId })
+      console.log('💾 已保存结构信息:', currentStructureInfo.value)
+
+      setTimeout(() => {
+        if (category === 'linear') {
+          router.push({
+            path: `/linear/${type}`,
+            query: { importId: structureId, fromDSL: 'true' }
+          })
+        } else {
+          router.push({
+            path: `/tree/${type}`,
+            query: { importId: structureId, fromDSL: 'true' }
+          })
+        }
+      }, 800)
+    } else if (response.execution?.error) {
+      statusMessage.value = `推理成功但执行失败: ${response.execution.error}`
+      statusType.value = 'error'
+      setTimeout(() => { statusMessage.value = '' }, 5000)
+    } else {
+      // 只有推理结果，没有执行，将 DSL 代码放到编辑框
+      dslInput.value = dslCode
+      currentMode.value = 'dsl'
+      statusMessage.value = '✓ 已生成 DSL 代码，可点击执行'
+      setTimeout(() => { statusMessage.value = '' }, 3000)
+    }
+  } catch (error) {
+    console.error('❌ LLM 推理失败:', error)
+    statusMessage.value = '推理失败: ' + (error.response?.data?.error || error.message)
+    statusType.value = 'error'
+    setTimeout(() => { statusMessage.value = '' }, 5000)
+  }
 }
 
 // 加载示例
@@ -320,9 +433,15 @@ const loadExample = async (exampleType) => {
   align-items: flex-end;
 }
 
+.input-section {
+  flex: 1;
+  position: relative;
+}
+
 .dsl-textarea,
 .llm-input {
   flex: 1;
+  width: 100%;
   padding: 0.75rem;
   border-radius: 0.75rem;
   border: 1px solid #d1d5db;
@@ -338,6 +457,28 @@ const loadExample = async (exampleType) => {
 
 .llm-input {
   height: 44px;
+  padding-right: 120px;
+}
+
+.llm-input-container {
+  position: relative;
+  width: 100%;
+}
+
+.llm-model-badge {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #f3f4f6;
+  color: #6b7280;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .dsl-textarea:focus,
