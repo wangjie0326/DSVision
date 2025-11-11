@@ -1,3 +1,23 @@
+from dotenv import load_dotenv
+load_dotenv()
+
+from ..dsvision.extend2_llm.llm_service import LLMService
+import os
+
+# 初始化LLM服务 (选择提供商)
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'openai')
+LLM_API_KEY = os.getenv('LLM_API_KEY', '')
+
+try:
+    import os
+    API_KEY = os.getenv("OPENAI_API_KEY")
+    llm_service = LLMService(provider=LLM_PROVIDER, api_key=API_KEY)
+    print(f"LLM服务已启用 - 提供商: {LLM_PROVIDER}")
+except Exception as e:
+    llm_service = None
+    print(f"LLM服务未启用: {e}")
+
+
 def _convert_tree_value(value):
     """统一转换树节点值的类型"""
     if value is None:
@@ -963,6 +983,201 @@ Stack stack1 {
     })
 
 
+# ==================== LLM 路由 ====================
+
+@app.route('/llm/chat', methods=['POST'])
+def llm_chat():
+    """
+    LLM对话接口 - 自然语言转DSL
+
+    请求体: {
+        "message": "创建一个包含5,3,7的二叉搜索树",
+        "session_id": "optional-session-id"
+    }
+    """
+    try:
+        if not llm_service:
+            return jsonify({
+                'success': False,
+                'error': 'LLM服务未配置',
+                'message': '请设置环境变量 LLM_PROVIDER 和 LLM_API_KEY'
+            }), 503
+
+        data = request.json
+        user_message = data.get('message', '').strip()
+        session_id = data.get('session_id', str(uuid.uuid4()))
+
+        if not user_message:
+            return jsonify({'error': '消息不能为空'}), 400
+
+        print(f"\n{'=' * 60}")
+        print(f"[LLM Chat] Session: {session_id}")
+        print(f"用户: {user_message}")
+        print(f"{'=' * 60}\n")
+
+        # 调用LLM生成DSL
+        result = llm_service.natural_language_to_dsl(user_message)
+
+        if not result['success']:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', '未知错误'),
+                'provider': result.get('provider')
+            }), 500
+
+        dsl_code = result['dsl_code']
+        explanation = result['explanation']
+
+        # 如果生成了DSL代码,自动执行
+        execution_result = None
+        if dsl_code and dsl_code.strip():
+            print(f"✓ 自动执行生成的DSL代码\n")
+
+            try:
+                # 复用DSL执行逻辑
+                from dsvision.extend1_dsl.lexer import Lexer
+                from dsvision.extend1_dsl.parser import Parser
+                from dsvision.extend1_dsl.interpreter import Interpreter, SimpleStructureManager
+
+                # 词法+语法分析
+                lexer = Lexer(dsl_code)
+                tokens = lexer.tokenize()
+                parser = Parser(tokens)
+                ast = parser.parse()
+
+                # 创建解释器
+                if session_id not in interpreters:
+                    manager = SimpleStructureManager()
+                    interpreters[session_id] = Interpreter(manager)
+
+                interpreter = interpreters[session_id]
+                exec_result = interpreter.execute(ast)
+
+                # 提取结构信息
+                structures_data = []
+                for struct_name, struct_result in exec_result['results'].items():
+                    if struct_name in interpreter.context.structures:
+                        struct_info = interpreter.context.structures[struct_name]
+                        structure = struct_info['instance']
+
+                        # 注册到全局字典
+                        structure_id = str(uuid.uuid4())
+                        structures[structure_id] = structure
+
+                        struct_data = {
+                            'name': struct_name,
+                            'type': struct_result['type'],
+                            'structure_id': structure_id,
+                            'operations_count': struct_result['operations_count']
+                        }
+
+                        # 根据类型添加数据
+                        if struct_result['type'] in ['sequential', 'linked', 'stack', 'queue']:
+                            struct_data['data'] = structure.to_list()
+                            struct_data['size'] = structure.size()
+                            struct_data['category'] = 'linear'
+                        else:
+                            struct_data['tree_data'] = structure.get_tree_data()
+                            struct_data['size'] = structure.size()
+                            struct_data['category'] = 'tree'
+
+                        structures_data.append(struct_data)
+
+                execution_result = {
+                    'success': True,
+                    'structures': structures_data,
+                    'execution_log': exec_result['execution_log']
+                }
+
+                print(f"✓ DSL执行成功,创建了 {len(structures_data)} 个结构\n")
+
+            except Exception as exec_error:
+                print(f"✗ DSL执行失败: {exec_error}\n")
+                execution_result = {
+                    'success': False,
+                    'error': str(exec_error)
+                }
+
+        return jsonify({
+            'success': True,
+            'session_id': session_id,
+            'llm_response': {
+                'dsl_code': dsl_code,
+                'explanation': explanation,
+                'provider': result.get('provider')
+            },
+            'execution': execution_result
+        })
+
+    except Exception as e:
+        print(f"✗ LLM Chat错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'error_type': type(e).__name__
+        }), 500
+
+
+@app.route('/llm/status', methods=['GET'])
+def llm_status():
+    """检查LLM服务状态"""
+    if llm_service:
+        return jsonify({
+            'enabled': True,
+            'provider': LLM_PROVIDER,
+            'message': 'LLM服务运行中'
+        })
+    else:
+        return jsonify({
+            'enabled': False,
+            'message': 'LLM服务未配置'
+        }), 503
+
+
+@app.route('/llm/config', methods=['GET', 'POST'])
+def llm_config():
+    """
+    获取或更新LLM配置
+    POST: { "provider": "openai", "api_key": "sk-..." }
+    """
+    global llm_service, LLM_PROVIDER, LLM_API_KEY
+
+    if request.method == 'GET':
+        return jsonify({
+            'provider': LLM_PROVIDER,
+            'api_key_set': bool(LLM_API_KEY),
+            'available_providers': ['openai', 'claude', 'tongyi']
+        })
+
+    elif request.method == 'POST':
+        try:
+            data = request.json
+            provider = data.get('provider', LLM_PROVIDER)
+            api_key = data.get('api_key', LLM_API_KEY)
+
+            if not api_key:
+                return jsonify({'error': 'API密钥不能为空'}), 400
+
+            # 更新配置
+            LLM_PROVIDER = provider
+            LLM_API_KEY = api_key
+
+            # 重新初始化服务
+            llm_service = LLMService(provider=provider, api_key=api_key)
+
+            return jsonify({
+                'success': True,
+                'provider': provider,
+                'message': 'LLM配置已更新'
+            })
+
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
 if __name__ == '__main__':
     app.run()
     print("-"*50)

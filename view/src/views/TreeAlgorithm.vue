@@ -90,7 +90,7 @@
     </div>
 
     <!-- 可视化区域 -->
-    <div class="visualization-area" ref="visualAreaRef">
+    <div class="visualization-area" :style="{ paddingBottom: '180px' }" ref="visualAreaRef">
       <div class="canvas-wrapper">
         <div v-if="!treeData || !treeData.root || treeData.size === 0" class="empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
@@ -224,6 +224,7 @@
         </div>
       </div>
     </div>
+    <DSLInputBar />
   </div>
 </template>
 

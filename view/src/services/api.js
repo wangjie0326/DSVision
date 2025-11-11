@@ -265,5 +265,50 @@ export default{
   // 删除 DSL 会话
   deleteDSLSession(sessionId) {
     return apiClient.delete(`/dsl/session/${sessionId}`);
+  },
+
+
+  // ==================== LLM 相关接口 ====================
+
+  /**
+   * LLM对话 - 自然语言转DSL并执行
+   * @param {string} message - 用户输入的自然语言
+   * @param {string} sessionId - 会话ID(可选)
+   * @returns {Promise} 包含DSL代码和执行结果
+   */
+  llmChat(message, sessionId = null) {
+    return apiClient.post('/llm/chat', {
+      message,
+      session_id: sessionId
+    });
+  },
+
+  /**
+   * 检查LLM服务状态
+   * @returns {Promise} LLM服务配置信息
+   */
+  llmStatus() {
+    return apiClient.get('/llm/status');
+  },
+
+  /**
+   * 获取LLM配置
+   * @returns {Promise} 当前LLM配置
+   */
+  getLLMConfig() {
+    return apiClient.get('/llm/config');
+  },
+
+  /**
+   * 更新LLM配置
+   * @param {string} provider - LLM提供商 ('openai' | 'claude' | 'tongyi')
+   * @param {string} apiKey - API密钥
+   * @returns {Promise} 更新结果
+   */
+  updateLLMConfig(provider, apiKey) {
+    return apiClient.post('/llm/config', {
+      provider,
+      api_key: apiKey
+    });
   }
 };
