@@ -11,10 +11,16 @@ load_dotenv()
 
 # ==================== 配置部分 ====================
 LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'openai')
+LLM_BASE_URL = os.getenv('LLM_BASE_URL', None)  # 可选,用于第三方API或代理
 API_KEY = os.getenv('LLM_API_KEY')
-if not API_KEY or not API_KEY.startswith("sk-"):
-    raise ValueError("无效的 OpenAI API Key,请在 .env 文件或环境变量中设置 LLM_API_KEY=sk-...")
-print("成功读取到 API Key:", API_KEY[:10])
+
+if not API_KEY:
+    raise ValueError("未设置 LLM_API_KEY,请在 .env 文件中配置")
+
+print(f"✓ LLM配置加载成功")
+print(f"  - 提供商: {LLM_PROVIDER}")
+print(f"  - Base URL: {LLM_BASE_URL or '默认'}")
+print(f"  - API Key: {API_KEY[:15]}..." if len(API_KEY) > 15 else f"  - API Key: {API_KEY}")
 
 # ==================== 系统提示词 ====================
 SYSTEM_PROMPT = """你是DSVison,你的数据结构可视化系统的DSL代码生成助手。
@@ -116,23 +122,20 @@ Huffman myHuffman {
 
 # ==================== OpenAI 实现 ====================
 class OpenAIProvider:
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, base_url: Optional[str] = None):
         from openai import OpenAI
 
-        # ✅ 修复：直接传入参数，不使用环境变量
-        if api_key.startswith('sk-or-'):
-            # API
-            base_url = "https://api.kanzakiyui.xyz"
-            print("✓ 检测到 API Key")
+        # 根据是否提供 base_url 决定使用官方API还是第三方API
+        if base_url:
             self.client = OpenAI(
                 api_key=api_key,
                 base_url=base_url
             )
+            print(f"✓ OpenAI 客户端初始化成功 (自定义URL: {base_url})")
         else:
             # 标准 OpenAI API
             self.client = OpenAI(api_key=api_key)
-
-        print("✓ OpenAI 客户端初始化成功")
+            print("✓ OpenAI 客户端初始化成功 (官方API)")
 
     def generate(self, user_message: str) -> Dict:
         try:
@@ -165,14 +168,18 @@ class OpenAIProvider:
 
 # ==================== LLM服务类 ====================
 class LLMService:
-    def __init__(self, provider: str = 'openai', api_key: str = None):
+    def __init__(self, provider: str = 'openai', api_key: str = None, base_url: str = None):
         self.provider_name = provider
         api_key = api_key or API_KEY
+        base_url = base_url or LLM_BASE_URL
 
         if provider == 'openai':
-            self.provider = OpenAIProvider(api_key)
+            self.provider = OpenAIProvider(api_key, base_url)
+        elif provider == 'claude':
+            # TODO: 实现 Claude Provider
+            raise ValueError("Claude 提供商暂未实现,敬请期待")
         else:
-            raise ValueError(f"不支持的提供商: {provider}")
+            raise ValueError(f"不支持的提供商: {provider}，可选: openai, claude")
 
     def natural_language_to_dsl(self, user_input: str) -> Dict:
         """

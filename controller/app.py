@@ -7,15 +7,24 @@ import os
 # 初始化LLM服务 (选择提供商)
 LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'openai')
 LLM_API_KEY = os.getenv('LLM_API_KEY', '')
+LLM_BASE_URL = os.getenv('LLM_BASE_URL', None)
 
 try:
-    import os
-    API_KEY = os.getenv("OPENAI_API_KEY")
-    llm_service = LLMService(provider=LLM_PROVIDER, api_key=API_KEY)
-    print(f"LLM服务已启用 - 提供商: {LLM_PROVIDER}")
+    llm_service = LLMService(
+        provider=LLM_PROVIDER,
+        api_key=LLM_API_KEY,
+        base_url=LLM_BASE_URL
+    )
+    print(f"✓ LLM服务已启用")
+    print(f"  - 提供商: {LLM_PROVIDER}")
+    print(f"  - Base URL: {LLM_BASE_URL or '默认官方API'}")
 except Exception as e:
     llm_service = None
-    print(f"LLM服务未启用: {e}")
+    print(f"✗ LLM服务未启用: {e}")
+    print(f"  请在项目根目录的 .env 文件中配置:")
+    print(f"    LLM_PROVIDER=openai")
+    print(f"    LLM_API_KEY=sk-xxx")
+    print(f"    LLM_BASE_URL=https://api.example.com (可选)")
 
 
 def _convert_tree_value(value):
