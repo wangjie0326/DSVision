@@ -4,7 +4,8 @@
     class="tree-node"
     :class="{
       'highlighted': isHighlighted,
-      'huffman-node': isHuffman
+      'huffman-node': isHuffman,
+      'dashed-node': isDashed
     }"
     :style="{
       position: 'absolute',
@@ -45,11 +46,19 @@ const props = defineProps({
   isHuffman: {
     type: Boolean,
     default: false
+  },
+  dashedNodes: {
+    type: Array,
+    default: () => []
   }
 })
 
 const isHighlighted = computed(() => {
   return props.highlighted.includes(props.node?.node_id)
+})
+
+const isDashed = computed(() => {
+  return props.dashedNodes.includes(props.node?.node_id)
 })
 </script>
 
@@ -70,6 +79,22 @@ const isHighlighted = computed(() => {
   z-index: 2;
 }
 
+.tree-node.dashed-node {
+  background-color: transparent;
+  border: 2px dashed #10b981;
+  color: #10b981;
+  opacity: 0.7;
+  animation: dashFade 1s ease-in-out;
+}
+
+.tree-node.dashed-node .node-content {
+  color: #10b981;
+}
+
+.tree-node.dashed-node .node-value {
+  color: #10b981;
+}
+
 .tree-node.highlighted {
   background-color: #ef4444;
   transform: translate(-50%, -50%) scale(1.2);
@@ -83,6 +108,17 @@ const isHighlighted = computed(() => {
   }
   50% {
     transform: translate(-50%, -50%) scale(1.25);
+  }
+}
+
+@keyframes dashFade {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  100% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 

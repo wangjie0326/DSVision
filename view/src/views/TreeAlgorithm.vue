@@ -130,9 +130,10 @@
                 :y1="edge.start.y"
                 :x2="edge.end.x"
                 :y2="edge.end.y"
-                stroke="#6b7280"
+                :stroke="isEdgeDashed(edge) ? '#10b981' : '#6b7280'"
                 stroke-width="2"
                 stroke-linecap="round"
+                :stroke-dasharray="isEdgeDashed(edge) ? '5,5' : 'none'"
                 marker-end="url(#arrowhead)"
                 class="edge-line"
               />
@@ -153,6 +154,7 @@
               :node="findNodeById(treeData.root, parseInt(nodeId))"
               :position="position"
               :highlighted="highlightedNodes"
+              :dashedNodes="dashedNodes"
               :isHuffman="structureType === 'huffman'"
             />
           </div>
@@ -248,6 +250,7 @@ const inputValue = ref('')
 const huffmanText = ref('')
 const isAnimating = ref(false)
 const highlightedNodes = ref([])
+const dashedNodes = ref([])  // 虚线节点（新插入还未平衡的）
 const operationHistory = ref([])
 const lastOperation = ref('')
 const historyCollapsed = ref(true)
@@ -350,6 +353,13 @@ const findNodeById = (node, targetId) => {
   return findNodeById(node.right, targetId)
 }
 
+// 🔥 辅助方法：判断边是否应该为虚线
+const isEdgeDashed = (edge) => {
+  // 边的ID格式是 "fromId-toId"
+  const toNodeId = parseInt(edge.id.split('-')[1])
+  return dashedNodes.value.includes(toNodeId)
+}
+
 // 🔥 动画播放器（每步重新计算布局）
 const playTreeAnimationSteps = async (steps) => {
   isAnimating.value = true
@@ -369,13 +379,25 @@ const playTreeAnimationSteps = async (steps) => {
       calculateTreeLayout()  // 重新计算布局
     }
 
-    // 3. 更新高亮节点
-    if (step.node_id && step.node_id !== -1) {
-      highlightedNodes.value = [step.node_id]
-    } else if (step.highlight_indices) {
-      highlightedNodes.value = step.highlight_indices
-    } else {
+    // 3. 更新虚线节点和高亮节点
+    // 检查是否是"插入新节点"的步骤（包含✏️符号）
+    if (step.description && step.description.includes('✏️')) {
+      // 这是插入节点的步骤，高亮的节点应该显示为虚线
+      console.log('🔵 检测到虚线节点步骤:', step.description)
+      console.log('   -> highlight_indices:', step.highlight_indices)
+      dashedNodes.value = step.highlight_indices || []
       highlightedNodes.value = []
+      console.log('   -> dashedNodes设置为:', dashedNodes.value)
+    } else {
+      // 其他步骤清除虚线，显示红色高亮
+      dashedNodes.value = []
+      if (step.node_id && step.node_id !== -1) {
+        highlightedNodes.value = [step.node_id]
+      } else if (step.highlight_indices) {
+        highlightedNodes.value = step.highlight_indices
+      } else {
+        highlightedNodes.value = []
+      }
     }
 
     // 4. 延迟
@@ -386,6 +408,7 @@ const playTreeAnimationSteps = async (steps) => {
 
   console.log('✓ 动画播放完毕')
   highlightedNodes.value = []
+  dashedNodes.value = []
   isAnimating.value = false
 }
 
