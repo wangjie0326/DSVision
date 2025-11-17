@@ -1,0 +1,525 @@
+@startuml DSVision MVC Architecture
+
+' 定义颜色主题
+skinparam backgroundColor #FEFEFE
+skinparam package {
+  BackgroundColor<<Model>> #E1F5FE
+  BackgroundColor<<View>> #F3E5F5
+  BackgroundColor<<Controller>> #FFF9C4
+  BorderColor #424242
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor #424242
+  ArrowColor #424242
+}
+
+title DSVision 数据结构可视化系统 - MVC架构图
+
+' ============================
+' Model 层 (数据与业务逻辑)
+' ============================
+package "Model Layer (dsvision/)" <<Model>> {
+
+  ' 操作记录系统
+  package "operation/" {
+    enum OperationType {
+      INSERT
+      DELETE
+      SEARCH
+      UPDATE
+      ROTATE_LEFT
+      ROTATE_RIGHT
+      POINTER_MOVE
+      ..etc..
+    }
+
+    class OperationStep {
+      - operation: OperationType
+      - description: str
+      - index: int
+      - value: Any
+      - highlight_indices: List[int]
+      - pointers: Dict[str, int]
+      - animation_type: str
+      - duration: float
+      - data_snapshot: List[Any]
+      - tree_snapshot: dict
+      - visual_hints: Dict[str, Any]
+      --
+      + to_dict(): dict
+    }
+
+    OperationStep --> OperationType
+  }
+
+  ' 线性结构
+  package "linear/" {
+    abstract class LinearStructureBase {
+      # _operation_history: List[OperationStep]
+      # _current_step: int
+      --
+      {abstract} + initlist(values): bool
+      {abstract} + insert(index, value): bool
+      {abstract} + delete(index): Any
+      {abstract} + search(value): int
+      {abstract} + get(index): Any
+      {abstract} + size(): int
+      {abstract} + is_empty(): bool
+      --
+      + add_operation_step(step)
+      + get_operation_history(): List[OperationStep]
+      + clear_operation_history()
+    }
+
+    class SequentialList {
+      - _data: List[Any]
+      - _capacity: int
+      --
+      + initlist(values): bool
+      + insert(index, value): bool
+      + delete(index): Any
+      + search(value): int
+      + to_list(): List[Any]
+    }
+
+    class LinkedListNode {
+      + value: Any
+      + next: LinkedListNode
+      + node_id: int
+    }
+
+    class LinkedList {
+      - _head: LinkedListNode
+      - _size: int
+      --
+      + insert(index, value): bool
+      + delete(index): Any
+      + search(value): int
+      + insert_head(value): bool
+      + insert_tail(value): bool
+    }
+
+    class Stack {
+      - _data: List[Any]
+      --
+      + push(value): bool
+      + pop(): Any
+      + peek(): Any
+      + is_empty(): bool
+    }
+
+    LinearStructureBase <|-- SequentialList
+    LinearStructureBase <|-- LinkedList
+    LinearStructureBase <|-- Stack
+    LinearStructureBase --> OperationStep : uses
+    LinkedList *-- LinkedListNode
+  }
+
+  ' 树结构
+  package "tree/" {
+    class TreeNode {
+      + value: Any
+      + left: TreeNode
+      + right: TreeNode
+      + node_id: int
+      + height: int
+    }
+
+    abstract class TreeStructureBase {
+      # _root: TreeNode
+      # _operation_history: List[OperationStep]
+      # _size: int
+      --
+      {abstract} + insert(value): bool
+      {abstract} + delete(value): bool
+      {abstract} + search(value): TreeNode
+      {abstract} + get_tree_data(): dict
+      --
+      + size(): int
+      + is_empty(): bool
+      + add_operation_step(step)
+      + get_operation_history(): List[OperationStep]
+      + clear_operation_history()
+    }
+
+    class BinaryTree {
+      + insert(value): bool
+      + delete(value): bool
+      + search(value): TreeNode
+      + get_tree_data(): dict
+    }
+
+    class BinarySearchTree {
+      + insert(value): bool
+      + delete(value): bool
+      + search(value): TreeNode
+      + get_min(): TreeNode
+      + get_max(): TreeNode
+      - _insert_recursive(node, value): TreeNode
+      - _delete_recursive(node, value): TreeNode
+    }
+
+    class AVLTree {
+      + insert(value): bool
+      + delete(value): bool
+      - _get_height(node): int
+      - _get_balance(node): int
+      - _rotate_left(node): TreeNode
+      - _rotate_right(node): TreeNode
+      - _rebalance(node, value): TreeNode
+    }
+
+    class HuffmanNode {
+      + weight: int
+      + char: str
+      + left: HuffmanNode
+      + right: HuffmanNode
+    }
+
+    class HuffmanTree {
+      - _codes: Dict[str, str]
+      --
+      + build_from_string(text): bool
+      + build_from_numbers(numbers): bool
+      + build_from_weights(weights, mode): bool
+      + encode(text): str
+      + decode(code): str
+      + get_codes(): dict
+    }
+
+    TreeStructureBase <|-- BinaryTree
+    BinaryTree <|-- BinarySearchTree
+    BinarySearchTree <|-- AVLTree
+    TreeStructureBase <|-- HuffmanTree
+    TreeStructureBase *-- TreeNode
+    TreeStructureBase --> OperationStep : uses
+    HuffmanTree *-- HuffmanNode
+  }
+
+  ' DSL扩展
+  package "extend1_dsl/" {
+    enum TokenType {
+      IDENTIFIER
+      NUMBER
+      STRING
+      SEQUENTIAL
+      LINKED
+      STACK
+      BST
+      AVL
+      HUFFMAN
+      INSERT
+      DELETE
+      SEARCH
+      ..etc..
+    }
+
+    class Token {
+      + type: TokenType
+      + value: str
+      + line: int
+      + column: int
+    }
+
+    class Lexer {
+      - source_code: str
+      - tokens: List[Token]
+      --
+      + tokenize(): List[Token]
+      - scan_token()
+      - scan_identifier()
+      - scan_number()
+    }
+
+    abstract class ASTNode {
+      + line: int
+      + column: int
+    }
+
+    class StructureDeclaration {
+      + struct_type: str
+      + name: str
+      + operations: List[Operation]
+    }
+
+    class Operation {
+      + line: int
+      + column: int
+    }
+
+    class InsertOperation {
+      + value: Any
+      + index: int
+    }
+
+    class BuildNumbersOperation {
+      + numbers: List[int]
+    }
+
+    class Parser {
+      - tokens: List[Token]
+      - current: int
+      --
+      + parse(): List[StructureDeclaration]
+      - parse_structure_declaration()
+      - parse_operation()
+      - parse_array()
+    }
+
+    class Interpreter {
+      - structures: Dict[str, Any]
+      --
+      + execute(ast: List[ASTNode]): dict
+      - execute_structure(decl)
+      - execute_operation(struct, operation)
+    }
+
+    Lexer --> Token : produces
+    Token --> TokenType
+    Parser --> ASTNode : creates
+    ASTNode <|-- StructureDeclaration
+    ASTNode <|-- Operation
+    Operation <|-- InsertOperation
+    Operation <|-- BuildNumbersOperation
+    StructureDeclaration *-- Operation
+    Parser ..> Lexer : uses
+    Interpreter ..> Parser : uses
+    Interpreter ..> LinearStructureBase : creates/operates
+    Interpreter ..> TreeStructureBase : creates/operates
+  }
+
+  ' LLM扩展
+  package "extend2_llm/" {
+    class LLMService {
+      - provider: LLMProvider
+      - provider_name: str
+      --
+      + natural_language_to_dsl(input): dict
+    }
+
+    abstract class LLMProvider {
+      {abstract} + generate(message): dict
+    }
+
+    class OpenAIProvider {
+      - client: OpenAI
+      --
+      + generate(message): dict
+    }
+
+    class ClaudeProvider {
+      - client: Anthropic
+      --
+      + generate(message): dict
+    }
+
+    class GroqProvider {
+      - client: Groq
+      --
+      + generate(message): dict
+    }
+
+    LLMService *-- LLMProvider
+    LLMProvider <|-- OpenAIProvider
+    LLMProvider <|-- ClaudeProvider
+    LLMProvider <|-- GroqProvider
+  }
+}
+
+' ============================
+' Controller 层 (业务控制)
+' ============================
+package "Controller Layer (controller/)" <<Controller>> {
+  class FlaskApp {
+    {static} - structures: Dict[UUID, Structure]
+    --
+    ' 线性结构API
+    + create_structure(type, capacity): dict
+    + get_state(structure_id): dict
+    + insert_element(structure_id, index, value): dict
+    + delete_element(structure_id, index): dict
+    + search_element(structure_id, value): dict
+    + clear_structure(structure_id): dict
+    + export_structure(structure_id): dict
+    --
+    ' 树结构API
+    + create_tree_structure(type): dict
+    + get_tree_state(structure_id): dict
+    + insert_tree_node(structure_id, value): dict
+    + delete_tree_node(structure_id, value): dict
+    + search_tree_node(structure_id, value): dict
+    + build_huffman_tree(structure_id, text_or_numbers): dict
+    --
+    ' DSL API
+    + execute_dsl(code): dict
+    --
+    ' LLM API
+    + get_llm_config(): dict
+    + natural_language_to_dsl(user_input): dict
+  }
+
+  FlaskApp ..> LinearStructureBase : manages
+  FlaskApp ..> TreeStructureBase : manages
+  FlaskApp ..> Interpreter : uses
+  FlaskApp ..> LLMService : uses
+}
+
+' ============================
+' View 层 (用户界面)
+' ============================
+package "View Layer (view/src/)" <<View>> {
+
+  package "services/" {
+    class ApiClient {
+      - baseURL: string
+      - axios: AxiosInstance
+      --
+      ' 线性结构API调用
+      + createStructure(type, capacity): Promise
+      + getState(structureId): Promise
+      + insertElement(structureId, index, value): Promise
+      + deleteElement(structureId, index): Promise
+      + searchElement(structureId, value): Promise
+      --
+      ' 树结构API调用
+      + createTreeStructure(type): Promise
+      + getTreeState(structureId): Promise
+      + insertTreeNode(structureId, value): Promise
+      + deleteTreeNode(structureId, value): Promise
+      + buildHuffmanTree(structureId, textOrNumbers): Promise
+      --
+      ' DSL/LLM API调用
+      + executeDSL(code): Promise
+      + getLLMConfig(): Promise
+      + naturalLanguageToDSL(input): Promise
+    }
+  }
+
+  package "views/" {
+    class LinearAlgorithmView {
+      - structureType: string
+      - structureId: string
+      - elements: Array
+      - operationHistory: Array
+      - highlightedIndices: Array
+      - pointerStates: Object
+      - animationSpeed: number
+      --
+      + executeOperation(): Promise
+      + playOperationSteps(steps): Promise
+      + clearStructure(): Promise
+      + saveStructure(): Promise
+    }
+
+    class TreeAlgorithmView {
+      - structureType: string
+      - structureId: string
+      - treeData: Object
+      - operationHistory: Array
+      - highlightedNodes: Array
+      - dashedNodes: Array
+      - nodePositions: Object
+      - edges: Array
+      - huffmanFrequencyList: Array
+      --
+      + executeOperation(): Promise
+      + playTreeAnimationSteps(steps): Promise
+      + calculateTreeLayout(): void
+      + clearStructure(): Promise
+      + saveStructure(): Promise
+    }
+
+    class DSLInputBar {
+      - dslCode: string
+      - naturalLanguageInput: string
+      - useLLM: boolean
+      - llmConfig: Object
+      --
+      + executeDSL(): Promise
+      + executeNaturalLanguage(): Promise
+      + getLLMConfig(): Promise
+    }
+
+    LinearAlgorithmView ..> ApiClient : uses
+    TreeAlgorithmView ..> ApiClient : uses
+    DSLInputBar ..> ApiClient : uses
+  }
+
+  package "components/" {
+    class LinkedListComponent {
+      - data: Array
+      - highlightIndices: Array
+      - pointerStates: Object
+      --
+      + render(): VNode
+    }
+
+    class TreeNodeComponent {
+      - node: Object
+      - position: Object
+      - highlighted: Array
+      - dashedNodes: Array
+      --
+      + render(): VNode
+    }
+
+    LinearAlgorithmView ..> LinkedListComponent : uses
+    TreeAlgorithmView ..> TreeNodeComponent : uses
+  }
+
+  package "utils/" {
+    class TreeLayoutEngine {
+      - nodeRadius: number
+      - levelHeight: number
+      --
+      + getLayout(root): Object
+      - calculateNodePositions(node, depth, offset)
+      - generateEdges(positions)
+    }
+
+    TreeAlgorithmView ..> TreeLayoutEngine : uses
+  }
+}
+
+' ============================
+' MVC 层间调用关系
+' ============================
+
+' View -> Controller (HTTP请求)
+ApiClient -down-> FlaskApp : HTTP REST API\n(JSON Request)
+
+' Controller -> Model (方法调用)
+note right of FlaskApp
+  Flask控制器通过UUID管理
+  数据结构实例，调用Model
+  层方法处理业务逻辑
+end note
+
+' Controller -> View (HTTP响应)
+FlaskApp -up-> ApiClient : HTTP Response\n(JSON: data + operation_history)
+
+' 数据流标注
+note as N1
+  <b>典型数据流：</b>
+  1. User -> View (用户操作)
+  2. View -> ApiClient (调用API)
+  3. ApiClient -> Controller (HTTP POST/GET)
+  4. Controller -> Model (执行数据结构操作)
+  5. Model -> OperationStep (记录操作历史)
+  6. Controller -> View (返回JSON数据)
+  7. View -> 渲染可视化 + 播放动画
+end note
+
+legend right
+  <b>图例说明</b>
+  |= 符号 |= 含义 |
+  | <back:#E1F5FE>蓝色包</back> | Model层 (数据与业务逻辑) |
+  | <back:#FFF9C4>黄色包</back> | Controller层 (业务控制) |
+  | <back:#F3E5F5>紫色包</back> | View层 (用户界面) |
+  | --|> | 继承关系 |
+  | *-- | 组合关系 |
+  | ..> | 依赖关系 |
+endlegend
+
+@enduml

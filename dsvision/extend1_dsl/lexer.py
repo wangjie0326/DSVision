@@ -45,6 +45,7 @@ class TokenType(Enum):
     #HUFFMAN
     BUILD_TEXT = "BUILD_TEXT"
     BUILD_FREQ = "BUILD_FREQ"
+    BUILD_NUMBERS = "BUILD_NUMBERS"  # 🔥 新增：纯数字模式
     ENCODE = "ENCODE"
     DECODE = "DECODE"
     SHOW_CODES = "SHOW_CODES"
@@ -147,6 +148,7 @@ class Lexer:
 
         'build_text': TokenType.BUILD_TEXT,
         'build_freq': TokenType.BUILD_FREQ,
+        'build_numbers': TokenType.BUILD_NUMBERS,  # 🔥 新增
         'encode': TokenType.ENCODE,
         'decode': TokenType.DECODE,
         'show_codes': TokenType.SHOW_CODES,

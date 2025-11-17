@@ -131,6 +131,9 @@ class LinearLinkedList(LinearStructureBase):
 
     def insert(self, index: int, value: Any) -> bool:
         """插入元素 - 完整详细过程"""
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
+
         if index < 0 or index > self._size:
             step = OperationStep(
                 OperationType.INSERT,
@@ -350,6 +353,9 @@ class LinearLinkedList(LinearStructureBase):
 
     def delete(self, index: int) -> Any:
         """删除元素 - 完整详细过程"""
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
+
         if index < 0 or index >= self._size:
             step = OperationStep(
                 OperationType.DELETE,
@@ -560,6 +566,9 @@ class LinearLinkedList(LinearStructureBase):
 
     def search(self, value: Any) -> int:
         """搜索元素 - 完整遍历比较过程"""
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
+
         step = OperationStep(
             OperationType.SEARCH,
             value=value,

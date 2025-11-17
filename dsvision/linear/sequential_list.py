@@ -343,10 +343,16 @@ class SequentialList(LinearStructureBase):
         return self._size == 0
 
     def to_list(self) -> List[Any]:
-        return [self._data[i] for i in range(self._size)]
+        """返回完整容量的数据数组（包括None的空位）"""
+        return self._data.copy()
 
     def get_capacity(self) -> int:
+        """获取顺序表容量"""
         return self._capacity
+
+    def get_used_size(self) -> int:
+        """获取已使用的大小"""
+        return self._size
 
 
 

@@ -141,13 +141,23 @@ export default{
     return apiClient.delete(`/tree/${structureId}`);
   },
 
+  // 🎬 树遍历
+  traverseTree(structureId, traversalType) {
+    return apiClient.post(`/tree/${structureId}/traverse`, {
+      traversal_type: traversalType
+    });
+  },
+
   // ==================== Huffman树专用接口 ====================
 
-  // 从文本构建Huffman树
-  buildHuffmanTree(structureId, text) {
-    return apiClient.post(`/tree/${structureId}/huffman/build`, {
-      text
-    });
+  // 从文本或数字列表构建Huffman树
+  buildHuffmanTree(structureId, textOrNumbers) {
+    // 判断是文本还是数字数组
+    const payload = Array.isArray(textOrNumbers)
+      ? { numbers: textOrNumbers }  // 数字模式
+      : { text: textOrNumbers };     // 文本模式
+
+    return apiClient.post(`/tree/${structureId}/huffman/build`, payload);
   },
 
   // 从权重字典构建Huffman树

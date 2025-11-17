@@ -65,4 +65,13 @@ body {
 .slide-leave-to {
   transform: translateX(-100%);
 }
+
+.tree-node.dashed-node {
+  all: unset;
+  background-color: rgba(144, 238, 144, 0.5) !important;
+  border: 4px dashed #00DD00 !important;
+  color: #003300 !important;
+  animation: dashedPulse 1.2s ease-in-out infinite !important;
+  z-index: 100 !important;
+}
 </style>

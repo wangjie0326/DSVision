@@ -124,10 +124,40 @@ class HuffmanTree(TreeStructureBase):
         )
         self.add_operation_step(step)
 
-    def build_from_weights(self, weights: Dict[Any, int]) -> bool:
+    def build_from_numbers(self, numbers: List[int]) -> bool:
+        """
+        从数字列表构建哈夫曼树（纯数字模式）
+        numbers: 数字列表，例如 [2, 4, 6, 8]
+        """
+        if not numbers:
+            step = OperationStep(
+                OperationType.INIT,
+                description="构建失败:数字列表为空"
+            )
+            self.add_operation_step(step)
+            return False
+
+        # 💾 保存原始数据用于导出
+        self._original_numbers = numbers
+
+        step = OperationStep(
+                OperationType.INIT,
+            description=f"开始构建哈夫曼树（数字模式），输入权重列表: {numbers}"
+        )
+        self.add_operation_step(step)
+
+        # 将数字列表转换为频率字典
+        weights = {}
+        for i, num in enumerate(numbers):
+            weights[str(num)] = num  # 键和值都是数字，但键用字符串表示以保持唯一性
+
+        return self.build_from_weights(weights, mode='number')
+
+    def build_from_weights(self, weights: Dict[Any, int], mode: str = 'text') -> bool:
         """
         从频率字典构建哈夫曼树
         frequencies: {字符: 频率} 例如 {'A': 5, 'B': 9, 'C': 12}
+        mode: 'text' 文字模式 或 'number' 数字模式
         """
         if not weights:
             step = OperationStep(
@@ -136,6 +166,15 @@ class HuffmanTree(TreeStructureBase):
             )
             self.add_operation_step(step)
             return False
+
+        # 显示初始频率列表
+        freq_list = sorted(weights.values())
+        step = OperationStep(
+            OperationType.INIT,
+            description=f"📊 初始频率列表: {freq_list}",
+            visual_hints={'frequency_list': freq_list, 'mode': mode}
+        )
+        self.add_operation_step(step)
 
         step = OperationStep(
             OperationType.INIT,
@@ -170,6 +209,25 @@ class HuffmanTree(TreeStructureBase):
         merge_count = 0
         while heap.size > 1:  # 🔥 修改条件: 当堆中还有多于1个节点时继续
             merge_count += 1
+
+            # 📊 显示当前频率列表
+            current_freq_list = sorted([n.weight for n in heap.get_all_sorted()])
+            step = OperationStep(
+                OperationType.INSERT,
+                description=f"📊 当前频率列表: {current_freq_list}",
+                visual_hints={'frequency_list': current_freq_list, 'mode': mode}
+            )
+            self.add_operation_step(step)
+
+            # 🔴 选中最小的两个频率（红色高亮）
+            min1_weight = heap.heap[0].weight if heap.size > 0 else 0
+            min2_weight = sorted([n.weight for n in heap.heap])[1] if heap.size > 1 else 0
+            step = OperationStep(
+                OperationType.INSERT,
+                description=f"🔴 选中最小的两个频率: {min1_weight} 和 {min2_weight}",
+                visual_hints={'selected_weights': [min1_weight, min2_weight], 'frequency_list': current_freq_list, 'mode': mode}
+            )
+            self.add_operation_step(step)
 
             # 取出频率最小的两个节点
             left = heap.extract_min()
@@ -267,6 +325,9 @@ class HuffmanTree(TreeStructureBase):
             )
             self.add_operation_step(step)
             return False
+
+        # 💾 保存原始数据用于导出
+        self._original_text = text
 
         step = OperationStep(
             OperationType.INIT,

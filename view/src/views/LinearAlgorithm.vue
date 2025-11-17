@@ -51,7 +51,20 @@
         </select>
       </div>
 
-      <!-- 🔥 2. 动画速度选择器（新增） -->
+      <!-- 🔥 2. 容量输入（仅顺序表显示） -->
+      <div v-if="structureType === 'sequential' && !structureId" class="operation-group">
+        <label class="label">Capacity:</label>
+        <input
+          v-model.number="capacity"
+          type="number"
+          placeholder="100"
+          class="text-input"
+          min="1"
+          max="100"
+        />
+      </div>
+
+      <!-- 🔥 3. 动画速度选择器 -->
       <div class="operation-group">
         <label class="label">Speed:</label>
         <select v-model="animationSpeed" class="select-input">
@@ -62,7 +75,7 @@
         </select>
       </div>
 
-      <!-- 3. Value 输入框 -->
+      <!-- 4. Value 输入框 -->
       <div v-if="needsValue" class="operation-group">
         <label class="label">Value:</label>
         <input
@@ -74,7 +87,7 @@
         />
       </div>
 
-      <!-- 4. Index 输入框 -->
+      <!-- 5. Index 输入框 -->
       <div v-if="needsIndex" class="operation-group">
         <label class="label">Index:</label>
         <input
@@ -86,7 +99,7 @@
         />
       </div>
 
-      <!-- 5. 执行按钮 -->
+      <!-- 6. 执行按钮 -->
       <button
         @click="executeOperation"
         :disabled="isAnimating || !canExecute"
@@ -96,7 +109,7 @@
         <span v-else class="loading-spinner">⟳</span>
       </button>
 
-      <!-- 6. 清空按钮 -->
+      <!-- 7. 清空按钮 -->
       <button
         @click="clearStructure"
         :disabled="isAnimating"
@@ -106,51 +119,7 @@
       </button>
     </div>
 
-    <!-- 可视化区域 -->
-    <div class="visualization-area" :style="{ paddingBottom: '180px' }">
-      <div class="canvas-wrapper">
-        <div v-if="elements.length === 0" class="empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <path d="M9 9h6M9 15h6"/>
-          </svg>
-          <p>Start adding elements...</p>
-        </div>
-
-        <div v-else class="elements-container" :class="containerClass">
-          <!-- 🔥 链表的可视化 - 使用SVG组件 -->
-          <template v-if="structureType === 'linked'">
-            <LinkedList
-              :data="elements"
-              :highlightIndices="highlightedIndices"
-              :pointerStates="pointerStates"
-            />
-          </template>
-
-          <!-- 顺序表/栈的可视化 - 保持不变 -->
-          <template v-if="structureType === 'sequential' || structureType === 'stack'">
-            <div
-              v-for="(element, index) in elements"
-              :key="`elem-${index}`"
-              class="element-wrapper"
-            >
-              <div
-                class="element-node"
-                :class="getNodeClass(index)"
-              >
-                <span class="element-value">{{ element }}</span>
-              </div>
-              <div class="element-index">[{{ index }}]</div>
-              <div v-if="structureType === 'stack' && index === elements.length - 1" class="stack-top-indicator">
-                TOP
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-    </div>
-
-    <!-- 状态栏 - 保持不变 -->
+    <!-- 状态栏 - 放在操作面板下方 -->
     <div class="status-bar">
       <div class="status-info">
         <span class="status-label">Elements:</span>
@@ -165,7 +134,72 @@
       </div>
     </div>
 
-    <!-- 操作历史面板 - 保持不变 -->
+    <!-- 可视化区域 -->
+    <div class="visualization-area" :style="{ paddingBottom: '180px' }">
+      <div class="canvas-wrapper">
+        <!-- 🔥 空状态提示（非顺序表才显示） -->
+        <div v-if="elements.length === 0 && structureType !== 'sequential'" class="empty-state">
+          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M9 9h6M9 15h6"/>
+          </svg>
+          <p>Start adding elements...</p>
+        </div>
+
+        <!-- 🔥 顺序表始终显示网格，即使为空 -->
+        <div v-if="structureType === 'sequential' || elements.length > 0" class="elements-container" :class="containerClass">
+          <!-- 🔥 链表的可视化 - 使用SVG组件 -->
+          <template v-if="structureType === 'linked'">
+            <LinkedList
+              :data="elements"
+              :highlightIndices="highlightedIndices"
+              :pointerStates="pointerStates"
+            />
+          </template>
+
+          <!-- 🔥 顺序表的可视化 - 10x10网格，显示所有容量槽位 -->
+          <template v-if="structureType === 'sequential'">
+            <div
+              v-for="index in capacity"
+              :key="`elem-${index - 1}`"
+              class="element-wrapper"
+            >
+              <div
+                class="element-node"
+                :class="[getNodeClass(index - 1), { 'empty-slot': !elements[index - 1] && elements[index - 1] !== 0 }]"
+              >
+                <span v-if="elements[index - 1] !== null && elements[index - 1] !== undefined" class="element-value">
+                  {{ elements[index - 1] }}
+                </span>
+              </div>
+              <div class="element-index">[{{ index - 1 }}]</div>
+            </div>
+          </template>
+
+          <!-- 栈的可视化 - 保持原样 -->
+          <template v-if="structureType === 'stack'">
+            <div
+              v-for="(element, index) in elements"
+              :key="`elem-${index}`"
+              class="element-wrapper"
+            >
+              <div
+                class="element-node"
+                :class="getNodeClass(index)"
+              >
+                <span class="element-value">{{ element }}</span>
+              </div>
+              <div class="element-index">[{{ index }}]</div>
+              <div v-if="index === elements.length - 1" class="stack-top-indicator">
+                TOP
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作历史面板 -->
     <div class="history-panel" :class="{ 'collapsed': historyCollapsed }">
       <div class="history-header" @click="historyCollapsed = !historyCollapsed">
         <span class="history-title">Operation History</span>
@@ -372,6 +406,12 @@ const playOperationSteps = async (steps) => {
 }
 
 const executeOperation = async () => {
+  // 🔥 如果结构还未创建（顺序表延迟创建），先创建
+  if (!structureId.value) {
+    console.log('首次操作，创建数据结构...')
+    await createNewStructure()
+  }
+
   if (!structureId.value || !canExecute.value) return
 
   isAnimating.value = true
@@ -533,8 +573,14 @@ const createOrLoadStructure = async()=>{
       await createNewStructure()
     }
   }else {
-    //没有 importId，创建新的数据结构
-    await createNewStructure()
+    // 🔥 修改：对于顺序表，不立即创建，让用户先选择容量
+    // 其他类型的结构则立即创建
+    if (structureType.value !== 'sequential') {
+      await createNewStructure()
+    } else {
+      console.log('等待用户设置顺序表容量...')
+      lastOperation.value = '请设置容量后开始操作'
+    }
   }
 }
 //新增创建数据结构的独立函数
@@ -543,6 +589,14 @@ const createNewStructure = async () => {
     const response = await api.createStructure(structureType.value, capacity.value)
     structureId.value = response.structure_id
     console.log('新建数据结构:', response)
+
+    // 🔥 立即获取初始状态，显示所有容量槽位
+    if (structureType.value === 'sequential') {
+      const state = await api.getState(structureId.value)
+      elements.value = state.data || []
+      capacity.value = state.capacity || capacity.value
+      console.log(`✓ 顺序表已创建，容量: ${capacity.value}，显示 ${elements.value.length} 个槽位`)
+    }
   } catch (error) {
     console.error('创建数据结构失败:', error)
     alert('创建数据结构失败')
@@ -754,8 +808,12 @@ watch(() => route.query.importId, async (newId) => {
   padding: 2rem;
 }
 
+/* 🔥 顺序表10x10网格布局 */
 .sequential-container {
   flex-wrap: wrap;
+  max-width: calc(10 * (80px + 1rem)); /* 10列，每列80px宽度 + 1rem间距 */
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .stack-container {
@@ -796,6 +854,13 @@ watch(() => route.query.importId, async (newId) => {
   background-color: #ef4444;
   transform: scale(1.15);
   box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3);
+}
+
+/* 🔥 空节点样式 - 只显示索引，无值 */
+.element-node.empty-slot {
+  background-color: #10b981;
+  opacity: 0.4;
+  border: 2px dashed #6b7280;
 }
 
 .element-value {
@@ -951,19 +1016,20 @@ watch(() => route.query.importId, async (newId) => {
 /* 操作历史面板 */
 .history-panel {
   position: fixed;
-  bottom: 0;
+  top: 160px;  /* 🔥 对齐状态栏：control-bar(约60px) + operation-panel(约115px) = 175px */
   right: 0;
   width: 400px;
   max-height: 50vh;
   background-color: white;
   border-left: 1px solid #e5e7eb;
-  border-top: 1px solid #e5e7eb;
-  box-shadow: -4px 0 6px -1px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: -4px 4px 6px -1px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
+  z-index: 10;
 }
 
 .history-panel.collapsed {
-  transform: translateY(calc(100% - 40px));
+  transform: translateY(calc(-100% + 40px));
 }
 
 .history-header {
@@ -985,10 +1051,11 @@ watch(() => route.query.importId, async (newId) => {
 
 .history-header svg {
   transition: transform 0.3s ease;
+  transform: rotate(180deg);  /* 🔥 默认向上 */
 }
 
 .history-header svg.rotated {
-  transform: rotate(180deg);
+  transform: rotate(0deg);  /* 🔥 collapsed时向下 */
 }
 
 .history-list {

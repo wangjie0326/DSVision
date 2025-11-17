@@ -94,6 +94,10 @@ Huffman myHuffman {
     show_codes
     encode "HI"
 }
+
+Huffman myHuffmanNumbers {
+    build_numbers [2, 4, 6, 8]
+}
 ```
 
 ## 示例对话
@@ -162,12 +166,65 @@ Huffman myHuffman {
 }
 ```
 
+### 树遍历示例
+
+用户: "创建一个包含50,30,70,20,40的BST并进行中序遍历"
+你的回复:
+```json
+{
+  "dsl_code": "BST myBST {\\n    insert 50\\n    insert 30\\n    insert 70\\n    insert 20\\n    insert 40\\n    traverse inorder\\n}",
+  "explanation": "已创建二叉搜索树，插入5个节点，并进行中序遍历（结果应为：20, 30, 40, 50, 70）"
+}
+```
+
+用户: "前序遍历这棵树"
+你的回复:
+```json
+{
+  "dsl_code": "BST myBST {\\n    traverse preorder\\n}",
+  "explanation": "对当前二叉搜索树进行前序遍历（根→左→右）"
+}
+```
+
+用户: "层次遍历"
+你的回复:
+```json
+{
+  "dsl_code": "BST myBST {\\n    traverse levelorder\\n}",
+  "explanation": "对当前二叉搜索树进行层次遍历（从上到下，从左到右）"
+}
+```
+
+用户: "后序遍历一下"
+你的回复:
+```json
+{
+  "dsl_code": "BST myBST {\\n    traverse postorder\\n}",
+  "explanation": "对当前二叉搜索树进行后序遍历（左→右→根）"
+}
+```
+
 ## 智能识别规则
 - "创建/构建/生成" → 使用 init 或 insert
 - "删除/移除" → 使用 delete
 - "查找/搜索" → 使用 search
-- "遍历" → 使用 traverse
+- "遍历" → 使用 traverse，识别遍历类型：
+  - "前序/先序/前序遍历/preorder" → traverse preorder
+  - "中序/中序遍历/inorder" → traverse inorder
+  - "后序/后序遍历/postorder" → traverse postorder
+  - "层次/层序/广度/levelorder/level order" → traverse levelorder
+  - 如果只说"遍历"不指定类型，默认使用 inorder（中序遍历）
 - 数字序列 [5,3,7] → 自动转换为 DSL 语法
+
+### Huffman树特殊规则
+- **文本模式**：用户提到"文本"、"字符串"、"单词"等关键词 → 使用 `build_text "文本内容"`
+  - 示例："用HELLO构建Huffman树" → `build_text "HELLO"`
+- **数字模式**：用户提到"数字"、"频率"、"权重"，或直接给出数字列表 → 使用 `build_numbers [数字列表]`
+  - 示例："用2,4,6,8构建Huffman树" → `build_numbers [2, 4, 6, 8]`
+  - 示例："创建频率为2、4、6、8的Huffman树" → `build_numbers [2, 4, 6, 8]`
+- **默认规则**：如果用户没有明确指定模式，根据输入内容判断：
+  - 包含字母/汉字 → 文本模式
+  - 只包含数字 → 数字模式
 """
 
 
@@ -267,21 +324,52 @@ class OpenAIProvider:
     def generate(self, user_message: str) -> Dict:
         try:
             # 使用兼容的模型名称（OpenRouter 和官方 OpenAI 都支持）
-            model = "gpt-4o-mini"
+            model = "openai/gpt-4o-mini"  # OpenRouter格式: provider/model
 
+            # OpenRouter配置
+            extra_headers = {}
+            extra_body = {}
+
+            # 如果使用OpenRouter，不使用response_format（某些模型不支持）
+            # 改为在system prompt中要求JSON格式
+            print(f"🔄 正在调用 OpenAI API (模型: {model})...")
             response = self.client.chat.completions.create(
                 model=model,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_message}
                 ],
-                response_format={"type": "json_object"},
                 temperature=0.3,
                 max_tokens=500,
-                timeout=120.0  # 显式设置超时
+                timeout=120.0,  # 显式设置超时
+                extra_headers=extra_headers,
+                extra_body=extra_body
             )
 
-            result = json.loads(response.choices[0].message.content)
+            # 获取响应内容
+            content = response.choices[0].message.content
+            print(f"✓ API响应成功")
+            print(f"原始响应内容: {content}")
+
+            # 🔥 处理markdown代码块格式（```json ... ```）
+            import re
+            json_match = re.search(r'```json\s*\n(.*?)\n```', content, re.DOTALL)
+            if json_match:
+                content = json_match.group(1).strip()
+                print(f"✓ 提取到JSON内容: {content}")
+
+            # 尝试解析JSON
+            try:
+                result = json.loads(content)
+            except json.JSONDecodeError as json_err:
+                print(f"❌ JSON解析失败: {json_err}")
+                print(f"原始内容: {repr(content)}")
+                return {
+                    'success': False,
+                    'error': f'LLM返回的内容不是有效的JSON格式: {content[:200]}...',
+                    'provider': 'openai'
+                }
+
             return {
                 'success': True,
                 'dsl_code': result.get('dsl_code', ''),
@@ -290,6 +378,9 @@ class OpenAIProvider:
             }
 
         except Exception as e:
+            print(f"❌ API调用失败: {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return {
                 'success': False,
                 'error': str(e),

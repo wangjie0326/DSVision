@@ -45,14 +45,47 @@
         </select>
       </div>
 
+      <!-- 🎬 遍历类型选择 -->
+      <div v-if="currentOperation === 'traverse'" class="operation-group">
+        <label class="label">Traversal Type:</label>
+        <select v-model="traversalType" class="select-input">
+          <option value="preorder">前序遍历 (Preorder)</option>
+          <option value="inorder">中序遍历 (Inorder)</option>
+          <option value="postorder">后序遍历 (Postorder)</option>
+          <option value="levelorder">层次遍历 (Level Order)</option>
+        </select>
+      </div>
+
       <!-- Huffman树特殊输入 -->
       <template v-if="structureType === 'huffman' && currentOperation === 'build'">
+        <!-- 模式选择 -->
         <div class="operation-group">
+          <label class="label">Mode:</label>
+          <select v-model="huffmanMode" class="select">
+            <option value="text">Text Mode</option>
+            <option value="number">Number Mode</option>
+          </select>
+        </div>
+
+        <!-- 文本模式输入 -->
+        <div v-if="huffmanMode === 'text'" class="operation-group">
           <label class="label">Input Text:</label>
           <input
             v-model="huffmanText"
             type="text"
-            placeholder="Enter text for Huffman encoding"
+            placeholder="Enter text for Huffman encoding (e.g., HELLO)"
+            class="text-input text-input-wide"
+            @keyup.enter="executeOperation"
+          />
+        </div>
+
+        <!-- 数字模式输入 -->
+        <div v-else class="operation-group">
+          <label class="label">Input Numbers:</label>
+          <input
+            v-model="huffmanNumbers"
+            type="text"
+            placeholder="Enter numbers separated by comma (e.g., 2,4,6,8)"
             class="text-input text-input-wide"
             @keyup.enter="executeOperation"
           />
@@ -89,8 +122,49 @@
       </button>
     </div>
 
+    <!-- 状态栏 - 放在操作面板下方 -->
+    <div class="status-bar">
+      <div class="status-info">
+        <span class="status-label">Nodes:</span>
+        <span class="status-value">{{ treeData?.size || 0 }}</span>
+      </div>
+      <div class="status-info">
+        <span class="status-label">Height:</span>
+        <span class="status-value">{{ treeData?.height || 0 }}</span>
+      </div>
+      <div v-if="structureType === 'bst' && treeData?.min !== undefined" class="status-info">
+        <span class="status-label">Min:</span>
+        <span class="status-value">{{ treeData.min }}</span>
+      </div>
+      <div v-if="structureType === 'bst' && treeData?.max !== undefined" class="status-info">
+        <span class="status-label">Max:</span>
+        <span class="status-value">{{ treeData.max }}</span>
+      </div>
+      <div v-if="dashedNodes.length > 0" class="status-info status-dashed-debug">
+        <span class="status-label">虚线节点:</span>
+        <span class="status-value">{{ dashedNodes.join(', ') }}</span>
+      </div>
+      <div v-if="lastOperation" class="status-message">
+        {{ lastOperation }}
+      </div>
+    </div>
+
     <!-- 可视化区域 -->
     <div class="visualization-area" :style="{ paddingBottom: '180px' }" ref="visualAreaRef">
+      <!-- 🔥 Huffman频率列表面板 -->
+      <div v-if="structureType === 'huffman' && huffmanFrequencyList.length > 0" class="frequency-panel">
+        <div class="frequency-list">
+          <div
+            v-for="(freq, index) in huffmanFrequencyList"
+            :key="`freq-${index}`"
+            class="frequency-item"
+            :class="{ 'selected': huffmanSelectedWeights.includes(freq) }"
+          >
+            {{ freq }}
+          </div>
+        </div>
+      </div>
+
       <div class="canvas-wrapper">
         <div v-if="!treeData || !treeData.root || treeData.size === 0" class="empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
@@ -148,40 +222,30 @@
               height: `${canvasSize.height}px`
             }"
           >
+            <!-- 正常节点 -->
             <TreeNodeComponent
               v-for="(position, nodeId) in nodePositions"
-              :key="nodeId"
+              :key="`node-${nodeId}`"
               :node="findNodeById(treeData.root, parseInt(nodeId))"
               :position="position"
               :highlighted="highlightedNodes"
               :dashedNodes="dashedNodes"
               :isHuffman="structureType === 'huffman'"
             />
+
+            <!-- 🔥 预览节点 -->
+            <TreeNodeComponent
+              v-if="previewNode"
+              :key="'preview'"
+              :node="{ value: previewNode.value, node_id: -1 }"
+              :position="previewNode.position"
+              :highlighted="[]"
+              :dashedNodes="[]"
+              :isPreview="true"
+              :isHuffman="structureType === 'huffman'"
+            />
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- 状态栏 -->
-    <div class="status-bar">
-      <div class="status-info">
-        <span class="status-label">Nodes:</span>
-        <span class="status-value">{{ treeData?.size || 0 }}</span>
-      </div>
-      <div class="status-info">
-        <span class="status-label">Height:</span>
-        <span class="status-value">{{ treeData?.height || 0 }}</span>
-      </div>
-      <div v-if="structureType === 'bst' && treeData?.min !== undefined" class="status-info">
-        <span class="status-label">Min:</span>
-        <span class="status-value">{{ treeData.min }}</span>
-      </div>
-      <div v-if="structureType === 'bst' && treeData?.max !== undefined" class="status-info">
-        <span class="status-label">Max:</span>
-        <span class="status-value">{{ treeData.max }}</span>
-      </div>
-      <div v-if="lastOperation" class="status-message">
-        {{ lastOperation }}
       </div>
     </div>
 
@@ -248,13 +312,19 @@ const treeData = ref(null)
 const currentOperation = ref('insert')
 const inputValue = ref('')
 const huffmanText = ref('')
+const huffmanMode = ref('text')  // 🔥 Huffman树模式: 'text' 或 'number'
+const huffmanNumbers = ref('')   // 🔥 Huffman树数字模式输入
+const traversalType = ref('inorder')  // 🎬 遍历类型
 const isAnimating = ref(false)
 const highlightedNodes = ref([])
 const dashedNodes = ref([])  // 虚线节点（新插入还未平衡的）
+const previewNode = ref(null)  // 🔥 预览节点: { value, position: {x, y}, parentId }
 const operationHistory = ref([])
 const lastOperation = ref('')
 const historyCollapsed = ref(true)
 const huffmanCodes = ref(null)
+const huffmanFrequencyList = ref([])      // 🔥 Huffman树频率列表
+const huffmanSelectedWeights = ref([])    // 🔥 Huffman树选中的权重（红色高亮）
 const animationSpeed = ref(1)
 const visualAreaRef = ref(null)
 
@@ -280,17 +350,20 @@ const availableOperations = computed(() => {
     'binary': [
       { value: 'insert', label: 'Insert' },
       { value: 'delete', label: 'Delete' },
-      { value: 'search', label: 'Search' }
+      { value: 'search', label: 'Search' },
+      { value: 'traverse', label: 'Traverse' }
     ],
     'bst': [
       { value: 'insert', label: 'Insert' },
       { value: 'delete', label: 'Delete' },
-      { value: 'search', label: 'Search' }
+      { value: 'search', label: 'Search' },
+      { value: 'traverse', label: 'Traverse' }
     ],
     'avl': [
       { value: 'insert', label: 'Insert' },
       { value: 'delete', label: 'Delete' },
-      { value: 'search', label: 'Search' }
+      { value: 'search', label: 'Search' },
+      { value: 'traverse', label: 'Traverse' }
     ],
     'huffman': [
       { value: 'build', label: 'Build from Text' },
@@ -309,7 +382,12 @@ const needsValue = computed(() => {
 
 const canExecute = computed(() => {
   if (structureType.value === 'huffman' && currentOperation.value === 'build') {
-    return huffmanText.value.trim().length > 0
+    // 🔥 根据模式检查不同的输入
+    if (huffmanMode.value === 'text') {
+      return huffmanText.value.trim().length > 0
+    } else {
+      return huffmanNumbers.value.trim().length > 0
+    }
   }
   if (needsValue.value && !inputValue.value) return false
   return true
@@ -325,6 +403,25 @@ const calculateTreeLayout = () => {
 
   console.log('🔄 重新计算树布局...')
 
+  // 🔥 保存临时节点的位置和连接线（如果有的话）
+  const tempNodePositions = {}
+  const tempEdges = []
+
+  if (treeData.value?._tempNodes) {
+    for (const nodeId of Object.keys(treeData.value._tempNodes)) {
+      if (nodePositions.value[nodeId]) {
+        tempNodePositions[nodeId] = nodePositions.value[nodeId]
+      }
+    }
+  }
+
+  // 保存临时连接线
+  for (const edge of edges.value) {
+    if (edge._isTemp) {
+      tempEdges.push(edge)
+    }
+  }
+
   // 使用布局引擎计算
   const layout = layoutEngine.getLayout(treeData.value.root)
 
@@ -335,6 +432,20 @@ const calculateTreeLayout = () => {
     height: layout.height
   }
 
+  // 🔥 恢复临时节点的位置和连接线
+  if (Object.keys(tempNodePositions).length > 0) {
+    nodePositions.value = {
+      ...nodePositions.value,
+      ...tempNodePositions
+    }
+    console.log('✓ 已恢复临时节点位置:', Object.keys(tempNodePositions))
+  }
+
+  if (tempEdges.length > 0) {
+    edges.value = [...edges.value, ...tempEdges]
+    console.log('✓ 已恢复临时连接线:', tempEdges.length, '条')
+  }
+
   console.log('✓ 布局计算完成:', {
     节点数: Object.keys(layout.positions).length,
     连接线数: layout.edges.length,
@@ -342,8 +453,14 @@ const calculateTreeLayout = () => {
   })
 }
 
-// 🔥 辅助方法：根据ID查找节点
+// 🔥 辅助方法：根据ID查找节点（支持临时节点）
 const findNodeById = (node, targetId) => {
+  // 🔥 优先查找临时节点
+  if (treeData.value?._tempNodes?.[String(targetId)]) {
+    return treeData.value._tempNodes[String(targetId)]
+  }
+
+  // 在树中递归查找
   if (!node) return null
   if (node.node_id === targetId) return node
 
@@ -367,30 +484,238 @@ const playTreeAnimationSteps = async (steps) => {
 
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]
+    const nextStep = i < steps.length - 1 ? steps[i + 1] : null
     console.log(`Step ${i + 1}/${steps.length}:`, step.description)
 
     // 1. 更新描述
     lastOperation.value = step.description || ''
 
+    // 1.5 🔥 更新Huffman频率列表和选中的权重（从visual_hints中提取）
+    if (structureType.value === 'huffman' && step.visual_hints) {
+      if (step.visual_hints.frequency_list) {
+        huffmanFrequencyList.value = [...step.visual_hints.frequency_list]
+        console.log('🔥 更新频率列表:', huffmanFrequencyList.value)
+      }
+      if (step.visual_hints.selected_weights) {
+        huffmanSelectedWeights.value = [...step.visual_hints.selected_weights]
+        console.log('🔥 选中权重（红色）:', huffmanSelectedWeights.value)
+      } else {
+        huffmanSelectedWeights.value = []
+      }
+    }
+
     // 2. 🔥 如果有树快照，更新树数据并重新计算布局
     if (step.tree_snapshot) {
       treeData.value = step.tree_snapshot
+
+      // 🔥 调试：打印树快照的结构
+      console.log('   -> 树快照root:', step.tree_snapshot.root)
+      if (step.tree_snapshot.root) {
+        const collectNodeIds = (node) => {
+          if (!node) return []
+          return [
+            node.node_id,
+            ...collectNodeIds(node.left),
+            ...collectNodeIds(node.right)
+          ]
+        }
+        const allNodeIds = collectNodeIds(step.tree_snapshot.root)
+        console.log('   -> 树快照中的所有节点ID:', allNodeIds)
+      }
+
       await nextTick()  // 等待DOM更新
       calculateTreeLayout()  // 重新计算布局
     }
 
     // 3. 更新虚线节点和高亮节点
-    // 检查是否是"插入新节点"的步骤（包含✏️符号）
-    if (step.description && step.description.includes('✏️')) {
-      // 这是插入节点的步骤，高亮的节点应该显示为虚线
-      console.log('🔵 检测到虚线节点步骤:', step.description)
+    // 🔥 根据 animation_type 决定如何显示节点
+    const animationType = step.animation_type || ''
+
+    if (animationType === 'pulse') {
+      // 浅绿色脉冲动画（虚线节点）
+      console.log('🔵 检测到脉冲动画步骤:', step.description)
       console.log('   -> highlight_indices:', step.highlight_indices)
-      dashedNodes.value = step.highlight_indices || []
+
+      // 🔥 关键修复1：创建新数组引用，强制 Vue 触发响应式更新
+      dashedNodes.value = [...(step.highlight_indices || [])]
       highlightedNodes.value = []
       console.log('   -> dashedNodes设置为:', dashedNodes.value)
-    } else {
-      // 其他步骤清除虚线，显示红色高亮
+      console.log('   -> 🔥 虚线节点将显示', step.duration || 0.5, '秒')
+      // 🔥 关键修复2：等待多个渲染周期确保样式生效
+      await nextTick()
+      await nextTick()  // 双重 nextTick 确保子组件完全重新渲染
+      console.log('   -> ✅ DOM已更新,虚线节点应该可见')
+
+      // 🔥 关键修复3：检查并补充虚线节点的临时位置
+      const nodeIdsInPositions = Object.keys(nodePositions.value)
+      const dashedNodeId = step.highlight_indices[0]
+      const isDashedNodeInPositions = nodeIdsInPositions.includes(String(dashedNodeId))
+
+      console.log('   -> nodePositions的keys:', nodeIdsInPositions)
+      console.log('   -> 虚线节点ID:', dashedNodeId)
+      console.log('   -> 虚线节点在nodePositions中?', isDashedNodeInPositions)
+
+      if (!isDashedNodeInPositions) {
+        console.warn('⚠️ 虚线节点不在nodePositions中, 自动补充临时节点和位置')
+
+        // 🔥 从 tree_snapshot 中找到虚线节点和它的父节点
+        let parentNode = null
+        let dashedNode = null
+        let isLeftChild = false
+
+        // 辅助函数：在树中查找节点
+        const findNodeInTree = (node, targetId) => {
+          if (!node) return null
+          if (node.node_id === targetId) return node
+          const leftResult = findNodeInTree(node.left, targetId)
+          if (leftResult) return leftResult
+          return findNodeInTree(node.right, targetId)
+        }
+
+        // 辅助函数：查找父节点
+        const findParent = (node, targetId) => {
+          if (!node) return null
+          if (node.left?.node_id === targetId) return { parent: node, isLeft: true }
+          if (node.right?.node_id === targetId) return { parent: node, isLeft: false }
+          const leftResult = findParent(node.left, targetId)
+          if (leftResult) return leftResult
+          return findParent(node.right, targetId)
+        }
+
+        if (step.tree_snapshot?.root) {
+          // 🔥 打印树结构帮助调试
+          const printTree = (node, prefix = '') => {
+            if (!node) return prefix + 'null'
+            let result = `${prefix}node_id=${node.node_id}, value=${node.value}\n`
+            if (node.left) result += printTree(node.left, prefix + '  L:')
+            if (node.right) result += printTree(node.right, prefix + '  R:')
+            return result
+          }
+          console.log('   -> 🔍 树结构:\n' + printTree(step.tree_snapshot.root))
+          console.log('   -> 🔍 寻找虚线节点ID:', dashedNodeId)
+
+          dashedNode = findNodeInTree(step.tree_snapshot.root, dashedNodeId)
+          const parentInfo = findParent(step.tree_snapshot.root, dashedNodeId)
+          if (parentInfo) {
+            parentNode = parentInfo.parent
+            isLeftChild = parentInfo.isLeft
+          }
+        } else {
+          console.error('   -> ❌ step.tree_snapshot 或 root 不存在')
+        }
+
+        console.log('   -> 找到虚线节点:', dashedNode)
+        console.log('   -> 找到父节点:', parentNode)
+        console.log('   -> 是左子节点?', isLeftChild)
+
+        if (!dashedNode || !parentNode) {
+          console.error('❌ 无法找到虚线节点或父节点')
+          return
+        }
+
+        // 🔥 从 nodePositions 中获取父节点的实际位置
+        const parentPos = nodePositions.value[String(parentNode.node_id)]
+        if (!parentPos) {
+          console.error('❌ 父节点位置不存在')
+          return
+        }
+
+        // 🔥 使用布局引擎的逻辑计算子节点位置
+        const LEVEL_HEIGHT = 120  // 与 treeLayout.js 保持一致
+        const MIN_SPACING = 100   // 与 treeLayout.js 保持一致
+
+        // 计算水平位置：根据是左子还是右子
+        let tempX
+        if (isLeftChild) {
+          // 左子节点：在父节点左侧
+          tempX = parentPos.x - MIN_SPACING / 2
+        } else {
+          // 右子节点：在父节点右侧
+          tempX = parentPos.x + MIN_SPACING / 2
+        }
+
+        const tempPos = {
+          x: tempX,
+          y: parentPos.y + LEVEL_HEIGHT  // 垂直距离固定
+        }
+
+        // 🔥 创建临时节点对象
+        if (!treeData.value._tempNodes) {
+          treeData.value._tempNodes = {}
+        }
+        treeData.value._tempNodes[String(dashedNodeId)] = {
+          value: dashedNode.value,
+          node_id: dashedNodeId,
+          left: null,
+          right: null,
+          height: dashedNode.height || 1,
+          _isTemp: true
+        }
+
+        // 🔥 添加临时位置到 nodePositions
+        nodePositions.value = {
+          ...nodePositions.value,
+          [String(dashedNodeId)]: tempPos
+        }
+
+        // 🔥 添加连接线（从父节点到虚线节点）
+        const RADIUS = 30  // 节点半径
+        const dx = tempPos.x - parentPos.x
+        const dy = tempPos.y - parentPos.y
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        const ux = dx / distance
+        const uy = dy / distance
+
+        const startX = parentPos.x + RADIUS * ux
+        const startY = parentPos.y + RADIUS * uy
+        const endX = tempPos.x - RADIUS * ux
+        const endY = tempPos.y - RADIUS * uy
+
+        const tempEdge = {
+          id: `${parentNode.node_id}-${dashedNodeId}`,
+          path: `M ${startX} ${startY} L ${endX} ${endY}`,
+          start: { x: startX, y: startY },
+          end: { x: endX, y: endY },
+          _isTemp: true  // 标记为临时连接线
+        }
+
+        edges.value = [...edges.value, tempEdge]
+
+        console.log('✅ 已为虚线节点补充临时位置、节点对象和连接线')
+        console.log('   -> 父节点位置:', parentPos)
+        console.log('   -> 虚线节点位置:', tempPos)
+        console.log('   -> 虚线节点值:', dashedNode.value)
+        console.log('   -> 连接线:', tempEdge)
+      } else {
+        console.log('✅ 虚线节点位置:', nodePositions.value[String(dashedNodeId)])
+      }
+
+      // 🔥 显示虚线节点（浅绿色脉冲），等待下一个步骤（confirm）来停止脉冲
+      const baseDelay = step.duration || 0.8
+      const delay = (baseDelay / animationSpeed.value) * 1000
+      console.log('   -> 🟢 虚线节点脉冲中，持续', delay, 'ms')
+      console.log('   -> 🟢 当前 dashedNodes:', dashedNodes.value)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    } else if (animationType === 'confirm') {
+      // 确认节点：停止脉冲，变为深绿色
+      console.log('🟢 检测到确认动画步骤:', step.description)
+      console.log('   -> highlight_indices:', step.highlight_indices)
+
+      // 清空虚线节点和高亮节点，让节点变为正常深绿色
       dashedNodes.value = []
+      highlightedNodes.value = []
+      console.log('   -> 节点已确认为深绿色，停止脉冲')
+
+      // 等待DOM更新
+      await nextTick()
+
+      // 延迟
+      const baseDelay = step.duration || 0.5
+      const delay = (baseDelay / animationSpeed.value) * 1000
+      console.log('   -> 确认动画延迟:', delay, 'ms')
+      await new Promise(resolve => setTimeout(resolve, delay))
+    } else {
+      // 其他步骤显示红色高亮
       if (step.node_id && step.node_id !== -1) {
         highlightedNodes.value = [step.node_id]
       } else if (step.highlight_indices) {
@@ -398,17 +723,43 @@ const playTreeAnimationSteps = async (steps) => {
       } else {
         highlightedNodes.value = []
       }
-    }
 
-    // 4. 延迟
-    const baseDelay = step.duration || 0.5
-    const delay = (baseDelay / animationSpeed.value) * 1000
-    await new Promise(resolve => setTimeout(resolve, delay))
+      // 🔥 关键修复：在warning/rotate/settle动画期间，保持浅绿色脉冲状态
+      // 不清除 dashedNodes，让新插入的节点继续保持浅绿色脉冲
+      console.log('   -> 保持 dashedNodes 状态:', dashedNodes.value)
+
+      // 🔥 等待 DOM 更新，确保高亮生效
+      await nextTick()
+
+      // 4. 延迟
+      const baseDelay = step.duration || 0.5
+      let delay = (baseDelay / animationSpeed.value) * 1000
+
+      // 🔥 特殊处理旋转动画和失衡检测：确保最小延迟，让用户看清红色高亮和旋转过程
+      if (step.description && step.description.includes('旋转')) {
+        const minRotationDelay = 1500  // 🔥 旋转动画最少1.5秒，让用户看清
+        delay = Math.max(delay, minRotationDelay)
+        console.log('   -> 🔄 旋转步骤，延长延迟到:', delay, 'ms，高亮节点:', highlightedNodes.value)
+      } else if (step.description && step.description.includes('失衡')) {
+        const minImbalanceDelay = 1200  // 🔥 失衡检测最少1.2秒，让用户看清
+        delay = Math.max(delay, minImbalanceDelay)
+        console.log('   -> ⚠️ 失衡检测步骤，延长延迟到:', delay, 'ms，高亮节点:', highlightedNodes.value)
+      }
+
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
   }
 
   console.log('✓ 动画播放完毕')
   highlightedNodes.value = []
   dashedNodes.value = []
+
+  // 🔥 清空Huffman频率列表
+  if (structureType.value === 'huffman') {
+    huffmanFrequencyList.value = []
+    huffmanSelectedWeights.value = []
+  }
+
   isAnimating.value = false
 }
 
@@ -436,8 +787,16 @@ const executeOperation = async () => {
     switch (currentOperation.value) {
       case 'build':
         if (structureType.value === 'huffman') {
-          console.log('🔥 构建Huffman树, 文本:', huffmanText.value)
-          response = await api.buildHuffmanTree(structureId.value, huffmanText.value)
+          // 🔥 根据模式构建Huffman树
+          if (huffmanMode.value === 'text') {
+            console.log('🔥 构建Huffman树 (文本模式), 文本:', huffmanText.value)
+            response = await api.buildHuffmanTree(structureId.value, huffmanText.value)
+          } else {
+            // 数字模式：解析逗号分隔的数字
+            const numbers = huffmanNumbers.value.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n))
+            console.log('🔥 构建Huffman树 (数字模式), 数字列表:', numbers)
+            response = await api.buildHuffmanTree(structureId.value, numbers)
+          }
         }
         break
       case 'insert': {
@@ -453,6 +812,11 @@ const executeOperation = async () => {
       case 'search': {
         const val = isNaN(Number(inputValue.value)) ? inputValue.value : Number(inputValue.value)
         response = await api.searchTreeNode(structureId.value, val)
+        break
+      }
+      case 'traverse': {
+        console.log('🎬 执行遍历操作，类型:', traversalType.value)
+        response = await api.traverseTree(structureId.value, traversalType.value)
         break
       }
       default:
@@ -489,6 +853,7 @@ const executeOperation = async () => {
 
     inputValue.value = ''
     huffmanText.value = ''
+    huffmanNumbers.value = ''
 
   } catch (error) {
     console.error('❌ 操作失败:', error)
@@ -573,8 +938,34 @@ const createOrLoadTreeStructure = async () => {
         console.log(`✅ 成功加载树结构: ${response.tree_data.size} 个节点`)
 
         // 🔥 恢复状态
-        treeData.value = response.tree_data
-        operationHistory.value = response.operation_history || []
+        const hasOperationHistory = response.operation_history && response.operation_history.length > 0
+        const isFromDSL = route.query.fromDSL === 'true'
+
+        // 如果是从DSL跳转过来的，并且有操作历史，播放动画
+        if (isFromDSL && hasOperationHistory) {
+          console.log('🎬 检测到从DSL跳转，将播放构建动画')
+
+          // 先清空树数据，准备播放动画
+          treeData.value = { root: null, size: 0, height: 0 }
+          await nextTick()
+
+          // 播放动画
+          await playTreeAnimationSteps(response.operation_history)
+
+          // 动画结束后，更新最终数据
+          treeData.value = response.tree_data
+          operationHistory.value = response.operation_history
+
+          // 清除URL中的fromDSL参数
+          router.replace({
+            path: route.path,
+            query: { importId: route.query.importId }
+          })
+        } else {
+          // 正常加载（不播放动画）
+          treeData.value = response.tree_data
+          operationHistory.value = response.operation_history || []
+        }
 
         // 🔥 Huffman树的编码表
         if (structureType.value === 'huffman' && response.tree_data?.huffman_codes) {
@@ -589,8 +980,8 @@ const createOrLoadTreeStructure = async () => {
         await nextTick()
         calculateTreeLayout()
 
-        // 🔥 可选：高亮所有节点
-        if (response.tree_data.traversals?.levelorder) {
+        // 🔥 可选：高亮所有节点（只在非DSL跳转时）
+        if (!isFromDSL && response.tree_data.traversals?.levelorder) {
           const allNodeIds = []
           const collectIds = (node) => {
             if (!node) return
@@ -609,7 +1000,16 @@ const createOrLoadTreeStructure = async () => {
 
     } catch (error) {
       console.error('加载树结构失败:', error)
-      alert('加载失败，将创建新的树结构'+ (error.response?.data?.error || error.message))
+
+      // 🔥 清除无效的 importId 参数
+      router.replace({
+        path: route.path,
+        query: {}
+      })
+
+      // 静默创建新结构（不弹出alert，更友好）
+      console.log('⚠️ 旧结构已失效，正在创建新结构...')
+      lastOperation.value = '⚠️ 之前的树结构已失效，已自动创建新结构'
       await createNewTreeStructure()
     }
   } else {
@@ -638,7 +1038,7 @@ watch(() => route.query.importId, async (newId) => {
 
 </script>
 
-<style scoped>
+<style>
 /* ... 保持原有样式不变 ... */
 .visualization-container {
   position: fixed;
@@ -852,7 +1252,13 @@ watch(() => route.query.importId, async (newId) => {
 }
 
 .edge-line {
-  transition: stroke 0.3s ease;
+  /* 平滑过渡连接线的位置和颜色 */
+  transition: x1 0.8s cubic-bezier(0.4, 0.0, 0.2, 1),
+              y1 0.8s cubic-bezier(0.4, 0.0, 0.2, 1),
+              x2 0.8s cubic-bezier(0.4, 0.0, 0.2, 1),
+              y2 0.8s cubic-bezier(0.4, 0.0, 0.2, 1),
+              stroke 0.3s ease,
+              stroke-dasharray 0.3s ease;
 }
 
 .edge-line:hover {
@@ -888,6 +1294,13 @@ watch(() => route.query.importId, async (newId) => {
   flex: 1;
   color: #10b981;
   font-weight: 500;
+}
+
+.status-dashed-debug {
+  background-color: #f0fdf4;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  border-left: 3px solid #10b981;
 }
 
 .huffman-panel {
@@ -943,19 +1356,20 @@ watch(() => route.query.importId, async (newId) => {
 
 .history-panel {
   position: fixed;
-  bottom: 0;
+  top: 160px;  /* 🔥 对齐状态栏：control-bar(约60px) + operation-panel(约115px) = 175px */
   right: 0;
   width: 400px;
   max-height: 50vh;
   background-color: white;
   border-left: 1px solid #e5e7eb;
-  border-top: 1px solid #e5e7eb;
-  box-shadow: -4px 0 6px -1px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: -4px 4px 6px -1px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
+  z-index: 10;
 }
 
 .history-panel.collapsed {
-  transform: translateY(calc(100% - 40px));
+  transform: translateY(calc(-100% + 40px));
 }
 
 .history-header {
@@ -977,10 +1391,11 @@ watch(() => route.query.importId, async (newId) => {
 
 .history-header svg {
   transition: transform 0.3s ease;
+  transform: rotate(180deg);  /* 🔥 默认向上 */
 }
 
 .history-header svg.rotated {
-  transform: rotate(180deg);
+  transform: rotate(0deg);  /* 🔥 collapsed时向下 */
 }
 
 .history-list {
@@ -1008,6 +1423,46 @@ watch(() => route.query.importId, async (newId) => {
   flex: 1;
 }
 
+/* 🔥 Huffman频率列表面板样式 */
+.frequency-panel {
+  width: 100%;
+  padding: 1rem 2rem;
+  background-color: #1f2937;
+  border-bottom: 2px solid #374151;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.frequency-list {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.frequency-item {
+  font-family: 'Calibri', 'Arial', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  background-color: #374151;
+  transition: all 0.3s ease;
+  min-width: 3rem;
+  text-align: center;
+}
+
+.frequency-item.selected {
+  color: #ef4444;
+  background-color: #7f1d1d;
+  font-weight: 600;
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
 @media (max-width: 768px) {
   .operation-panel {
     flex-direction: column;
@@ -1017,6 +1472,15 @@ watch(() => route.query.importId, async (newId) => {
   .history-panel,
   .huffman-panel {
     width: 100%;
+  }
+
+  .frequency-list {
+    gap: 1rem;
+  }
+
+  .frequency-item {
+    font-size: 1.25rem;
+    padding: 0.375rem 0.75rem;
   }
 }
 </style>

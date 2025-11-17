@@ -1,0 +1,238 @@
+@startuml
+
+skinparam backgroundColor #FEFEFE
+skinparam packageStyle rectangle
+skinparam package {
+  BackgroundColor<<Model>> #E1F5FE
+  BackgroundColor<<View>> #F3E5F5
+  BackgroundColor<<Controller>> #FFF9C4
+  BorderColor #424242
+  FontSize 12
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor #424242
+  FontSize 11
+}
+
+title DSVision 数据结构可视化系统 - MVC三层架构
+
+' ==================== Model 层 ====================
+package "Model Layer\n(dsvision/)" <<Model>> {
+
+  package "operation/" {
+    class OperationStep {
+      - operation: OperationType
+      - description: str
+      - highlight_indices: List
+      - pointers: Dict
+      - animation_type: str
+      - data_snapshot: List
+      - tree_snapshot: dict
+      --
+      + to_dict(): dict
+    }
+  }
+
+  package "linear/" {
+    abstract LinearStructureBase {
+      # _operation_history
+      --
+      {abstract} insert()
+      {abstract} delete()
+      {abstract} search()
+      --
+      + add_operation_step()
+      + get_operation_history()
+    }
+
+    class SequentialList
+    class LinkedList
+    class Stack
+
+    LinearStructureBase <|-- SequentialList
+    LinearStructureBase <|-- LinkedList
+    LinearStructureBase <|-- Stack
+  }
+
+  package "tree/" {
+    abstract TreeStructureBase {
+      # _root: TreeNode
+      # _operation_history
+      --
+      {abstract} insert()
+      {abstract} delete()
+      {abstract} search()
+      {abstract} get_tree_data()
+    }
+
+    class BinaryTree
+    class BinarySearchTree
+    class AVLTree
+    class HuffmanTree
+
+    TreeStructureBase <|-- BinaryTree
+    BinaryTree <|-- BinarySearchTree
+    BinarySearchTree <|-- AVLTree
+    TreeStructureBase <|-- HuffmanTree
+  }
+
+  package "extend1_dsl/" {
+    class Lexer {
+      + tokenize(): List[Token]
+    }
+    class Parser {
+      + parse(): List[ASTNode]
+    }
+    class Interpreter {
+      + execute(ast): dict
+    }
+
+    Lexer ..> Parser
+    Parser ..> Interpreter
+  }
+
+  package "extend2_llm/" {
+    class LLMService {
+      + natural_language_to_dsl(): dict
+    }
+    abstract LLMProvider
+    class OpenAIProvider
+    class ClaudeProvider
+
+    LLMService *-- LLMProvider
+    LLMProvider <|-- OpenAIProvider
+    LLMProvider <|-- ClaudeProvider
+  }
+
+  LinearStructureBase --> OperationStep : uses
+  TreeStructureBase --> OperationStep : uses
+  Interpreter ..> LinearStructureBase : creates
+  Interpreter ..> TreeStructureBase : creates
+}
+
+' ==================== Controller 层 ====================
+package "Controller Layer\n(controller/app.py)" <<Controller>> {
+  class FlaskApp {
+    {static} structures: Dict[UUID, Structure]
+    ==线性结构API==
+    + create_structure()
+    + insert_element()
+    + delete_element()
+    + search_element()
+    ==树结构API==
+    + create_tree_structure()
+    + insert_tree_node()
+    + delete_tree_node()
+    + build_huffman_tree()
+    ==扩展API==
+    + execute_dsl()
+    + natural_language_to_dsl()
+  }
+
+  FlaskApp ..> LinearStructureBase : manages
+  FlaskApp ..> TreeStructureBase : manages
+  FlaskApp ..> Interpreter : uses
+  FlaskApp ..> LLMService : uses
+}
+
+' ==================== View 层 ====================
+package "View Layer\n(view/src/)" <<View>> {
+
+  package "services/" {
+    class ApiClient {
+      - axios: AxiosInstance
+      --
+      + createStructure()
+      + insertElement()
+      + deleteElement()
+      + createTreeStructure()
+      + insertTreeNode()
+      + executeDSL()
+      + naturalLanguageToDSL()
+    }
+  }
+
+  package "views/" {
+    class LinearAlgorithmView {
+      - elements: Array
+      - operationHistory: Array
+      - pointerStates: Object
+      --
+      + executeOperation()
+      + playOperationSteps()
+    }
+
+    class TreeAlgorithmView {
+      - treeData: Object
+      - operationHistory: Array
+      - nodePositions: Object
+      --
+      + executeOperation()
+      + playTreeAnimationSteps()
+      + calculateTreeLayout()
+    }
+
+    class DSLInputBar {
+      - dslCode: string
+      - naturalLanguageInput: string
+      --
+      + executeDSL()
+      + executeNaturalLanguage()
+    }
+  }
+
+  package "components/" {
+    class LinkedListComponent
+    class TreeNodeComponent
+  }
+
+  LinearAlgorithmView ..> ApiClient : uses
+  TreeAlgorithmView ..> ApiClient : uses
+  DSLInputBar ..> ApiClient : uses
+  LinearAlgorithmView ..> LinkedListComponent : uses
+  TreeAlgorithmView ..> TreeNodeComponent : uses
+}
+
+' ==================== 层间关系 ====================
+ApiClient -down-> FlaskApp : HTTP REST API\n(JSON Request)
+FlaskApp -up-> ApiClient : HTTP Response\n(data + operation_history)
+
+note right of FlaskApp
+  <b>Controller层职责：</b>
+  1. 接收HTTP请求
+  2. 管理数据结构实例（UUID）
+  3. 调用Model层方法
+  4. 返回JSON响应
+end note
+
+note left of LinearStructureBase
+  <b>Model层职责：</b>
+  1. 数据结构算法实现
+  2. 记录操作历史
+  3. 生成动画元数据
+end note
+
+note top of LinearAlgorithmView
+  <b>View层职责：</b>
+  1. 用户交互
+  2. API调用
+  3. 动画渲染
+  4. 可视化展示
+end note
+
+legend right
+  <b>MVC数据流</b>
+  User → View (操作) →
+  ApiClient → Controller (HTTP) →
+  Model (执行) → OperationStep →
+  Controller → View (JSON) →
+  动画渲染
+
+  <b>图例</b>
+  <back:#E1F5FE>Model层</back>
+  <back:#FFF9C4>Controller层</back>
+  <back:#F3E5F5>View层</back>
+endlegend
+
+@enduml

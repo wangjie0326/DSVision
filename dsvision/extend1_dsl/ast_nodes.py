@@ -159,6 +159,12 @@ class BuildFreqOperation(Operation):
 
 
 @dataclass
+class BuildNumbersOperation(Operation):
+    """Huffman从数字列表构建 build_numbers [2, 4, 6, 8]"""
+    numbers: list
+
+
+@dataclass
 class EncodeOperation(Operation):
     """Huffman编码 encode "text" """
     text: str

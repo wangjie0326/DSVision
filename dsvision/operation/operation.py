@@ -109,5 +109,10 @@ class OperationStep:
 
             # 状态快照
             'data_snapshot': self.data_snapshot,
-            'visual_hints': self.visual_hints
+            'visual_hints': self.visual_hints,
+
+            # 树结构专用字段
+            'tree_snapshot': self.tree_snapshot,
+            'path': self.path,
+            'comparison_result': self.comparison_result
         }

@@ -443,6 +443,32 @@ def insert_tree_node(structure_id):
         print(f"树大小: {tree_data.get('size', 0)}")
         print(f"操作步骤数: {len(operation_history)}")
 
+        # 🔥 打印每个操作步骤的描述,确保虚线节点步骤被包含
+        print("📋 操作步骤详情:")
+        for i, step in enumerate(operation_history, 1):
+            desc = step.description
+            duration = getattr(step, 'duration', None)
+            print(f"  步骤{i}: {desc} (duration={duration})")
+            if '✏️' in desc:
+                print(f"    ✓✓✓ 虚线节点步骤! ✓✓✓")
+                # 打印虚线节点步骤的tree_snapshot
+                if hasattr(step, 'tree_snapshot') and step.tree_snapshot:
+                    print(f"    虚线节点步骤的tree_snapshot:")
+                    print(f"      root value: {step.tree_snapshot.get('value')}")
+                    print(f"      root node_id: {step.tree_snapshot.get('node_id')}")
+                    print(f"      highlight_indices: {step.highlight_indices}")
+                    # 递归打印所有节点的node_id
+                    def print_all_node_ids(node, level=0):
+                        if node:
+                            indent = "        " + "  " * level
+                            print(f"{indent}节点{node.get('value')}: node_id={node.get('node_id')}")
+                            if node.get('left'):
+                                print_all_node_ids(node['left'], level+1)
+                            if node.get('right'):
+                                print_all_node_ids(node['right'], level+1)
+                    print("    树中所有节点ID:")
+                    print_all_node_ids(step.tree_snapshot)
+
         return jsonify({
             'success': success,
             'tree_data': structure.get_tree_data(),
@@ -535,10 +561,47 @@ def delete_tree(structure_id):
         return jsonify({'error': str(e)}), 500
 
 
+# 🎬 树遍历路由
+@app.route('/tree/<structure_id>/traverse', methods=['POST'])
+def traverse_tree(structure_id):
+    """
+    执行树遍历并返回动画步骤
+    请求体: {"traversal_type": "preorder" | "inorder" | "postorder" | "levelorder"}
+    """
+    try:
+        structure = structures.get(structure_id)
+        if not structure:
+            return jsonify({'error': '结构不存在'}), 404
+
+        data = request.json
+        traversal_type = data.get('traversal_type', 'inorder')
+
+        # 验证遍历类型
+        valid_types = ['preorder', 'inorder', 'postorder', 'levelorder']
+        if traversal_type not in valid_types:
+            return jsonify({'error': f'无效的遍历类型: {traversal_type}，可选值: {valid_types}'}), 400
+
+        # 执行遍历（会自动记录OperationStep）
+        result = structure.traverse_with_animation(traversal_type)
+
+        return jsonify({
+            'success': True,
+            'traversal_result': result,
+            'tree_data': structure.get_tree_data(),
+            'operation_history': [step.to_dict() for step in structure.get_operation_history()]
+        })
+
+    except Exception as e:
+        print(f"遍历错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 # Huffman树专用路由
 @app.route('/tree/<structure_id>/huffman/build', methods=['POST'])
 def build_huffman_tree(structure_id):
-    """从文本构建Huffman树"""
+    """从文本或数字列表构建Huffman树"""
     try:
         structure = structures.get(structure_id)
         if not structure or not isinstance(structure, HuffmanTree):
@@ -546,10 +609,19 @@ def build_huffman_tree(structure_id):
 
         data = request.json
         text = data.get('text')
+        numbers = data.get('numbers')
 
-        print(f"收到构建请求, 文本: {text}")  # 调试日志
-
-        success = structure.build_from_string(text)
+        # 🔥 支持两种模式: 数字模式和文本模式
+        if numbers is not None:
+            # 数字模式: 直接用数字列表构建
+            print(f"收到构建请求 (数字模式), 数字列表: {numbers}")
+            success = structure.build_from_numbers(numbers)
+        elif text is not None:
+            # 文本模式: 从文本构建
+            print(f"收到构建请求 (文本模式), 文本: {text}")
+            success = structure.build_from_string(text)
+        else:
+            return jsonify({'error': '必须提供text或numbers参数'}), 400
 
         tree_data = structure.get_tree_data()
         print(f"树数据: {tree_data}")  # 调试日志
@@ -599,6 +671,35 @@ def export_structure(structure_id):
                 'tree_data': tree_data,
                 'huffman_codes': tree_data.get('huffman_codes') if hasattr(structure, '_huffman_codes') else None,
             }
+
+            # 🔥 Huffman树特殊处理：保存原始数据用于恢复
+            if type(structure).__name__ == 'HuffmanTree':
+                # 获取操作历史，找到build操作
+                operation_history = structure.get_operation_history()
+                huffman_source = None
+                huffman_mode = None
+
+                # 从操作历史中提取原始数据
+                for step in operation_history:
+                    if 'build' in step.description.lower():
+                        # 尝试从visual_hints提取信息
+                        if hasattr(step, 'visual_hints') and step.visual_hints:
+                            if 'mode' in step.visual_hints:
+                                huffman_mode = step.visual_hints['mode']
+                            if 'frequency_list' in step.visual_hints:
+                                huffman_source = step.visual_hints['frequency_list']
+                        break
+
+                # 如果没找到，尝试从huffman对象的属性获取
+                if not huffman_source and hasattr(structure, '_original_text'):
+                    huffman_source = structure._original_text
+                    huffman_mode = 'text'
+                elif not huffman_source and hasattr(structure, '_original_numbers'):
+                    huffman_source = structure._original_numbers
+                    huffman_mode = 'numbers'
+
+                export_data['huffman_source'] = huffman_source
+                export_data['huffman_mode'] = huffman_mode
 
         print(f"导出数据结构: {export_data['structure_type']}, size={export_data.get('size', 'N/A')}")
         return jsonify(export_data)
@@ -673,20 +774,27 @@ def import_structure():
             tree_data = data.get('tree_data', {})
             # 树结构：根据类型恢复
             if structure_type == 'huffman':
-                # Huffman树需要特殊处理
-                if 'huffman_text' in data:
+                # 🔥 Huffman树需要特殊处理：使用保存的原始数据
+                huffman_source = data.get('huffman_source')
+                huffman_mode = data.get('huffman_mode')
+
+                if huffman_source and huffman_mode == 'text':
+                    # 文本模式
+                    structure.build_from_string(huffman_source)
+                    print(f"  ✓ 从文本重建: {huffman_source}")
+                elif huffman_source and huffman_mode == 'numbers':
+                    # 数字模式
+                    structure.build_from_numbers(huffman_source)
+                    print(f"  ✓ 从数字列表重建: {huffman_source}")
+                elif 'huffman_text' in data:
+                    # 向后兼容：旧数据可能使用这个字段
                     text = data['huffman_text']
                     structure.build_from_string(text)
-                    print(f"  ✓ 从文本重建: {text}")
-                elif tree_data.get('huffman_codes'):
-                    # 从编码表重建（需要反推权重）
-                    # 简化：从层序遍历重建
-                    levelorder = tree_data.get('traversals', {}).get('levelorder', [])
-                    if levelorder:
-                        # Huffman树无法直接从遍历序列重建，需要保存权重信息
-                        print("Huffman树需要保存原始文本或权重信息")
+                    print(f"  ✓ 从文本重建（兼容模式）: {text}")
                 else:
-                    print("Huffman树缺少重建信息")
+                    # 无法重建Huffman树
+                    print("⚠️  Huffman树缺少原始数据，无法完全重建")
+                    print("   但树结构已加载到内存，可能缺少编码表")
             else:
                 # 普通树：从层序遍历重建
                 levelorder = tree_data.get('traversals', {}).get('levelorder', [])
@@ -735,7 +843,7 @@ from dsvision.extend1_dsl.parser import Parser
 from dsvision.extend1_dsl.interpreter import Interpreter, SimpleStructureManager
 # 全局解释器管理器
 interpreters = {}
-@app.route('/dsl/execute', methods=['POST'])
+@app.route('/api/dsl/execute', methods=['POST'])
 def execute_dsl():
     """
     执行dsl代码
@@ -824,6 +932,9 @@ def execute_dsl():
                     if struct_type == 'huffman' and hasattr(structure, 'get_huffman_codes'):
                         struct_data['huffman_codes'] = structure.get_huffman_codes()
 
+                # 🔥 添加操作历史，支持前端动画播放（只包含最后一个操作的步骤）
+                struct_data['operation_history'] = [step.to_dict() for step in structure.get_operation_history()]
+
                 response_data['structures'].append(struct_data)
 
         print(f"\n✓ 成功执行,返回 {len(response_data['structures'])} 个结构\n")
@@ -847,7 +958,7 @@ def execute_dsl():
             'error_type': type(e).__name__
         }), 500
 
-@app.route('/dsl/validate', methods=['POST'])
+@app.route('/api/dsl/validate', methods=['POST'])
 def validate_dsl():
     """
     验证 DSL 代码语法
@@ -887,7 +998,7 @@ def validate_dsl():
         }), 400
 
 
-@app.route('/dsl/session/<session_id>', methods=['DELETE'])
+@app.route('/api/dsl/session/<session_id>', methods=['DELETE'])
 def delete_dsl_session(session_id):
     """删除 DSL 会话"""
     try:
@@ -913,7 +1024,7 @@ def delete_dsl_session(session_id):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/dsl/examples', methods=['GET'])
+@app.route('/api/dsl/examples', methods=['GET'])
 def get_dsl_examples():
     """获取 DSL 示例代码"""
     examples = {

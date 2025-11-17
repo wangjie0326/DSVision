@@ -1,6 +1,6 @@
 from abc import ABC,abstractmethod
 from typing import List, Optional, Any
-from ..operation.operation import OperationStep
+from ..operation.operation import OperationStep, OperationType
 
 class TreeNode:
     """树节点基类"""
@@ -135,6 +135,137 @@ class TreeStructureBase(ABC):
                 queue.append(node.right)
 
         return result
+
+    # 🎬 可视化遍历方法（记录OperationStep）
+    def traverse_with_animation(self, traversal_type: str) -> List[Any]:
+        """
+        执行遍历并记录每个节点的访问步骤（用于动画）
+        traversal_type: 'preorder' | 'inorder' | 'postorder' | 'levelorder'
+        """
+        self.clear_operation_history()  # 清空之前的操作历史
+
+        type_names = {
+            'preorder': '前序遍历',
+            'inorder': '中序遍历',
+            'postorder': '后序遍历',
+            'levelorder': '层次遍历'
+        }
+
+        step = OperationStep(
+            OperationType.SEARCH,
+            description=f"开始{type_names.get(traversal_type, '遍历')}"
+        )
+        self.add_operation_step(step)
+
+        result = []
+
+        if traversal_type == 'preorder':
+            self._preorder_with_steps(self._root, result)
+        elif traversal_type == 'inorder':
+            self._inorder_with_steps(self._root, result)
+        elif traversal_type == 'postorder':
+            self._postorder_with_steps(self._root, result)
+        elif traversal_type == 'levelorder':
+            self._levelorder_with_steps(result)
+        else:
+            raise ValueError(f"未知的遍历类型: {traversal_type}")
+
+        step = OperationStep(
+            OperationType.SEARCH,
+            description=f"{type_names.get(traversal_type)}完成，访问顺序: {result}"
+        )
+        self.add_operation_step(step)
+
+        return result
+
+    def _preorder_with_steps(self, node: Optional[TreeNode], result: List[Any]) -> None:
+        """前序遍历并记录步骤"""
+        if node:
+            # 访问当前节点
+            result.append(node.value)
+            step = OperationStep(
+                OperationType.SEARCH,
+                value=node.value,
+                description=f"访问节点: {node.value}",
+                highlight_indices=[node.node_id],
+                animation_type="highlight",
+                duration=1.0
+            )
+            self.add_operation_step(step)
+
+            # 递归左子树
+            self._preorder_with_steps(node.left, result)
+            # 递归右子树
+            self._preorder_with_steps(node.right, result)
+
+    def _inorder_with_steps(self, node: Optional[TreeNode], result: List[Any]) -> None:
+        """中序遍历并记录步骤"""
+        if node:
+            # 递归左子树
+            self._inorder_with_steps(node.left, result)
+
+            # 访问当前节点
+            result.append(node.value)
+            step = OperationStep(
+                OperationType.SEARCH,
+                value=node.value,
+                description=f"访问节点: {node.value}",
+                highlight_indices=[node.node_id],
+                animation_type="highlight",
+                duration=1.0
+            )
+            self.add_operation_step(step)
+
+            # 递归右子树
+            self._inorder_with_steps(node.right, result)
+
+    def _postorder_with_steps(self, node: Optional[TreeNode], result: List[Any]) -> None:
+        """后序遍历并记录步骤"""
+        if node:
+            # 递归左子树
+            self._postorder_with_steps(node.left, result)
+            # 递归右子树
+            self._postorder_with_steps(node.right, result)
+
+            # 访问当前节点
+            result.append(node.value)
+            step = OperationStep(
+                OperationType.SEARCH,
+                value=node.value,
+                description=f"访问节点: {node.value}",
+                highlight_indices=[node.node_id],
+                animation_type="highlight",
+                duration=1.0
+            )
+            self.add_operation_step(step)
+
+    def _levelorder_with_steps(self, result: List[Any]) -> None:
+        """层次遍历并记录步骤"""
+        if not self._root:
+            return
+
+        queue = [self._root]
+
+        while queue:
+            node = queue.pop(0)
+            result.append(node.value)
+
+            # 访问当前节点
+            step = OperationStep(
+                OperationType.SEARCH,
+                value=node.value,
+                description=f"访问节点: {node.value}",
+                highlight_indices=[node.node_id],
+                animation_type="highlight",
+                duration=1.0
+            )
+            self.add_operation_step(step)
+
+            # 将子节点加入队列
+            if node.left:
+                queue.append(node.left)
+            if node.right:
+                queue.append(node.right)
 
     def get_height(self) -> int:
         """获取树的高度，内部递归"""

@@ -181,6 +181,9 @@ class BinarySearchTree(TreeStructureBase):
 
     def delete(self,value:Any) -> bool:
         """删除节点"""
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
+
         step = OperationStep(
             operation=OperationType.DELETE,
             value=value,

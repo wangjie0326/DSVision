@@ -110,6 +110,9 @@ class Interpreter:
         structure = struct_info['instance']
         struct_type = struct_info['type']
 
+        # 🔥 关键修复: 在执行每个操作前清空操作历史，避免累积之前的动画步骤
+        structure.clear_operation_history()
+
         # 记录操作
         op_record = {
             'structure': structure_name,
@@ -197,17 +200,24 @@ class Interpreter:
 
         elif isinstance(operation, TraverseOperation):
             self.log(f"  traverse {operation.method}")
-            method_map = {
-                'preorder': 'preorder_traversal',
-                'inorder': 'inorder_traversal',
-                'postorder': 'postorder_traversal',
-                'levelorder': 'level_order_traversal'
-            }
-            method_name = method_map.get(operation.method.lower())
-            if method_name and hasattr(structure, method_name):
-                result = getattr(structure, method_name)()
+            # 🎬 使用新的带动画的遍历方法
+            if hasattr(structure, 'traverse_with_animation'):
+                result = structure.traverse_with_animation(operation.method.lower())
                 self.log(f"    结果: {result}")
                 op_record['details'] = {'method': operation.method, 'result': result}
+            else:
+                # 兼容旧的遍历方法
+                method_map = {
+                    'preorder': 'preorder_traversal',
+                    'inorder': 'inorder_traversal',
+                    'postorder': 'postorder_traversal',
+                    'levelorder': 'level_order_traversal'
+                }
+                method_name = method_map.get(operation.method.lower())
+                if method_name and hasattr(structure, method_name):
+                    result = getattr(structure, method_name)()
+                    self.log(f"    结果: {result}")
+                    op_record['details'] = {'method': operation.method, 'result': result}
 
         elif isinstance(operation, HeightOperation):
             self.log(f"  height")
@@ -237,6 +247,12 @@ class Interpreter:
             if hasattr(structure, 'build_from_string'):
                 structure.build_from_string(operation.text)
             op_record['details'] = {'text': operation.text}
+
+        elif isinstance(operation, BuildNumbersOperation):
+            self.log(f"  build_numbers {operation.numbers}")
+            if hasattr(structure, 'build_from_numbers'):
+                structure.build_from_numbers(operation.numbers)
+            op_record['details'] = {'numbers': operation.numbers}
 
         elif isinstance(operation, EncodeOperation):
             self.log(f"  encode \"{operation.text}\"")

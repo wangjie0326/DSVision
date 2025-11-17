@@ -258,6 +258,12 @@ class Parser:
             text = self.expect(TokenType.STRING).value
             return BuildTextOperation(text=text, line=line, column=column)
 
+        # 🔥 build_numbers [2, 4, 6, 8]
+        elif token.type == TokenType.BUILD_NUMBERS:
+            self.advance()
+            numbers = self.parse_array()
+            return BuildNumbersOperation(numbers=numbers, line=line, column=column)
+
         # encode "HELLO"
         elif token.type == TokenType.ENCODE:
             self.advance()
