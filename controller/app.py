@@ -879,7 +879,8 @@ def execute_dsl():
         #创建或获取解释器
         if session_id not in interpreters:
             manager = SimpleStructureManager()
-            interpreters[session_id] = Interpreter(manager)
+            # 🔥 传递全局structures字典引用
+            interpreters[session_id] = Interpreter(manager, global_structures=structures)
 
         interpreter = interpreters[session_id]
 
@@ -904,9 +905,17 @@ def execute_dsl():
                 struct_info = interpreter.context.structures[struct_name]
                 structure = struct_info['instance']
 
-                # 注册到全局 structures 字典,生成 ID
-                structure_id = str(uuid.uuid4())
-                structures[structure_id] = structure
+                # 🔥 检查是否已有ID（复用场景）
+                if 'structure_id' in struct_info and struct_info['structure_id'] in structures:
+                    structure_id = struct_info['structure_id']
+                    print(f"✓ 复用现有结构ID: {struct_name} -> {structure_id[:8]}...")
+                else:
+                    # 注册到全局 structures 字典,生成新 ID
+                    structure_id = str(uuid.uuid4())
+                    structures[structure_id] = structure
+                    # 🔥 保存名称到ID的映射
+                    interpreter.register_structure_mapping(struct_name, structure_id)
+                    print(f"✓ 新建结构并注册: {struct_name} -> {structure_id[:8]}...")
 
                 # 准备返回数据
                 struct_data = {
@@ -1162,10 +1171,10 @@ def llm_chat():
                 parser = Parser(tokens)
                 ast = parser.parse()
 
-                # 创建解释器
+                # 🔥 创建解释器并传递全局structures
                 if session_id not in interpreters:
                     manager = SimpleStructureManager()
-                    interpreters[session_id] = Interpreter(manager)
+                    interpreters[session_id] = Interpreter(manager, global_structures=structures)
 
                 interpreter = interpreters[session_id]
                 exec_result = interpreter.execute(ast)
@@ -1177,9 +1186,16 @@ def llm_chat():
                         struct_info = interpreter.context.structures[struct_name]
                         structure = struct_info['instance']
 
-                        # 注册到全局字典
-                        structure_id = str(uuid.uuid4())
-                        structures[structure_id] = structure
+                        # 🔥 检查是否已有ID（复用场景）
+                        if 'structure_id' in struct_info and struct_info['structure_id'] in structures:
+                            structure_id = struct_info['structure_id']
+                            print(f"✓ LLM复用现有结构: {struct_name} -> {structure_id[:8]}...")
+                        else:
+                            # 注册到全局字典
+                            structure_id = str(uuid.uuid4())
+                            structures[structure_id] = structure
+                            interpreter.register_structure_mapping(struct_name, structure_id)
+                            print(f"✓ LLM新建结构: {struct_name} -> {structure_id[:8]}...")
 
                         struct_data = {
                             'name': struct_name,

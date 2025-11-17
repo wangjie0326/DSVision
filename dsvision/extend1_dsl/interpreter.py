@@ -18,14 +18,17 @@ class ExecutionContext:
 class Interpreter:
     """解释器"""
 
-    def __init__(self, structure_manager):
+    def __init__(self, structure_manager, global_structures=None):
         """
         structure_manager: 后端数据结构管理器,提供创建/操作数据结构的接口
+        global_structures: 全局structures字典的引用 {structure_id: structure_instance}
         """
         self.structure_manager = structure_manager
         self.context = ExecutionContext()
         self.execution_log: List[str] = []
         self.operation_history: List[Dict] = []
+        self.global_structures = global_structures or {}  # 保存全局structures引用
+        self.structure_id_map = {}  # 映射: structure_name -> structure_id
 
     def log(self, message: str):
         """记录日志"""
@@ -35,6 +38,38 @@ class Interpreter:
     def error(self, message: str):
         """报错"""
         raise RuntimeError(f"[Interpreter Error] {message}")
+
+    def _create_new_structure(self, name: str, backend_type: str):
+        """创建新结构实例的辅助方法"""
+        self.log(f"\n创建新数据结构: {backend_type} {name}")
+        structure = self.structure_manager.create_structure(backend_type)
+        self.context.structures[name] = {
+            'type': backend_type,
+            'instance': structure,
+            'data': []
+        }
+
+    def _get_structure_type(self, structure) -> str:
+        """推断结构类型的辅助方法"""
+        class_name = structure.__class__.__name__
+        type_map = {
+            'SequentialList': 'sequential',
+            'LinearLinkedList': 'linked',
+            'SequentialStack': 'stack',
+            'LinkedStack': 'stack',
+            'SequentialQueue': 'queue',
+            'LinkedQueue': 'queue',
+            'BinaryTree': 'binary',
+            'BinarySearchTree': 'bst',
+            'AVLTree': 'avl',
+            'HuffmanTree': 'huffman'
+        }
+        return type_map.get(class_name, 'unknown')
+
+    def register_structure_mapping(self, name: str, structure_id: str):
+        """注册结构名称到ID的映射"""
+        self.structure_id_map[name] = structure_id
+        self.log(f"注册结构映射: {name} -> {structure_id[:8]}...")
 
     def execute(self,program: Program) -> Dict[str, Any]:
         """执行整个程序"""
@@ -73,22 +108,38 @@ class Interpreter:
         if not backend_type:
             self.error(f"Unknown structure type: {decl.structure_type}")
 
-        # 检查结构是否已存在（会话内存）
+        # 🔥 优先级1: 检查当前会话内存
         if decl.name in self.context.structures:
             existing_struct = self.context.structures[decl.name]
             # 验证类型匹配
             if existing_struct['type'] != backend_type:
                 self.error(f"Structure {decl.name} already exists with different type: {existing_struct['type']} vs {backend_type}")
-            self.log(f"\n复用现有数据结构: {decl.structure_type} {decl.name} (会话内存)")
+            self.log(f"\n✓ 复用现有数据结构: {decl.structure_type} {decl.name} (会话内存)")
+
+        # 🔥 优先级2: 检查全局structures（跨会话复用）
+        elif decl.name in self.structure_id_map:
+            structure_id = self.structure_id_map[decl.name]
+            if structure_id in self.global_structures:
+                structure = self.global_structures[structure_id]
+                # 验证类型匹配
+                structure_backend_type = self._get_structure_type(structure)
+                if structure_backend_type != backend_type:
+                    self.error(f"Structure {decl.name} already exists with different type: {structure_backend_type} vs {backend_type}")
+
+                self.log(f"\n✓ 复用全局数据结构: {decl.structure_type} {decl.name} (ID: {structure_id[:8]}...)")
+                self.context.structures[decl.name] = {
+                    'type': backend_type,
+                    'instance': structure,
+                    'data': [],
+                    'structure_id': structure_id  # 保存ID
+                }
+            else:
+                # ID映射存在但结构不存在，清除映射并创建新的
+                del self.structure_id_map[decl.name]
+                self._create_new_structure(decl.name, backend_type)
         else:
-            # 创建新结构实例
-            self.log(f"\n创建新数据结构: {decl.structure_type} {decl.name}")
-            structure = self.structure_manager.create_structure(backend_type)
-            self.context.structures[decl.name] = {
-                'type': backend_type,
-                'instance': structure,
-                'data': []
-            }
+            # 🔥 优先级3: 创建新结构实例
+            self._create_new_structure(decl.name, backend_type)
 
         # 执行操作
         for operation in decl.operations:
