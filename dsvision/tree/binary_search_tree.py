@@ -97,7 +97,10 @@ class BinarySearchTree(TreeStructureBase):
                 highlight_indices=[node.node_id],
                 animation_type="arrow_left",  # 新增动画类型
                 duration=0.5,
-                tree_snapshot=self._get_tree_snapshot()
+                tree_snapshot=self._get_tree_snapshot(),
+                code_template='bst_insert',
+                code_line=11,
+                code_highlight=[11, 12]
             )
             self.add_operation_step(step)
 
@@ -113,7 +116,10 @@ class BinarySearchTree(TreeStructureBase):
                 highlight_indices=[node.node_id],
                 animation_type="arrow_right",
                 duration=0.5,
-                tree_snapshot=self._get_tree_snapshot()
+                tree_snapshot=self._get_tree_snapshot(),
+                code_template='bst_insert',
+                code_line=13,
+                code_highlight=[13, 14]
             )
             self.add_operation_step(step)
 
