@@ -123,7 +123,7 @@ python controller/app.py
 
 ```bash
 cd view
-npm install
+npm install 20
 ```
 
 #### 启动开发服务器
