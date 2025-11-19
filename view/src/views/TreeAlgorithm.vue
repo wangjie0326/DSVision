@@ -291,6 +291,14 @@
       </div>
     </div>
     <DSLInputBar />
+
+    <!-- 🔥 代码面板 -->
+    <CodePanel
+      :code="currentCode"
+      :currentLine="currentCodeLine"
+      :highlightedLines="currentCodeHighlight"
+      :operationName="currentOperationName"
+    />
   </div>
 </template>
 
