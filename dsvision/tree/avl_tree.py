@@ -81,7 +81,10 @@ class AVLTree(BinarySearchTree):
             },
             highlight_indices=[z.node_id, z.left.node_id],  # 高亮要旋转的两个节点
             animation_type="rotate",
-            duration=1.0
+            duration=1.0,
+            code_template='avl_rotate_right',
+            code_line=2,
+            code_highlight=[2, 3, 4]
         )
         self.add_operation_step(step)
 
@@ -123,7 +126,10 @@ class AVLTree(BinarySearchTree):
             },
             highlight_indices=[y.node_id],
             animation_type="settle",
-            duration=0.6
+            duration=0.6,
+            code_template='avl_rotate_right',
+            code_line=12,
+            code_highlight=[6, 7, 10, 11, 12]
         )
         self.add_operation_step(step)
 
@@ -142,7 +148,10 @@ class AVLTree(BinarySearchTree):
             },
             highlight_indices=[z.node_id, z.right.node_id],  # 高亮要旋转的两个节点
             animation_type="rotate",
-            duration=1.0
+            duration=1.0,
+            code_template='avl_rotate_left',
+            code_line=2,
+            code_highlight=[2, 3, 4]
         )
         self.add_operation_step(step)
 
