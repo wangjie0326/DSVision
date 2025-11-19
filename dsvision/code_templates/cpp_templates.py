@@ -1,0 +1,361 @@
+"""
+C++ 代码模板库
+为每种数据结构操作提供对应的C++实现代码，用于教学演示
+"""
+
+# ==================== 顺序表代码模板 ====================
+SEQUENTIAL_INSERT = """void insert(int index, int value) {
+    // 检查容量，满了则扩容
+    if (size >= capacity) {
+        expand();  // 1.5倍扩容
+    }
+
+    // 检查索引有效性
+    if (index < 0 || index > size) {
+        return;
+    }
+
+    // 从后往前移动元素
+    for (int i = size; i > index; i--) {
+        data[i] = data[i - 1];
+    }
+
+    // 插入新元素
+    data[index] = value;
+    size++;
+}"""
+
+SEQUENTIAL_DELETE = """void deleteAt(int index) {
+    // 检查索引有效性
+    if (index < 0 || index >= size) {
+        return;
+    }
+
+    // 从前往后移动元素
+    for (int i = index; i < size - 1; i++) {
+        data[i] = data[i + 1];
+    }
+
+    // 减少大小
+    size--;
+}"""
+
+SEQUENTIAL_SEARCH = """int search(int value) {
+    // 顺序查找
+    for (int i = 0; i < size; i++) {
+        if (data[i] == value) {
+            return i;  // 找到，返回索引
+        }
+    }
+
+    return -1;  // 未找到
+}"""
+
+SEQUENTIAL_EXPAND = """void expand() {
+    // 计算新容量（1.5倍）
+    int newCapacity = capacity * 1.5;
+
+    // 创建新数组
+    int* newData = new int[newCapacity];
+
+    // 复制旧数据到新数组
+    for (int i = 0; i < size; i++) {
+        newData[i] = data[i];
+    }
+
+    // 释放旧数组
+    delete[] data;
+
+    // 更新指针和容量
+    data = newData;
+    capacity = newCapacity;
+}"""
+
+# ==================== 链表代码模板 ====================
+LINKED_INSERT_HEAD = """void insertHead(int value) {
+    // 创建新节点
+    Node* newNode = new Node(value);
+
+    // 新节点指向原头节点
+    newNode->next = head;
+
+    // 更新头指针
+    head = newNode;
+    size++;
+}"""
+
+LINKED_INSERT_TAIL = """void insertTail(int value) {
+    // 创建新节点
+    Node* newNode = new Node(value);
+
+    // 如果链表为空
+    if (head == nullptr) {
+        head = newNode;
+        return;
+    }
+
+    // 找到尾节点
+    Node* current = head;
+    while (current->next != nullptr) {
+        current = current->next;
+    }
+
+    // 尾节点指向新节点
+    current->next = newNode;
+    size++;
+}"""
+
+LINKED_DELETE = """void deleteAt(int index) {
+    // 删除头节点
+    if (index == 0) {
+        Node* temp = head;
+        head = head->next;
+        delete temp;
+        size--;
+        return;
+    }
+
+    // 找到要删除节点的前一个节点
+    Node* prev = head;
+    for (int i = 0; i < index - 1; i++) {
+        prev = prev->next;
+    }
+
+    // 删除节点
+    Node* temp = prev->next;
+    prev->next = temp->next;
+    delete temp;
+    size--;
+}"""
+
+LINKED_SEARCH = """int search(int value) {
+    Node* current = head;
+    int index = 0;
+
+    // 遍历链表查找
+    while (current != nullptr) {
+        if (current->value == value) {
+            return index;  // 找到
+        }
+        current = current->next;
+        index++;
+    }
+
+    return -1;  // 未找到
+}"""
+
+# ==================== BST 代码模板 ====================
+BST_INSERT = """void insert(int value) {
+    // 空树，创建根节点
+    if (root == nullptr) {
+        root = new Node(value);
+        return;
+    }
+
+    // 查找插入位置
+    Node* current = root;
+    Node* parent = nullptr;
+
+    while (current != nullptr) {
+        parent = current;
+        if (value < current->value) {
+            current = current->left;
+        } else {
+            current = current->right;
+        }
+    }
+
+    // 插入新节点
+    if (value < parent->value) {
+        parent->left = new Node(value);
+    } else {
+        parent->right = new Node(value);
+    }
+}"""
+
+BST_SEARCH = """bool search(int value) {
+    Node* current = root;
+
+    // 二分查找
+    while (current != nullptr) {
+        if (value == current->value) {
+            return true;  // 找到
+        } else if (value < current->value) {
+            current = current->left;
+        } else {
+            current = current->right;
+        }
+    }
+
+    return false;  // 未找到
+}"""
+
+BST_DELETE = """void deleteNode(int value) {
+    root = deleteHelper(root, value);
+}
+
+Node* deleteHelper(Node* node, int value) {
+    if (node == nullptr) return nullptr;
+
+    // 查找要删除的节点
+    if (value < node->value) {
+        node->left = deleteHelper(node->left, value);
+    } else if (value > node->value) {
+        node->right = deleteHelper(node->right, value);
+    } else {
+        // 找到了要删除的节点
+
+        // 情况1: 叶子节点
+        if (node->left == nullptr && node->right == nullptr) {
+            delete node;
+            return nullptr;
+        }
+
+        // 情况2: 只有一个子节点
+        if (node->left == nullptr) {
+            Node* temp = node->right;
+            delete node;
+            return temp;
+        }
+        if (node->right == nullptr) {
+            Node* temp = node->left;
+            delete node;
+            return temp;
+        }
+
+        // 情况3: 有两个子节点
+        // 找到右子树的最小节点
+        Node* minNode = findMin(node->right);
+        node->value = minNode->value;
+        node->right = deleteHelper(node->right, minNode->value);
+    }
+
+    return node;
+}"""
+
+# ==================== AVL 树代码模板 ====================
+AVL_INSERT = """void insert(int value) {
+    root = insertHelper(root, value);
+}
+
+Node* insertHelper(Node* node, int value) {
+    // 标准BST插入
+    if (node == nullptr) {
+        return new Node(value);
+    }
+
+    if (value < node->value) {
+        node->left = insertHelper(node->left, value);
+    } else {
+        node->right = insertHelper(node->right, value);
+    }
+
+    // 更新节点高度
+    updateHeight(node);
+
+    // 检查平衡因子
+    int balance = getBalance(node);
+
+    // LL情况：右旋
+    if (balance > 1 && value < node->left->value) {
+        return rotateRight(node);
+    }
+
+    // RR情况：左旋
+    if (balance < -1 && value > node->right->value) {
+        return rotateLeft(node);
+    }
+
+    // LR情况：先左旋后右旋
+    if (balance > 1 && value > node->left->value) {
+        node->left = rotateLeft(node->left);
+        return rotateRight(node);
+    }
+
+    // RL情况：先右旋后左旋
+    if (balance < -1 && value < node->right->value) {
+        node->right = rotateRight(node->right);
+        return rotateLeft(node);
+    }
+
+    return node;
+}"""
+
+AVL_ROTATE_LEFT = """Node* rotateLeft(Node* y) {
+    // 保存节点
+    Node* x = y->right;
+    Node* T2 = x->left;
+
+    // 执行旋转
+    x->left = y;
+    y->right = T2;
+
+    // 更新高度
+    updateHeight(y);
+    updateHeight(x);
+
+    return x;  // 新根节点
+}"""
+
+AVL_ROTATE_RIGHT = """Node* rotateRight(Node* x) {
+    // 保存节点
+    Node* y = x->left;
+    Node* T2 = y->right;
+
+    // 执行旋转
+    y->right = x;
+    x->left = T2;
+
+    // 更新高度
+    updateHeight(x);
+    updateHeight(y);
+
+    return y;  // 新根节点
+}"""
+
+# ==================== 代码模板映射 ====================
+CODE_TEMPLATES = {
+    # 顺序表
+    'sequential_insert': SEQUENTIAL_INSERT,
+    'sequential_delete': SEQUENTIAL_DELETE,
+    'sequential_search': SEQUENTIAL_SEARCH,
+    'sequential_expand': SEQUENTIAL_EXPAND,
+
+    # 链表
+    'linked_insert_head': LINKED_INSERT_HEAD,
+    'linked_insert_tail': LINKED_INSERT_TAIL,
+    'linked_delete': LINKED_DELETE,
+    'linked_search': LINKED_SEARCH,
+
+    # BST
+    'bst_insert': BST_INSERT,
+    'bst_search': BST_SEARCH,
+    'bst_delete': BST_DELETE,
+
+    # AVL
+    'avl_insert': AVL_INSERT,
+    'avl_rotate_left': AVL_ROTATE_LEFT,
+    'avl_rotate_right': AVL_ROTATE_RIGHT,
+}
+
+
+def get_code_template(structure_type: str, operation: str) -> tuple:
+    """
+    获取指定数据结构和操作的代码模板
+
+    Args:
+        structure_type: 数据结构类型 (sequential, linked, bst, avl等)
+        operation: 操作类型 (insert, delete, search等)
+
+    Returns:
+        (code, total_lines): 代码字符串和总行数
+    """
+    key = f"{structure_type}_{operation}"
+    code = CODE_TEMPLATES.get(key, "// 暂无对应代码模板")
+    lines = code.split('\n')
+    return code, len(lines)
+
+
+def get_code_lines(code: str) -> list:
+    """将代码分割成行数组"""
+    return code.split('\n')

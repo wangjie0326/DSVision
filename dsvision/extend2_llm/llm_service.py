@@ -52,10 +52,17 @@ SYSTEM_PROMPT = """你是DSVison,你的数据结构可视化系统的DSL代码�
 ### 线性结构
 ```
 Sequential myList {
-    init [1, 2, 3]
+    init [1, 2, 3]          # 默认容量100
     insert 10 at 2
     delete at 1
     search 3
+}
+
+Sequential mySmallList {
+    init [1, 2, 3] capacity 5   # 🔥 指定初始容量为5
+    insert 4                     # 当容量满时会自动1.5倍扩容
+    insert 5
+    insert 6                     # 触发扩容：5 -> 7
 }
 
 Linked myLinkedList {

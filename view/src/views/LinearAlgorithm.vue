@@ -264,15 +264,24 @@
     </div>
     <!-- 🔥 新增: DSL 输入栏 -->
     <DSLInputBar />
+
+    <!-- 🔥 代码面板 -->
+    <CodePanel
+      :code="currentCode"
+      :currentLine="currentCodeLine"
+      :highlightedLines="currentCodeHighlight"
+      :operationName="currentOperationName"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted,watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '../services/api.js'
 import DSLInputBar from './DSLInputBar.vue'  // 🔥 添加导入
 import LinkedList from '../components/LinkedList.vue'  // 🔥 链表SVG组件
+import CodePanel from '../components/CodePanel.vue'  // 🔥 代码面板组件
 
 const router = useRouter()
 const route = useRoute()
@@ -312,6 +321,12 @@ const isExpanding = ref(false)  // 是否正在扩容
 const newArray = ref([])  // 扩容时的新数组
 const newCapacity = ref(0)  // 新数组的容量
 const oldArrayMarkedForDelete = ref(false)  // 旧数组是否标记为删除
+
+// 🔥 代码面板相关
+const currentCode = ref('')  // 当前显示的代码
+const currentCodeLine = ref(null)  // 当前执行的代码行
+const currentCodeHighlight = ref([])  // 当前高亮的代码行
+const currentOperationName = ref('')  // 当前操作名称
 
 // 历史记录
 const operationHistory = ref([])
@@ -426,7 +441,23 @@ const playOperationSteps = async (steps) => {
       console.log('指针状态:', step.pointers)
     }
 
-    // 🔥 4. 处理扩容动画
+    // 🔥 4. 处理代码面板
+    if (step.code_template) {
+      console.log('🔥 检测到代码模板:', step.code_template)
+
+      // 如果是新的代码模板，加载代码
+      if (currentCode.value === '' || step.code_template !== currentOperationName.value) {
+        await loadCodeTemplate(step.code_template)
+      }
+
+      // 更新当前执行行和高亮行
+      currentCodeLine.value = step.code_line
+      currentCodeHighlight.value = step.code_highlight || []
+
+      console.log('🔥 代码行高亮:', step.code_line, step.code_highlight)
+    }
+
+    // 🔥 5. 处理扩容动画
     if (step.operation === 'expand') {
       console.log('🔥 检测到扩容操作，visual_hints:', step.visual_hints)
 
@@ -595,6 +626,48 @@ const saveStructure = async () => {
 
 const goBack = () => {
   router.push('/linear')
+}
+
+// 🔥 加载代码模板
+const loadCodeTemplate = async (templateKey) => {
+  try {
+    // 解析模板key (格式: "structure_operation")
+    const parts = templateKey.split('_')
+    if (parts.length < 2) {
+      console.warn('无效的模板key:', templateKey)
+      return
+    }
+
+    const structureType = parts[0]
+    const operation = parts.slice(1).join('_')
+
+    console.log(`🔥 加载代码模板: ${structureType}/${operation}`)
+
+    // 使用axios发送请求，会通过vite代理
+    const response = await fetch(`/api/code/template/${structureType}/${operation}`)
+
+    if (!response.ok) {
+      console.error('API请求失败:', response.status, response.statusText)
+      return
+    }
+
+    const data = await response.json()
+    console.log('API返回数据:', data)
+
+    if (data.success) {
+      currentCode.value = data.code
+      currentOperationName.value = `${structureType}::${operation}()`
+      console.log('✓ 代码模板加载成功，代码长度:', data.code.length)
+      console.log('代码预览:', data.code.substring(0, 100))
+    } else {
+      console.error('❌ 代码模板加载失败:', data.error)
+      if (data.available_templates) {
+        console.log('可用模板:', data.available_templates)
+      }
+    }
+  } catch (error) {
+    console.error('❌ 加载代码模板异常:', error)
+  }
 }
 
 // 生命周期

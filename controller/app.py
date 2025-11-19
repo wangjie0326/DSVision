@@ -1318,6 +1318,38 @@ def llm_config():
                 'success': False,
                 'error': str(e)
             }), 500
+# 🔥 代码模板API
+@app.route('/api/code/template/<structure_type>/<operation>', methods=['GET'])
+def get_code_template(structure_type, operation):
+    """获取代码模板"""
+    try:
+        from dsvision.code_templates import get_code_template, CODE_TEMPLATES
+
+        # 构建模板key
+        template_key = f"{structure_type}_{operation}"
+
+        if template_key in CODE_TEMPLATES:
+            code, total_lines = get_code_template(structure_type, operation)
+            return jsonify({
+                'success': True,
+                'code': code,
+                'total_lines': total_lines,
+                'template_key': template_key
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'未找到模板: {template_key}',
+                'available_templates': list(CODE_TEMPLATES.keys())
+            }), 404
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     app.run()
     print("-"*50)

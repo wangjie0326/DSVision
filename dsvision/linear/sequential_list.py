@@ -86,8 +86,29 @@ class SequentialList(LinearStructureBase):
     def insert(self,index:int,value:Any) -> bool:
         """在指定位置插入元素"""
         # === 步骤1: 检查容量，如果满了就扩容 ===
+        # 🔥 对应C++代码第2-4行
+        step = OperationStep(
+            OperationType.INSERT,
+            description=f'检查容量 (当前: {self._size}/{self._capacity})',
+            data_snapshot=self.to_list(),
+            code_template='sequential_insert',
+            code_line=2,
+            code_highlight=[2, 3, 4]
+        )
+        self.add_operation_step(step)
+
         if self._size >= self._capacity:
             # 触发扩容
+            step = OperationStep(
+                OperationType.INSERT,
+                description=f'容量已满，触发扩容 (line 3)',
+                data_snapshot=self.to_list(),
+                code_template='sequential_insert',
+                code_line=3,
+                code_highlight=[3]
+            )
+            self.add_operation_step(step)
+
             if not self._expand():
                 step = OperationStep(
                     OperationType.INSERT,
@@ -100,13 +121,28 @@ class SequentialList(LinearStructureBase):
                 return False
 
         # === 步骤2: 检查索引 ===
+        # 🔥 对应C++代码第7-9行
+        step = OperationStep(
+            OperationType.INSERT,
+            index=index,
+            description=f'检查索引有效性 (索引: {index}, 范围: 0-{self._size})',
+            data_snapshot=self.to_list(),
+            code_template='sequential_insert',
+            code_line=7,
+            code_highlight=[7, 8, 9]
+        )
+        self.add_operation_step(step)
+
         if index < 0 or index > self._size:
             step = OperationStep(
                 OperationType.INSERT,
                 index=index,
                 value=value,
-                description=f'插入失败：索引越界 (索引: {index}, 有效范围: 0-{self._size})',
-                data_snapshot=self.to_list()
+                description=f'插入失败：索引越界 (line 8)',
+                data_snapshot=self.to_list(),
+                code_template='sequential_insert',
+                code_line=8,
+                code_highlight=[8]
             )
             self.add_operation_step(step)
             return False
@@ -125,16 +161,20 @@ class SequentialList(LinearStructureBase):
         self.add_operation_step(step)
 
         # === 步骤4: 如果不是末尾插入，需要移动元素 ===
+        # 🔥 对应C++代码第12-14行
         if index < self._size:
             step = OperationStep(
                 OperationType.INSERT,
                 index=index,
                 value=value,
-                description=f'需要将位置 {index} 到 {self._size - 1} 的元素向后移动',
+                description=f'需要将位置 {index} 到 {self._size - 1} 的元素向后移动 (line 12)',
                 highlight_indices=list(range(index, self._size)),
                 animation_type="highlight",
                 duration=0.5,
-                data_snapshot=self.to_list()
+                data_snapshot=self.to_list(),
+                code_template='sequential_insert',
+                code_line=12,
+                code_highlight=[12, 13, 14]
             )
             self.add_operation_step(step)
 
@@ -143,43 +183,54 @@ class SequentialList(LinearStructureBase):
                 step = OperationStep(
                     OperationType.POINTER_MOVE,
                     index=i - 1,
-                    description=f'将位置 {i - 1} 的元素 {self._data[i - 1]} 移动到位置 {i}',
+                    description=f'将位置 {i - 1} 的元素移动到位置 {i} (line 13)',
                     pointer_position=i - 1,
                     highlight_indices=[i - 1, i],
                     animation_type="move",
                     duration=0.4,
-                    data_snapshot=self.to_list()
+                    data_snapshot=self.to_list(),
+                    code_template='sequential_insert',
+                    code_line=13,
+                    code_highlight=[13]
                 )
                 self.add_operation_step(step)
 
                 self._data[i] = self._data[i - 1]
 
         # === 步骤5: 插入新元素 ===
+        # 🔥 对应C++代码第17行
         step = OperationStep(
             OperationType.CREATE_NODE,
             index=index,
             value=value,
-            description=f'在位置 {index} 创建新元素 {value}',
+            description=f'在位置 {index} 插入新元素 {value} (line 17)',
             highlight_indices=[index],
             animation_type="fade",
             duration=0.5,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='sequential_insert',
+            code_line=17,
+            code_highlight=[17]
         )
         self.add_operation_step(step)
 
         self._data[index] = value
         self._size += 1
 
-        # === 步骤6: 插入完成 ===
+        # === 步骤6: 更新大小 ===
+        # 🔥 对应C++代码第18行
         step = OperationStep(
             OperationType.INSERT,
             index=index,
             value=value,
-            description=f'✓ 成功插入元素 {value} 到位置 {index}，当前大小: {self._size}',
+            description=f'✓ 插入完成！size++ (当前大小: {self._size}) (line 18)',
             highlight_indices=[index],
             animation_type="highlight",
             duration=0.8,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='sequential_insert',
+            code_line=18,
+            code_highlight=[18]
         )
         self.add_operation_step(step)
         return True

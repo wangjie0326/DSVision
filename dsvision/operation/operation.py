@@ -60,6 +60,11 @@ class OperationStep:
             path: str = "",  # 遍历路径
             comparison_result: str = "",  # 比较结果: "equal", "less", "greater"
             tree_snapshot: dict = None,  # 完整树快照
+
+            # 🔥 代码面板相关字段
+            code_template: str = None,  # 对应的代码模板key (如 'sequential_insert')
+            code_line: int = None,  # 当前执行的代码行号（从1开始）
+            code_highlight: List[int] = None,  # 需要高亮的代码行列表
     ):
         self.operation = operation
         self.description = description
@@ -89,6 +94,11 @@ class OperationStep:
         self.comparison_result = comparison_result
         self.tree_snapshot = tree_snapshot
 
+        # 🔥 代码面板相关
+        self.code_template = code_template
+        self.code_line = code_line
+        self.code_highlight = code_highlight or []
+
     def to_dict(self) -> dict:
         """转字典"""
         return {
@@ -115,5 +125,10 @@ class OperationStep:
             # 树结构专用字段
             'tree_snapshot': self.tree_snapshot,
             'path': self.path,
-            'comparison_result': self.comparison_result
+            'comparison_result': self.comparison_result,
+
+            # 🔥 代码面板相关字段
+            'code_template': self.code_template,
+            'code_line': self.code_line,
+            'code_highlight': self.code_highlight
         }
