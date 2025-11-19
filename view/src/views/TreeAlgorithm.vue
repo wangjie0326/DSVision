@@ -505,6 +505,22 @@ const playTreeAnimationSteps = async (steps) => {
     // 1. 更新描述
     lastOperation.value = step.description || ''
 
+    // 1.2 🔥 处理代码面板
+    if (step.code_template) {
+      console.log('🔥 检测到代码模板:', step.code_template)
+
+      // 如果是新的代码模板，加载代码
+      if (currentCode.value === '' || step.code_template !== currentOperationName.value) {
+        await loadCodeTemplate(step.code_template)
+      }
+
+      // 更新当前执行行和高亮行
+      currentCodeLine.value = step.code_line
+      currentCodeHighlight.value = step.code_highlight || []
+
+      console.log('🔥 代码行高亮:', step.code_line, step.code_highlight)
+    }
+
     // 1.5 🔥 更新Huffman频率列表和选中的权重（从visual_hints中提取）
     if (structureType.value === 'huffman' && step.visual_hints) {
       if (step.visual_hints.frequency_list) {
@@ -1044,6 +1060,49 @@ const createNewTreeStructure = async () => {
     alert('创建树结构失败')
   }
 }
+
+// 🔥 加载代码模板
+const loadCodeTemplate = async (templateKey) => {
+  try {
+    // 解析模板key (格式: "structure_operation")
+    const parts = templateKey.split('_')
+    if (parts.length < 2) {
+      console.warn('无效的模板key:', templateKey)
+      return
+    }
+
+    const structureType = parts[0]
+    const operation = parts.slice(1).join('_')
+
+    console.log(`🔥 加载代码模板: ${structureType}/${operation}`)
+
+    // 使用fetch发送请求，会通过vite代理
+    const response = await fetch(`/api/code/template/${structureType}/${operation}`)
+
+    if (!response.ok) {
+      console.error('API请求失败:', response.status, response.statusText)
+      return
+    }
+
+    const data = await response.json()
+    console.log('API返回数据:', data)
+
+    if (data.success) {
+      currentCode.value = data.code
+      currentOperationName.value = `${structureType}::${operation}()`
+      console.log('✓ 代码模板加载成功，代码长度:', data.code.length)
+      console.log('代码预览:', data.code.substring(0, 100))
+    } else {
+      console.error('❌ 代码模板加载失败:', data.error)
+      if (data.available_templates) {
+        console.log('可用模板:', data.available_templates)
+      }
+    }
+  } catch (error) {
+    console.error('❌ 加载代码模板异常:', error)
+  }
+}
+
 // 监听路由变化
 watch(() => route.query.importId, async (newId) => {
   if (newId && newId !== structureId.value) {
