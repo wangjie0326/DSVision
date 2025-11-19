@@ -71,6 +71,45 @@ SEQUENTIAL_EXPAND = """void expand() {
     capacity = newCapacity;
 }"""
 
+# ==================== 栈代码模板 ====================
+STACK_PUSH = """void push(int value) {
+    // 检查栈是否已满
+    if (top >= capacity - 1) {
+        return;  // 栈满
+    }
+
+    // top指针上移
+    top++;
+
+    // 入栈
+    data[top] = value;
+}"""
+
+STACK_POP = """int pop() {
+    // 检查栈是否为空
+    if (top < 0) {
+        return -1;  // 栈空
+    }
+
+    // 获取栈顶元素
+    int value = data[top];
+
+    // top指针下移
+    top--;
+
+    return value;
+}"""
+
+STACK_PEEK = """int peek() {
+    // 检查栈是否为空
+    if (top < 0) {
+        return -1;  // 栈空
+    }
+
+    // 返回栈顶元素
+    return data[top];
+}"""
+
 # ==================== 链表代码模板 ====================
 LINKED_INSERT_HEAD = """void insertHead(int value) {
     // 创建新节点
@@ -320,6 +359,11 @@ CODE_TEMPLATES = {
     'sequential_delete': SEQUENTIAL_DELETE,
     'sequential_search': SEQUENTIAL_SEARCH,
     'sequential_expand': SEQUENTIAL_EXPAND,
+
+    # 栈
+    'stack_push': STACK_PUSH,
+    'stack_pop': STACK_POP,
+    'stack_peek': STACK_PEEK,
 
     # 链表
     'linked_insert_head': LINKED_INSERT_HEAD,

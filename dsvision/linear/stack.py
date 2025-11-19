@@ -55,6 +55,9 @@ class SequentialStack(LinearStructureBase):
                 self._top,
                 value,
                 f'入栈失败：栈已满 (容量: {self._capacity})',
+                code_template='stack_push',
+                code_line=3,
+                code_highlight=[2, 3, 4]
             )
             self.add_operation_step(step)
             return False
@@ -65,7 +68,10 @@ class SequentialStack(LinearStructureBase):
             self._top + 1,
             value,
             f'准备将元素 {value} 入栈，栈顶指针从 {self._top} 移动到 {self._top + 1}',
-            highlight_indices=[self._top + 1] if self._top >= 0 else [0]
+            highlight_indices=[self._top + 1] if self._top >= 0 else [0],
+            code_template='stack_push',
+            code_line=7,
+            code_highlight=[7, 8]
         )
         self.add_operation_step(step)
 
@@ -79,7 +85,10 @@ class SequentialStack(LinearStructureBase):
             self._top,
             value,
             f'成功将元素 {value} 入栈到位置 {self._top}，当前栈大小: {self._top + 1}',
-            highlight_indices=[self._top]
+            highlight_indices=[self._top],
+            code_template='stack_push',
+            code_line=11,
+            code_highlight=[11]
         )
         self.add_operation_step(step)
         return True
@@ -105,7 +114,10 @@ class SequentialStack(LinearStructureBase):
             self._top,
             popped_value,
             f'准备将栈顶元素 {popped_value} (位置 {self._top}) 出栈',
-            highlight_indices=[self._top]
+            highlight_indices=[self._top],
+            code_template='stack_pop',
+            code_line=7,
+            code_highlight=[6, 7]
         )
         self.add_operation_step(step)
 
@@ -119,7 +131,10 @@ class SequentialStack(LinearStructureBase):
             self._top + 1,
             popped_value,
             f'成功将元素 {popped_value} 出栈，栈顶指针移动到 {self._top}，当前栈大小: {self._top + 1}',
-            highlight_indices=[self._top] if self._top >= 0 else []
+            highlight_indices=[self._top] if self._top >= 0 else [],
+            code_template='stack_pop',
+            code_line=10,
+            code_highlight=[10, 12]
         )
         self.add_operation_step(step)
         return popped_value
@@ -141,7 +156,10 @@ class SequentialStack(LinearStructureBase):
             self._top,
             top_value,
             f'查看栈顶元素: {top_value} (位置 {self._top})',
-            highlight_indices=[self._top]
+            highlight_indices=[self._top],
+            code_template='stack_peek',
+            code_line=8,
+            code_highlight=[8]
         )
         self.add_operation_step(step)
         return top_value

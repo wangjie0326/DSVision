@@ -301,6 +301,7 @@ import api from '../services/api.js'
 import TreeNodeComponent from './TreeNodeSimple.vue'
 import { TreeLayoutEngine } from '../utils/treeLayout.js'
 import DSLInputBar from './DSLInputBar.vue'  // 🔥 添加导入
+import CodePanel from '../components/CodePanel.vue'  // 🔥 代码面板组件
 
 const router = useRouter()
 const route = useRoute()
@@ -327,6 +328,12 @@ const huffmanFrequencyList = ref([])      // 🔥 Huffman树频率列表
 const huffmanSelectedWeights = ref([])    // 🔥 Huffman树选中的权重（红色高亮）
 const animationSpeed = ref(1)
 const visualAreaRef = ref(null)
+
+// 🔥 代码面板相关
+const currentCode = ref('')  // 当前显示的代码
+const currentCodeLine = ref(null)  // 当前执行的代码行
+const currentCodeHighlight = ref([])  // 当前高亮的代码行
+const currentOperationName = ref('')  // 当前操作名称
 
 // 🔥 布局相关状态
 const nodePositions = ref({})  // { nodeId: { x, y } }
