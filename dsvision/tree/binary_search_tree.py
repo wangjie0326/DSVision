@@ -40,7 +40,10 @@ class BinarySearchTree(TreeStructureBase):
                 OperationType.INSERT,
                 value=value,
                 description=f"插入节点 {value} 作为根节点",
-                tree_snapshot=self._get_tree_snapshot()
+                tree_snapshot=self._get_tree_snapshot(),
+                code_template='bst_insert',
+                code_line=3,
+                code_highlight=[2, 3, 4, 5]
             )
             self.add_operation_step(step)
             return True
@@ -77,7 +80,10 @@ class BinarySearchTree(TreeStructureBase):
             highlight_indices=[node.node_id],  # 高亮当前节点
             animation_type="highlight",
             duration=0.6,
-            tree_snapshot=self._get_tree_snapshot()
+            tree_snapshot=self._get_tree_snapshot(),
+            code_template='bst_insert',
+            code_line=9,
+            code_highlight=[8, 9, 10, 11, 12, 13, 14, 15]
         )
         self.add_operation_step(step)
 
