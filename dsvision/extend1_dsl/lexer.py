@@ -76,6 +76,7 @@ class TokenType(Enum):
     AT = "AT"
     GET = "GET"
     SIZE = "SIZE"
+    CAPACITY = "CAPACITY"
 
     #符号
     LBRACE = "LBRACE"
@@ -175,6 +176,7 @@ class Lexer:
         'at': TokenType.AT,
         'get': TokenType.GET,
         'size': TokenType.SIZE,
+        'capacity': TokenType.CAPACITY,
     }
 
     def __init__(self,code: str):

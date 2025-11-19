@@ -85,17 +85,19 @@ class SequentialList(LinearStructureBase):
 
     def insert(self,index:int,value:Any) -> bool:
         """在指定位置插入元素"""
-        # === 步骤1: 检查容量 ===
+        # === 步骤1: 检查容量，如果满了就扩容 ===
         if self._size >= self._capacity:
-            step = OperationStep(
-                OperationType.INSERT,
-                index=index,
-                value=value,
-                description=f'插入失败：顺序表已满 (容量: {self._capacity})',
-                data_snapshot=self.to_list()
-            )
-            self.add_operation_step(step)
-            return False
+            # 触发扩容
+            if not self._expand():
+                step = OperationStep(
+                    OperationType.INSERT,
+                    index=index,
+                    value=value,
+                    description=f'扩容失败，无法插入',
+                    data_snapshot=self.to_list()
+                )
+                self.add_operation_step(step)
+                return False
 
         # === 步骤2: 检查索引 ===
         if index < 0 or index > self._size:
@@ -353,6 +355,112 @@ class SequentialList(LinearStructureBase):
     def get_used_size(self) -> int:
         """获取已使用的大小"""
         return self._size
+
+    def _expand(self) -> bool:
+        """扩容操作 - 1.5倍扩容，带完整动画步骤"""
+        old_capacity = self._capacity
+        new_capacity = int(old_capacity * 1.5)
+
+        # === 步骤1: 开始扩容提示 ===
+        step = OperationStep(
+            OperationType.EXPAND,
+            description=f'容量已满 (当前: {self._size}/{old_capacity})，触发扩容',
+            animation_type="highlight",
+            duration=0.5,
+            data_snapshot=self.to_list()
+        )
+        self.add_operation_step(step)
+
+        # === 步骤2: 显示扩容计划 ===
+        step = OperationStep(
+            OperationType.EXPAND,
+            description=f'准备扩容: {old_capacity} -> {new_capacity} (1.5倍)',
+            animation_type="instant",
+            duration=0.5,
+            data_snapshot=self.to_list()
+        )
+        self.add_operation_step(step)
+
+        # === 步骤3: 创建新数组（在下方显示） ===
+        new_data = [None] * new_capacity
+        step = OperationStep(
+            OperationType.EXPAND,
+            description=f'创建新数组，容量: {new_capacity}',
+            animation_type="fade",
+            duration=0.8,
+            data_snapshot=self.to_list(),
+            visual_hints={'new_array': new_data, 'new_capacity': new_capacity}
+        )
+        self.add_operation_step(step)
+
+        # === 步骤4: 逐个复制元素到新数组 ===
+        step = OperationStep(
+            OperationType.EXPAND,
+            description=f'开始复制 {self._size} 个元素到新数组',
+            animation_type="instant",
+            duration=0.3,
+            data_snapshot=self.to_list()
+        )
+        self.add_operation_step(step)
+
+        for i in range(self._size):
+            # 显示复制过程
+            step = OperationStep(
+                OperationType.EXPAND,
+                index=i,
+                value=self._data[i],
+                description=f'复制元素 [{i}]: {self._data[i]} 到新数组',
+                highlight_indices=[i],
+                animation_type="move",
+                duration=0.3,
+                data_snapshot=self.to_list(),
+                visual_hints={'copy_index': i, 'new_array': new_data[:]}
+            )
+            self.add_operation_step(step)
+
+            # 执行复制
+            new_data[i] = self._data[i]
+
+            # 显示复制后状态
+            step = OperationStep(
+                OperationType.EXPAND,
+                index=i,
+                value=self._data[i],
+                description=f'✓ 已复制元素 [{i}]',
+                highlight_indices=[i],
+                animation_type="highlight",
+                duration=0.2,
+                data_snapshot=self.to_list(),
+                visual_hints={'copy_index': i, 'new_array': new_data[:]}
+            )
+            self.add_operation_step(step)
+
+        # === 步骤5: 标记旧数组（全红强调） ===
+        step = OperationStep(
+            OperationType.EXPAND,
+            description=f'标记旧数组准备删除',
+            highlight_indices=list(range(self._size)),
+            animation_type="highlight",
+            duration=1.0,
+            data_snapshot=self.to_list(),
+            visual_hints={'old_array_delete': True, 'new_array': new_data[:]}
+        )
+        self.add_operation_step(step)
+
+        # === 步骤6: 删除旧数组，切换到新数组 ===
+        self._data = new_data
+        self._capacity = new_capacity
+
+        step = OperationStep(
+            OperationType.EXPAND,
+            description=f'✓ 扩容完成！新容量: {new_capacity}',
+            animation_type="fade",
+            duration=0.8,
+            data_snapshot=self.to_list()
+        )
+        self.add_operation_step(step)
+
+        return True
 
 
 

@@ -173,13 +173,23 @@ class Interpreter:
 
         # 根据操作类型执行
         if isinstance(operation, InitOperation):
-            self.log(f"  init {operation.values}")
+            capacity_info = f" capacity {operation.capacity}" if operation.capacity else ""
+            self.log(f"  init {operation.values}{capacity_info}")
+
+            # 如果指定了 capacity 且结构支持设置容量，先更新容量
+            if operation.capacity and hasattr(structure, '_capacity'):
+                old_capacity = structure._capacity
+                structure._capacity = operation.capacity
+                structure._data = [None] * operation.capacity
+                structure._size = 0
+                self.log(f"    设置容量: {old_capacity} -> {operation.capacity}")
+
             if hasattr(structure, 'initlist'):
                 structure.initlist(operation.values)
             else:
                 for value in operation.values:
                     structure.insert(structure.size(), value)
-            op_record['details'] = {'values': operation.values}
+            op_record['details'] = {'values': operation.values, 'capacity': operation.capacity}
 
         elif isinstance(operation, InsertOperation):
             index = operation.index if operation.index is not None else structure.size()

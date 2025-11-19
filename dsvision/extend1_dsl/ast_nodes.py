@@ -30,8 +30,9 @@ class Operation(ASTNode):
 
 @dataclass
 class InitOperation(Operation):
-    """初始化操作 init [1, 2, 3]"""
+    """初始化操作 init [1, 2, 3] 或 init [1, 2, 3] capacity 10"""
     values: List[Any]
+    capacity: Optional[int] = None
 
 @dataclass
 class InsertOperation(Operation):

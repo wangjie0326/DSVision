@@ -15,8 +15,8 @@
     <!-- 中央选择区域 -->
     <div class="categories-wrapper">
       <div class="categories">
-        <div class="choose-text">Hi! You can choose structure first.</div>
-        <div class="choose-text">Or you can also use DSL or LLM to explore!</div>
+        <div class="choose-text">{{ displayedText1 }}<span class="cursor" v-if="showCursor1">|</span></div>
+        <div class="choose-text">{{ displayedText2 }}<span class="cursor" v-if="showCursor2">|</span></div>
         <div class="category-buttons">
           <button
             v-for="(category, index) in categories"
@@ -104,7 +104,7 @@ Sequential myList {
 </template>
 
 <script setup>
-import { ref,computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api.js'
 
@@ -116,6 +116,14 @@ const userInput = ref('')
 const currentMode = ref('dsl')  // 'dsl' 或 'llm'
 const dslInput = ref('')
 const llmInput = ref('')
+
+// 🔥 打字机动画相关
+const fullText1 = "Hi! You can choose structure first."
+const fullText2 = "Or you can also use DSL or LLM to explore!"
+const displayedText1 = ref('')
+const displayedText2 = ref('')
+const showCursor1 = ref(true)
+const showCursor2 = ref(false)
 
 const categories = [
   { id: 'linear', label: 'Linear Structure' },
@@ -333,6 +341,30 @@ const handleSend = () => {
   console.log('用户输入:', userInput.value)
   userInput.value = ''
 }
+
+// 🔥 打字机动画函数
+const typeWriter = async (text, displayRef, showCursorRef, speed = 130) => {
+  showCursorRef.value = true
+  for (let i = 0; i <= text.length; i++) {
+    displayRef.value = text.substring(0, i)
+    await new Promise(resolve => setTimeout(resolve, speed))
+  }
+  // 打完后光标闪烁一会儿再消失
+  await new Promise(resolve => setTimeout(resolve, 500))  // 初始延迟
+  showCursorRef.value = false
+}
+
+// 组件挂载时启动打字机动画
+onMounted(async () => {
+  // 延迟 500ms 后开始第一行
+  await new Promise(resolve => setTimeout(resolve, 500))
+  await typeWriter(fullText1, displayedText1, showCursor1, 40)// 打字速度（
+
+  // 第一行打完后，延迟 300ms 再开始第二行
+  await new Promise(resolve => setTimeout(resolve, 100))
+  showCursor2.value = true
+  await typeWriter(fullText2, displayedText2, showCursor2, 40)// 打字速度（
+})
 </script>
 
 <style scoped>
@@ -395,6 +427,27 @@ const handleSend = () => {
   font-family: Georgia,'Times New Roman',Times, serif;
   color: black;
   margin-bottom: 1rem;
+  min-height: 3rem; /* 保持高度稳定 */
+}
+
+/* 🔥 打字机光标动画 */
+.cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.8rem;
+  background-color: black;
+  margin-left: 2px;
+  animation: blink 1s infinite;
+  vertical-align: middle;
+}
+
+@keyframes blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
 }
 
 .category-buttons {

@@ -159,20 +159,55 @@
 
           <!-- 🔥 顺序表的可视化 - 10x10网格，显示所有容量槽位 -->
           <template v-if="structureType === 'sequential'">
-            <div
-              v-for="index in capacity"
-              :key="`elem-${index - 1}`"
-              class="element-wrapper"
-            >
+            <!-- 旧数组（原始数组） -->
+            <div class="array-container" :class="{ 'old-array-delete': oldArrayMarkedForDelete }">
+              <div v-if="isExpanding" class="array-label">旧数组 (容量: {{ capacity }})</div>
               <div
-                class="element-node"
-                :class="[getNodeClass(index - 1), { 'empty-slot': !elements[index - 1] && elements[index - 1] !== 0 }]"
+                v-for="index in capacity"
+                :key="`old-elem-${index - 1}`"
+                class="element-wrapper"
               >
-                <span v-if="elements[index - 1] !== null && elements[index - 1] !== undefined" class="element-value">
-                  {{ elements[index - 1] }}
-                </span>
+                <div
+                  class="element-node"
+                  :class="[
+                    getNodeClass(index - 1),
+                    {
+                      'empty-slot': !elements[index - 1] && elements[index - 1] !== 0,
+                      'delete-marked': oldArrayMarkedForDelete
+                    }
+                  ]"
+                >
+                  <span v-if="elements[index - 1] !== null && elements[index - 1] !== undefined" class="element-value">
+                    {{ elements[index - 1] }}
+                  </span>
+                </div>
+                <div class="element-index">[{{ index - 1 }}]</div>
               </div>
-              <div class="element-index">[{{ index - 1 }}]</div>
+            </div>
+
+            <!-- 🔥 新数组（扩容时显示） -->
+            <div v-if="isExpanding" class="array-container new-array-container">
+              <div class="array-label">新数组 (容量: {{ newCapacity }})</div>
+              <div
+                v-for="index in newCapacity"
+                :key="`new-elem-${index - 1}`"
+                class="element-wrapper"
+              >
+                <div
+                  class="element-node new-array-node"
+                  :class="[
+                    {
+                      'empty-slot': !newArray[index - 1] && newArray[index - 1] !== 0,
+                      'highlighted': highlightedIndices.includes(index - 1)
+                    }
+                  ]"
+                >
+                  <span v-if="newArray[index - 1] !== null && newArray[index - 1] !== undefined" class="element-value">
+                    {{ newArray[index - 1] }}
+                  </span>
+                </div>
+                <div class="element-index">[{{ index - 1 }}]</div>
+              </div>
             </div>
           </template>
 
@@ -272,6 +307,12 @@ const pointerStates = ref({
   new_node: -1
 })
 
+// 🔥 扩容动画相关
+const isExpanding = ref(false)  // 是否正在扩容
+const newArray = ref([])  // 扩容时的新数组
+const newCapacity = ref(0)  // 新数组的容量
+const oldArrayMarkedForDelete = ref(false)  // 旧数组是否标记为删除
+
 // 历史记录
 const operationHistory = ref([])
 const lastOperation = ref('')
@@ -366,7 +407,7 @@ const playOperationSteps = async (steps) => {
     const step = steps[i]
     currentStepIndex.value = i
 
-    console.log(`Step ${i + 1}:`, step.description)
+    console.log(`Step ${i + 1}:`, step.description, step)
 
     // 1. 更新描述
     lastOperation.value = step.description || ''
@@ -385,13 +426,52 @@ const playOperationSteps = async (steps) => {
       console.log('指针状态:', step.pointers)
     }
 
-    // 4. 更新数据快照
+    // 🔥 4. 处理扩容动画
+    if (step.operation === 'expand') {
+      console.log('🔥 检测到扩容操作，visual_hints:', step.visual_hints)
+
+      if (step.visual_hints) {
+        // 开始扩容，显示新数组
+        if (step.visual_hints.new_array && step.visual_hints.new_capacity) {
+          isExpanding.value = true
+          newArray.value = [...step.visual_hints.new_array]
+          newCapacity.value = step.visual_hints.new_capacity
+          console.log('🔥 显示新数组，容量:', newCapacity.value)
+        }
+
+        // 更新新数组的复制进度
+        if (step.visual_hints.copy_index !== undefined && step.visual_hints.new_array) {
+          newArray.value = [...step.visual_hints.new_array]
+          console.log('🔥 更新新数组复制进度:', step.visual_hints.copy_index)
+        }
+
+        // 标记旧数组准备删除（全红强调）
+        if (step.visual_hints.old_array_delete) {
+          oldArrayMarkedForDelete.value = true
+          console.log('🔥 标记旧数组准备删除')
+        }
+      }
+
+      // 扩容完成，切换到新数组
+      if (step.description && step.description.includes('扩容完成')) {
+        console.log('🔥 扩容完成，切换到新数组')
+        // 延迟后清除扩容状态
+        await new Promise(resolve => setTimeout(resolve, 500))
+        isExpanding.value = false
+        oldArrayMarkedForDelete.value = false
+        capacity.value = newCapacity.value  // 更新容量
+        newArray.value = []
+        newCapacity.value = 0
+      }
+    }
+
+    // 5. 更新数据快照
     if (step.data_snapshot && step.data_snapshot.length > 0) {
       elements.value = [...step.data_snapshot]
       console.log('数据快照:', step.data_snapshot)
     }
 
-    // 5. 延迟（根据速度调整）
+    // 6. 延迟（根据速度调整）
     const baseDelay = step.duration || 0.5
     const delay = (baseDelay / animationSpeed.value) * 1000
     await new Promise(resolve => setTimeout(resolve, delay))
@@ -402,6 +482,10 @@ const playOperationSteps = async (steps) => {
   // 播放完毕，清除高亮和指针
   highlightedIndices.value = []
   pointerStates.value = { head: -1, prev: -1, current: -1, new_node: -1 }
+  isExpanding.value = false
+  oldArrayMarkedForDelete.value = false
+  newArray.value = []
+  newCapacity.value = 0
   isPlaying.value = false
 }
 
@@ -1164,6 +1248,98 @@ watch(() => route.query.importId, async (newId) => {
   align-items: center;
   gap: 0.5rem;
   padding-top: 40px; /* 为指针标签留出空间 */
+}
+
+/* 🔥 扩容动画相关样式 */
+.array-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  max-width: calc(10 * (80px + 1rem));
+  position: relative;
+  padding: 2rem 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.5s ease;
+}
+
+.array-label {
+  position: absolute;
+  top: 0.5rem;
+  left: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  background-color: #f3f4f6;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+}
+
+.new-array-container {
+  margin-top: 3rem;
+  background-color: #f0fdf4;
+  border: 2px dashed #10b981;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.new-array-node {
+  background-color: #10b981;
+  opacity: 0.7;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+}
+
+.delete-marked {
+  background-color: #ef4444 !important;
+  animation: deleteFlash 1s ease-in-out infinite;
+}
+
+.old-array-delete {
+  animation: fadeOut 1s ease-out forwards;
+}
+
+@keyframes deleteFlash {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
 }
 
 @media (max-width: 768px) {

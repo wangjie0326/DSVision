@@ -10,6 +10,7 @@ class OperationType(Enum):
     SEARCH = "search"
     CLEAR = "clear"
     INIT = "init"
+    EXPAND = "expand"  # 扩容操作
 
     #后面再加
     POINTER_MOVE = "pointer_move"  # 指针移动

@@ -121,11 +121,16 @@ class Parser:
         line = token.line
         column = token.column
 
-        # init [1, 2, 3]
+        # init [1, 2, 3] 或 init [1, 2, 3] capacity 10
         if token.type == TokenType.INIT:
             self.advance()
             values = self.parse_array()
-            return InitOperation(values=values, line=line, column=column)
+            capacity = None
+            # 检查是否有 capacity 关键字
+            if self.current_token and self.current_token.type == TokenType.CAPACITY:
+                self.advance()  # 跳过 capacity
+                capacity = self.expect(TokenType.NUMBER).value
+            return InitOperation(values=values, capacity=capacity, line=line, column=column)
 
         # insert 10 at 2
         elif token.type == TokenType.INSERT:
