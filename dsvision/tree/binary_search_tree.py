@@ -154,7 +154,11 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.SEARCH,
                 value=value,
-                description=f"未找到节点 {value}"
+                description=f"未找到节点 {value}",
+                tree_snapshot=self._get_tree_snapshot(),
+                code_template='bst_search',
+                code_line=10,
+                code_highlight=[10]
             )
             self.add_operation_step(step)
             return None
@@ -162,7 +166,13 @@ class BinarySearchTree(TreeStructureBase):
         step = OperationStep(
             OperationType.SEARCH,
             value=value,
-            description=f"检查节点 {node.value}"
+            description=f"检查节点 {node.value}",
+            node_id=node.node_id,
+            highlight_indices=[node.node_id],
+            tree_snapshot=self._get_tree_snapshot(),
+            code_template='bst_search',
+            code_line=4,
+            code_highlight=[3, 4, 5, 6, 7, 8]
         )
         self.add_operation_step(step)
 
@@ -170,7 +180,13 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.SEARCH,
                 value=value,
-                description=f"找到目标节点{value}"
+                description=f"找到目标节点{value}",
+                node_id=node.node_id,
+                highlight_indices=[node.node_id],
+                tree_snapshot=self._get_tree_snapshot(),
+                code_template='bst_search',
+                code_line=5,
+                code_highlight=[5]
             )
             self.add_operation_step(step)
             return node
@@ -178,7 +194,13 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.SEARCH,
                 value=value,
-                description=f"{value} < {node.value}，向左子树搜索"
+                description=f"{value} < {node.value}，向左子树搜索",
+                node_id=node.node_id,
+                highlight_indices=[node.node_id],
+                tree_snapshot=self._get_tree_snapshot(),
+                code_template='bst_search',
+                code_line=7,
+                code_highlight=[6, 7]
             )
             self.add_operation_step(step)
             return self._search_recursive(node.left, value)
@@ -186,7 +208,13 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.SEARCH,
                 value=value,
-                description=f"{value} > {node.value}，向右子树搜索"
+                description=f"{value} > {node.value}，向右子树搜索",
+                node_id=node.node_id,
+                highlight_indices=[node.node_id],
+                tree_snapshot=self._get_tree_snapshot(),
+                code_template='bst_search',
+                code_line=9,
+                code_highlight=[8, 9]
             )
             self.add_operation_step(step)
             return self._search_recursive(node.right, value)
@@ -240,7 +268,13 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.DELETE,
                 value=value,
-                description=f"{value} < {node.value}，向左子树搜索"
+                description=f"{value} < {node.value}，向左子树搜索",
+                node_id=node.node_id,
+                highlight_indices=[node.node_id],
+                tree_snapshot=self._get_tree_snapshot(),
+                code_template='bst_delete',
+                code_line=7,
+                code_highlight=[6, 7]
             )
             self.add_operation_step(step)
             node.left = self._delete_recursive(node.left, value)
@@ -248,7 +282,13 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.DELETE,
                 value=value,
-                description=f"{value} > {node.value}，向右子树搜索"
+                description=f"{value} > {node.value}，向右子树搜索",
+                node_id=node.node_id,
+                highlight_indices=[node.node_id],
+                tree_snapshot=self._get_tree_snapshot(),
+                code_template='bst_delete',
+                code_line=9,
+                code_highlight=[8, 9]
             )
             self.add_operation_step(step)
             node.right = self._delete_recursive(node.right, value)
@@ -256,7 +296,13 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.DELETE,
                 value=value,
-                description=f"找到目标节点{value}"
+                description=f"找到目标节点{value}",
+                node_id=node.node_id,
+                highlight_indices=[node.node_id],
+                tree_snapshot=self._get_tree_snapshot(),
+                code_template='bst_delete',
+                code_line=11,
+                code_highlight=[10, 11, 12]
             )
             self.add_operation_step(step)
 
@@ -265,7 +311,11 @@ class BinarySearchTree(TreeStructureBase):
                 step = OperationStep(
                     OperationType.DELETE,
                     value=value,
-                    description=f"节点 {value} 没有左子树，用右子树替代"
+                    description=f"节点 {value} 没有左子树，用右子树替代",
+                    tree_snapshot=self._get_tree_snapshot(),
+                    code_template='bst_delete',
+                    code_line=15,
+                    code_highlight=[14, 15, 16, 17, 18, 19]
                 )
                 self.add_operation_step(step)
                 self._size -= 1
@@ -274,7 +324,11 @@ class BinarySearchTree(TreeStructureBase):
                 step = OperationStep(
                     OperationType.DELETE,
                     value=value,
-                    description=f"节点 {value} 没有右子树，用左子树替代"
+                    description=f"节点 {value} 没有右子树，用左子树替代",
+                    tree_snapshot=self._get_tree_snapshot(),
+                    code_template='bst_delete',
+                    code_line=21,
+                    code_highlight=[20, 21, 22, 23, 24]
                 )
                 self.add_operation_step(step)
                 self._size -= 1
