@@ -260,7 +260,10 @@ class SequentialList(LinearStructureBase):
             highlight_indices=[index],
             animation_type="highlight",
             duration=0.5,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='sequential_delete',
+            code_line=2,
+            code_highlight=[2, 3, 4]
         )
         self.add_operation_step(step)
 
@@ -288,7 +291,10 @@ class SequentialList(LinearStructureBase):
                     highlight_indices=[i, i + 1],
                     animation_type="move",
                     duration=0.4,
-                    data_snapshot=self.to_list()
+                    data_snapshot=self.to_list(),
+                    code_template='sequential_delete',
+                    code_line=7,
+                    code_highlight=[7]
                 )
                 self.add_operation_step(step)
 
@@ -306,7 +312,10 @@ class SequentialList(LinearStructureBase):
             description=f'✓ 成功删除元素 {deleted_value}，当前大小: {self._size}',
             animation_type="fade",
             duration=0.8,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='sequential_delete',
+            code_line=11,
+            code_highlight=[11]
         )
         self.add_operation_step(step)
         return deleted_value
@@ -338,7 +347,10 @@ class SequentialList(LinearStructureBase):
                 compare_indices=[i],
                 animation_type="highlight",
                 duration=0.4,
-                data_snapshot=self.to_list()
+                data_snapshot=self.to_list(),
+                code_template='sequential_search',
+                code_line=4,
+                code_highlight=[4, 5, 6, 7]
             )
             self.add_operation_step(step)
 
@@ -353,7 +365,10 @@ class SequentialList(LinearStructureBase):
                     highlight_indices=[i],
                     animation_type="highlight",
                     duration=1.0,
-                    data_snapshot=self.to_list()
+                    data_snapshot=self.to_list(),
+                    code_template='sequential_search',
+                    code_line=6,
+                    code_highlight=[6]
                 )
                 self.add_operation_step(step)
                 return i
@@ -428,7 +443,10 @@ class SequentialList(LinearStructureBase):
             description=f'准备扩容: {old_capacity} -> {new_capacity} (1.5倍)',
             animation_type="instant",
             duration=0.5,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='sequential_expand',
+            code_line=2,
+            code_highlight=[2, 3]
         )
         self.add_operation_step(step)
 
@@ -440,7 +458,10 @@ class SequentialList(LinearStructureBase):
             animation_type="fade",
             duration=0.8,
             data_snapshot=self.to_list(),
-            visual_hints={'new_array': new_data, 'new_capacity': new_capacity}
+            visual_hints={'new_array': new_data, 'new_capacity': new_capacity},
+            code_template='sequential_expand',
+            code_line=6,
+            code_highlight=[6]
         )
         self.add_operation_step(step)
 
@@ -462,6 +483,9 @@ class SequentialList(LinearStructureBase):
                 value=self._data[i],
                 description=f'复制元素 [{i}]: {self._data[i]} 到新数组',
                 highlight_indices=[i],
+                code_template='sequential_expand',
+                code_line=10,
+                code_highlight=[9, 10],
                 animation_type="move",
                 duration=0.3,
                 data_snapshot=self.to_list(),
@@ -494,7 +518,10 @@ class SequentialList(LinearStructureBase):
             animation_type="highlight",
             duration=1.0,
             data_snapshot=self.to_list(),
-            visual_hints={'old_array_delete': True, 'new_array': new_data[:]}
+            visual_hints={'old_array_delete': True, 'new_array': new_data[:]},
+            code_template='sequential_expand',
+            code_line=14,
+            code_highlight=[14]
         )
         self.add_operation_step(step)
 
@@ -507,7 +534,10 @@ class SequentialList(LinearStructureBase):
             description=f'✓ 扩容完成！新容量: {new_capacity}',
             animation_type="fade",
             duration=0.8,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='sequential_expand',
+            code_line=17,
+            code_highlight=[17, 18]
         )
         self.add_operation_step(step)
 

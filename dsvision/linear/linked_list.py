@@ -170,7 +170,10 @@ class LinearLinkedList(LinearStructureBase):
             description=f"Step 1/3: 创建新节点，值为 {value}",
             animation_type="fade",
             duration=0.6,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='linked_insert_head',
+            code_line=2,
+            code_highlight=[2, 3]
         )
         self.add_operation_step(step)
 
@@ -185,7 +188,10 @@ class LinearLinkedList(LinearStructureBase):
                 animation_type="move",
                 duration=0.6,
                 visual_hints={"show_arrow": True, "from": -1, "to": 0},
-                data_snapshot=self.to_list()
+                data_snapshot=self.to_list(),
+                code_template='linked_insert_head',
+                code_line=6,
+                code_highlight=[6]
             )
             self.add_operation_step(step)
 
@@ -198,7 +204,10 @@ class LinearLinkedList(LinearStructureBase):
             highlight_indices=[0],
             animation_type="move",
             duration=0.6,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='linked_insert_head',
+            code_line=9,
+            code_highlight=[9, 10]
         )
         self.add_operation_step(step)
 
@@ -214,7 +223,10 @@ class LinearLinkedList(LinearStructureBase):
             highlight_indices=[0],
             animation_type="highlight",
             duration=1.0,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='linked_insert_head',
+            code_line=10,
+            code_highlight=[10]
         )
         self.add_operation_step(step)
         return True
@@ -396,7 +408,10 @@ class LinearLinkedList(LinearStructureBase):
             highlight_indices=[0],
             animation_type="highlight",
             duration=0.6,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='linked_delete',
+            code_line=3,
+            code_highlight=[2, 3, 4, 5]
         )
         self.add_operation_step(step)
 
@@ -408,7 +423,10 @@ class LinearLinkedList(LinearStructureBase):
                 highlight_indices=[0, 1],
                 animation_type="move",
                 duration=0.6,
-                data_snapshot=self.to_list()
+                data_snapshot=self.to_list(),
+                code_template='linked_delete',
+                code_line=4,
+                code_highlight=[4]
             )
             self.add_operation_step(step)
         else:
@@ -595,7 +613,10 @@ class LinearLinkedList(LinearStructureBase):
             highlight_indices=[0],
             animation_type="move",
             duration=0.5,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='linked_search',
+            code_line=2,
+            code_highlight=[2, 3]
         )
         self.add_operation_step(step)
 
@@ -606,6 +627,9 @@ class LinearLinkedList(LinearStructureBase):
             step = OperationStep(
                 OperationType.COMPARE,
                 value=value,
+                code_template='linked_search',
+                code_line=7,
+                code_highlight=[6, 7, 8],
                 description=f"位置 {index}: 比较 {current.value} == {value} ?",
                 pointers={"head": 0, "current": index},
                 highlight_indices=[index],
