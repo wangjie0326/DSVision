@@ -42,6 +42,16 @@ class AVLTree(BinarySearchTree):
         if self._root is None:
             self._root = TreeNode(value)
             self._size += 1
+            step = OperationStep(
+                OperationType.INSERT,
+                value=value,
+                description=f"插入节点 {value} 作为AVL树根节点",
+                tree_snapshot=self._get_tree_snapshot(),
+                code_template='avl_insert',
+                code_line=3,
+                code_highlight=[2, 3, 4, 5]
+            )
+            self.add_operation_step(step)
             return True
 
         # 标记开始插入,用于在递归中只显示一次虚线节点
