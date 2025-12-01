@@ -183,6 +183,109 @@ LINKED_SEARCH = """int search(int value) {
     return -1;  // 未找到
 }"""
 
+# ==================== 二叉树代码模板 ====================
+BINARY_INSERT = """void insert(int value) {
+    // 创建新节点
+    Node* newNode = new Node(value);
+
+    // 如果树为空，新节点作为根节点
+    if (root == nullptr) {
+        root = newNode;
+        return;
+    }
+
+    // 层序遍历找到第一个空位置
+    queue<Node*> q;
+    q.push(root);
+
+    while (!q.empty()) {
+        Node* current = q.front();
+        q.pop();
+
+        // 检查左子节点
+        if (current->left == nullptr) {
+            current->left = newNode;
+            return;
+        } else {
+            q.push(current->left);
+        }
+
+        // 检查右子节点
+        if (current->right == nullptr) {
+            current->right = newNode;
+            return;
+        } else {
+            q.push(current->right);
+        }
+    }
+}"""
+
+BINARY_DELETE = """void deleteNode(int value) {
+    if (root == nullptr) return;
+
+    // 查找目标节点和最后一个节点
+    Node* target = nullptr;
+    Node* lastNode = nullptr;
+    Node* parentOfLast = nullptr;
+    queue<pair<Node*, Node*>> q;
+    q.push({root, nullptr});
+
+    while (!q.empty()) {
+        auto [node, parent] = q.front();
+        q.pop();
+
+        if (node->value == value) {
+            target = node;
+        }
+
+        lastNode = node;
+        parentOfLast = parent;
+
+        if (node->left) q.push({node->left, node});
+        if (node->right) q.push({node->right, node});
+    }
+
+    if (target == nullptr) return;
+
+    // 用最后节点的值替换目标节点
+    if (target != lastNode) {
+        target->value = lastNode->value;
+    }
+
+    // 删除最后一个节点
+    if (parentOfLast == nullptr) {
+        root = nullptr;
+    } else if (parentOfLast->left == lastNode) {
+        parentOfLast->left = nullptr;
+    } else {
+        parentOfLast->right = nullptr;
+    }
+    delete lastNode;
+}"""
+
+BINARY_SEARCH = """bool search(int value) {
+    if (root == nullptr) return false;
+
+    // 层序遍历搜索
+    queue<Node*> q;
+    q.push(root);
+
+    while (!q.empty()) {
+        Node* current = q.front();
+        q.pop();
+
+        // 检查当前节点
+        if (current->value == value) {
+            return true;
+        }
+
+        if (current->left) q.push(current->left);
+        if (current->right) q.push(current->right);
+    }
+
+    return false;
+}"""
+
 # ==================== BST 代码模板 ====================
 BST_INSERT = """void insert(int value) {
     // 空树，创建根节点
@@ -370,6 +473,11 @@ CODE_TEMPLATES = {
     'linked_insert_tail': LINKED_INSERT_TAIL,
     'linked_delete': LINKED_DELETE,
     'linked_search': LINKED_SEARCH,
+
+    # 二叉树
+    'binary_insert': BINARY_INSERT,
+    'binary_delete': BINARY_DELETE,
+    'binary_search': BINARY_SEARCH,
 
     # BST
     'bst_insert': BST_INSERT,

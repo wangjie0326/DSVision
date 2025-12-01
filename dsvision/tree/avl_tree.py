@@ -11,7 +11,10 @@ class AVLTree(BinarySearchTree):
         super().__init__()
         step = OperationStep(
             OperationType.INIT,
-            description="初始化AVL树"
+            description="初始化AVL树",
+            code_template='avl_insert',
+            code_line=1,
+            code_highlight=[1]
         )
         self.add_operation_step(step)
 
@@ -35,7 +38,10 @@ class AVLTree(BinarySearchTree):
         step = OperationStep(
             OperationType.INSERT,
             value=value,
-            description=f"准备插入节点{value}到AVL树"
+            description=f"准备插入节点{value}到AVL树",
+            code_template='avl_insert',
+            code_line=1,
+            code_highlight=[1]
         )
         self.add_operation_step(step)
 
@@ -203,7 +209,10 @@ class AVLTree(BinarySearchTree):
             },
             highlight_indices=[y.node_id],
             animation_type="settle",
-            duration=0.6
+            duration=0.6,
+            code_template='avl_rotate_left',
+            code_line=12,
+            code_highlight=[6, 7, 10, 11, 12]
         )
         self.add_operation_step(step)
 
@@ -245,7 +254,10 @@ class AVLTree(BinarySearchTree):
                     },
                     highlight_indices=[inserted_node.node_id],
                     animation_type="pulse",  # 明确表示脉冲动画
-                    duration=0.8
+                    duration=0.8,
+                    code_template='avl_insert',
+                    code_line=7,
+                    code_highlight=[7, 8, 9, 10, 11]
                 )
                 self.add_operation_step(step)
 
@@ -269,7 +281,10 @@ class AVLTree(BinarySearchTree):
                 },
                 highlight_indices=[node.node_id],  # 高亮失衡节点
                 animation_type="warning",
-                duration=0.8
+                duration=0.8,
+                code_template='avl_insert',
+                code_line=20,
+                code_highlight=[19, 20, 21]
             )
             self.add_operation_step(step)
 
@@ -288,7 +303,10 @@ class AVLTree(BinarySearchTree):
                     },
                     highlight_indices=[inserted_node.node_id],
                     animation_type="confirm",  # 停止脉冲，变深绿色
-                    duration=0.5
+                    duration=0.5,
+                    code_template='avl_insert',
+                    code_line=41,
+                    code_highlight=[41]
                 )
                 self.add_operation_step(step)
 
@@ -307,7 +325,10 @@ class AVLTree(BinarySearchTree):
                 },
                 highlight_indices=[node.node_id],  # 高亮失衡节点
                 animation_type="warning",
-                duration=0.8
+                duration=0.8,
+                code_template='avl_insert',
+                code_line=25,
+                code_highlight=[24, 25, 26]
             )
             self.add_operation_step(step)
 
@@ -326,7 +347,10 @@ class AVLTree(BinarySearchTree):
                     },
                     highlight_indices=[inserted_node.node_id],
                     animation_type="confirm",  # 停止脉冲，变深绿色
-                    duration=0.5
+                    duration=0.5,
+                    code_template='avl_insert',
+                    code_line=41,
+                    code_highlight=[41]
                 )
                 self.add_operation_step(step)
 
@@ -345,7 +369,10 @@ class AVLTree(BinarySearchTree):
                 },
                 highlight_indices=[node.node_id],  # 高亮失衡节点
                 animation_type="warning",
-                duration=0.8
+                duration=0.8,
+                code_template='avl_insert',
+                code_line=30,
+                code_highlight=[29, 30, 31, 32]
             )
             self.add_operation_step(step)
 
@@ -365,7 +392,10 @@ class AVLTree(BinarySearchTree):
                     },
                     highlight_indices=[inserted_node.node_id],
                     animation_type="confirm",  # 停止脉冲，变深绿色
-                    duration=0.5
+                    duration=0.5,
+                    code_template='avl_insert',
+                    code_line=41,
+                    code_highlight=[41]
                 )
                 self.add_operation_step(step)
 
@@ -384,7 +414,10 @@ class AVLTree(BinarySearchTree):
                 },
                 highlight_indices=[node.node_id],  # 高亮失衡节点
                 animation_type="warning",
-                duration=0.8
+                duration=0.8,
+                code_template='avl_insert',
+                code_line=36,
+                code_highlight=[35, 36, 37, 38]
             )
             self.add_operation_step(step)
 
@@ -404,7 +437,10 @@ class AVLTree(BinarySearchTree):
                     },
                     highlight_indices=[inserted_node.node_id],
                     animation_type="confirm",  # 停止脉冲，变深绿色
-                    duration=0.5
+                    duration=0.5,
+                    code_template='avl_insert',
+                    code_line=41,
+                    code_highlight=[41]
                 )
                 self.add_operation_step(step)
 
@@ -424,7 +460,10 @@ class AVLTree(BinarySearchTree):
                     },
                     highlight_indices=[inserted_node.node_id],
                     animation_type="confirm",  # 停止脉冲，变深绿色
-                    duration=0.6
+                    duration=0.6,
+                    code_template='avl_insert',
+                    code_line=41,
+                    code_highlight=[41]
                 )
                 self.add_operation_step(step)
 

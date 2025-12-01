@@ -298,6 +298,10 @@
       :currentLine="currentCodeLine"
       :highlightedLines="currentCodeHighlight"
       :operationName="currentOperationName"
+      :structureType="structureType"
+      :operation="currentOperation"
+      @code-loaded="handleCodeLoaded"
+      @language-change="handleLanguageChange"
     />
   </div>
 </template>
@@ -342,6 +346,7 @@ const currentCode = ref('')  // 当前显示的代码
 const currentCodeLine = ref(null)  // 当前执行的代码行
 const currentCodeHighlight = ref([])  // 当前高亮的代码行
 const currentOperationName = ref('')  // 当前操作名称
+const currentLanguage = ref('cpp')  // 当前选择的编程语言
 
 // 🔥 布局相关状态
 const nodePositions = ref({})  // { nodeId: { x, y } }
@@ -1062,8 +1067,11 @@ const createNewTreeStructure = async () => {
 }
 
 // 🔥 加载代码模板
-const loadCodeTemplate = async (templateKey) => {
+const loadCodeTemplate = async (templateKey, language = null) => {
   try {
+    // 如果没有指定语言，使用当前选择的语言
+    const lang = language || currentLanguage.value
+
     // 解析模板key (格式: "structure_operation")
     const parts = templateKey.split('_')
     if (parts.length < 2) {
@@ -1074,10 +1082,10 @@ const loadCodeTemplate = async (templateKey) => {
     const structureType = parts[0]
     const operation = parts.slice(1).join('_')
 
-    console.log(`🔥 加载代码模板: ${structureType}/${operation}`)
+    console.log(`🔥 加载代码模板: ${structureType}/${operation} [语言: ${lang}]`)
 
-    // 使用fetch发送请求，会通过vite代理
-    const response = await fetch(`/api/code/template/${structureType}/${operation}`)
+    // 使用fetch发送请求，会通过vite代理，添加language参数
+    const response = await fetch(`/api/code/template/${structureType}/${operation}?language=${lang}`)
 
     if (!response.ok) {
       console.error('API请求失败:', response.status, response.statusText)
@@ -1090,7 +1098,7 @@ const loadCodeTemplate = async (templateKey) => {
     if (data.success) {
       currentCode.value = data.code
       currentOperationName.value = `${structureType}::${operation}()`
-      console.log('✓ 代码模板加载成功，代码长度:', data.code.length)
+      console.log(`✓ 代码模板加载成功 [${lang}]，代码长度:`, data.code.length)
       console.log('代码预览:', data.code.substring(0, 100))
     } else {
       console.error('❌ 代码模板加载失败:', data.error)
@@ -1100,6 +1108,31 @@ const loadCodeTemplate = async (templateKey) => {
     }
   } catch (error) {
     console.error('❌ 加载代码模板异常:', error)
+  }
+}
+
+// 🔥 处理代码加载完成
+const handleCodeLoaded = (code) => {
+  currentCode.value = code
+  console.log('✓ 代码已加载:', code.substring(0, 100))
+}
+
+// 🔥 处理语言切换
+const handleLanguageChange = async (language) => {
+  console.log('🔥 语言切换:', currentLanguage.value, '->', language)
+  currentLanguage.value = language
+
+  // 如果当前有代码模板，重新加载当前语言的版本
+  if (currentOperationName.value) {
+    // 从currentOperationName中提取模板key
+    // 格式: "bst::insert()" -> "bst_insert"
+    const parts = currentOperationName.value.split('::')
+    if (parts.length === 2) {
+      const structureType = parts[0]
+      const operation = parts[1].replace('()', '')
+      const templateKey = `${structureType}_${operation}`
+      await loadCodeTemplate(templateKey, language)
+    }
   }
 }
 

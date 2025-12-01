@@ -19,7 +19,10 @@ class LinearLinkedList(LinearStructureBase):
         step = OperationStep(
             OperationType.INIT,
             description="初始化单链表",
-            pointers={"head": -1}
+            pointers={"head": -1},
+            code_template='linked_insert_head',
+            code_line=1,
+            code_highlight=[1]
         )
         self.add_operation_step(step)
 

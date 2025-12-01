@@ -8,16 +8,25 @@ class BinaryTree(TreeStructureBase):
         super().__init__()
         step = OperationStep(
             OperationType.INIT,
-            description = "初始化二叉树"
+            description = "初始化二叉树",
+            code_template='binary_insert',
+            code_line=1,
+            code_highlight=[1, 2, 3]
         )
         self.add_operation_step(step)
 
     def insert(self, value:Any) -> bool:
         """按层序方法插入节点"""
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
+
         step = OperationStep(
             OperationType.INSERT,
             value = value,
-            description = f"准备插入节点{value}"
+            description = f"准备插入节点{value}",
+            code_template='binary_insert',
+            code_line=2,
+            code_highlight=[2, 3]
         )
         self.add_operation_step(step)
 
@@ -30,7 +39,10 @@ class BinaryTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.INSERT,
                 value = value,
-                description = f'插入节点{value}作为根节点'
+                description = f'插入节点{value}作为根节点',
+                code_template='binary_insert',
+                code_line=6,
+                code_highlight=[5, 6, 7]
             )
             self.add_operation_step(step)
             return True
@@ -49,7 +61,10 @@ class BinaryTree(TreeStructureBase):
                 step = OperationStep(
                     OperationType.INSERT,
                     value = value,
-                    description = f'将节点{value}插入为节点{node.value}的左子节点'
+                    description = f'将节点{value}插入为节点{node.value}的左子节点',
+                    code_template='binary_insert',
+                    code_line=18,
+                    code_highlight=[17, 18, 19]
                 )
                 self.add_operation_step(step)
                 return True
@@ -63,7 +78,10 @@ class BinaryTree(TreeStructureBase):
                 step = OperationStep(
                     OperationType.INSERT,
                     value = value,
-                    description = f'将节点{value}插入为节点{node.value}的右子节点'
+                    description = f'将节点{value}插入为节点{node.value}的右子节点',
+                    code_template='binary_insert',
+                    code_line=25,
+                    code_highlight=[24, 25, 26]
                 )
                 self.add_operation_step(step)
                 return True
@@ -74,18 +92,27 @@ class BinaryTree(TreeStructureBase):
 
     def delete(self, value:Any) -> bool:
         """删除指定值的节点"""
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
+
         if self._root is None:
             step = OperationStep(
                 OperationType.DELETE,
                 value = value,
-                description = "删除失败：树为空"
+                description = "删除失败：树为空",
+                code_template='binary_delete',
+                code_line=2,
+                code_highlight=[2]
             )
             self.add_operation_step(step)
             return False
         step = OperationStep(
             OperationType.DELETE,
             value = value,
-            description = f"开始查找并删除节点{value}"
+            description = f"开始查找并删除节点{value}",
+            code_template='binary_delete',
+            code_line=4,
+            code_highlight=[4, 5, 6, 7, 8, 9, 10, 11]
         )
         self.add_operation_step(step)
 
@@ -113,7 +140,10 @@ class BinaryTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.DELETE,
                 value = value,
-                description = f"删除失败：未找到节点{value}"
+                description = f"删除失败：未找到节点{value}",
+                code_template='binary_delete',
+                code_line=20,
+                code_highlight=[20]
             )
             self.add_operation_step(step)
             return False
@@ -123,7 +153,10 @@ class BinaryTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.DELETE,
                 value = value,
-                description = f'用节点{last_node.value}替换节点{value}'
+                description = f'用节点{last_node.value}替换节点{value}',
+                code_template='binary_delete',
+                code_line=24,
+                code_highlight=[23, 24, 25]
             )
             self.add_operation_step(step)
             target_node.value = last_node.value
@@ -140,7 +173,10 @@ class BinaryTree(TreeStructureBase):
         step = OperationStep(
             OperationType.DELETE,
             value = value,
-            description = f"成功删除节点{value}"
+            description = f"成功删除节点{value}",
+            code_template='binary_delete',
+            code_line=29,
+            code_highlight=[27, 28, 29, 30, 31, 32, 33, 34]
         )
         self.add_operation_step(step)
         return True
@@ -150,7 +186,10 @@ class BinaryTree(TreeStructureBase):
         step = OperationStep(
             OperationType.SEARCH,
             value = value,
-            description = f"开始搜索节点{value}"
+            description = f"开始搜索节点{value}",
+            code_template='binary_search',
+            code_line=2,
+            code_highlight=[2]
         )
         self.add_operation_step(step)
 
@@ -158,7 +197,10 @@ class BinaryTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.SEARCH,
                 value = value,
-                description = "搜索失败：树为空"
+                description = "搜索失败：树为空",
+                code_template='binary_search',
+                code_line=2,
+                code_highlight=[2]
             )
             self.add_operation_step(step)
             return None
@@ -171,7 +213,10 @@ class BinaryTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.SEARCH,
                 value = value,
-                description = f"检查节点 {node.value}"
+                description = f"检查节点 {node.value}",
+                code_template='binary_search',
+                code_line=9,
+                code_highlight=[8, 9, 10]
             )
             self.add_operation_step(step)
 
@@ -179,7 +224,10 @@ class BinaryTree(TreeStructureBase):
                 step = OperationStep(
                     OperationType.SEARCH,
                     value = value,
-                    description = f"找到目标节点{value}"
+                    description = f"找到目标节点{value}",
+                    code_template='binary_search',
+                    code_line=11,
+                    code_highlight=[11, 12]
                 )
                 self.add_operation_step(step)
                 return node
@@ -192,7 +240,10 @@ class BinaryTree(TreeStructureBase):
         step = OperationStep(
             OperationType.SEARCH,
             value = value,
-            description = f"未找到节点{value}"
+            description = f"未找到节点{value}",
+            code_template='binary_search',
+            code_line=17,
+            code_highlight=[17]
         )
         self.add_operation_step(step)
         return None
@@ -216,7 +267,10 @@ class BinaryTree(TreeStructureBase):
 
         step = OperationStep(
             OperationType.INIT,
-            description=f"从列表构建二叉树: {values}"
+            description=f"从列表构建二叉树: {values}",
+            code_template='binary_insert',
+            code_line=2,
+            code_highlight=[2, 3, 4, 5, 6, 7]
         )
         self.add_operation_step(step)
 
@@ -244,7 +298,10 @@ class BinaryTree(TreeStructureBase):
 
         step = OperationStep(
             OperationType.INIT,
-            description=f"成功构建二叉树，共 {self._size} 个节点"
+            description=f"成功构建二叉树，共 {self._size} 个节点",
+            code_template='binary_insert',
+            code_line=28,
+            code_highlight=[28, 29, 30]
         )
         self.add_operation_step(step)
         return True

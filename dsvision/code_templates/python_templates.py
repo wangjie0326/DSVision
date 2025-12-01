@@ -1,0 +1,314 @@
+"""
+Python 代码模板库
+为每种数据结构操作提供对应的Python实现代码，用于教学演示
+"""
+
+# ==================== 顺序表代码模板 ====================
+SEQUENTIAL_INSERT = """def insert(self, index, value):
+    # 检查容量，满了则扩容
+    if self.size >= self.capacity:
+        self.expand()
+
+    # 检查索引有效性
+    if index < 0 or index > self.size:
+        return
+
+    # 从后往前移动元素
+    for i in range(self.size, index, -1):
+        self.data[i] = self.data[i - 1]
+
+    # 插入新元素
+    self.data[index] = value
+    self.size += 1"""
+
+SEQUENTIAL_DELETE = """def delete(self, index):
+    # 检查索引有效性
+    if index < 0 or index >= self.size:
+        return
+
+    # 从前往后移动元素
+    for i in range(index, self.size - 1):
+        self.data[i] = self.data[i + 1]
+
+    # 减少大小
+    self.size -= 1"""
+
+SEQUENTIAL_SEARCH = """def search(self, value):
+    # 顺序查找
+    for i in range(self.size):
+        if self.data[i] == value:
+            return i  # 找到，返回索引
+
+    return -1  # 未找到"""
+
+SEQUENTIAL_EXPAND = """def expand(self):
+    # 计算新容量（1.5倍）
+    new_capacity = int(self.capacity * 1.5)
+
+    # 创建新列表
+    new_data = [None] * new_capacity
+
+    # 复制旧数据到新列表
+    for i in range(self.size):
+        new_data[i] = self.data[i]
+
+    # 更新数据和容量
+    self.data = new_data
+    self.capacity = new_capacity"""
+
+# ==================== 栈代码模板 ====================
+STACK_PUSH = """def push(self, value):
+    # 检查栈是否已满
+    if self.top >= self.capacity - 1:
+        return  # 栈满
+
+    # 添加元素到栈顶
+    self.top += 1
+    self.data[self.top] = value"""
+
+STACK_POP = """def pop(self):
+    # 检查栈是否为空
+    if self.top < 0:
+        return None  # 栈空
+
+    # 获取栈顶元素
+    value = self.data[self.top]
+
+    # 栈顶指针下移
+    self.top -= 1
+
+    return value"""
+
+STACK_PEEK = """def peek(self):
+    # 检查栈是否为空
+    if self.top < 0:
+        return None
+
+    # 返回栈顶元素（不删除）
+    return self.data[self.top]"""
+
+# ==================== 链表代码模板 ====================
+LINKED_INSERT = """def insert(self, index, value):
+    # 检查索引有效性
+    if index < 0 or index > self.size:
+        return
+
+    # 创建新节点
+    new_node = Node(value)
+
+    # 插入到头部
+    if index == 0:
+        new_node.next = self.head
+        self.head = new_node
+    else:
+        # 遍历找到插入位置的前一个节点
+        current = self.head
+        for i in range(index - 1):
+            current = current.next
+
+        # 插入节点
+        new_node.next = current.next
+        current.next = new_node
+
+    self.size += 1"""
+
+LINKED_DELETE = """def delete(self, index):
+    # 检查索引有效性
+    if index < 0 or index >= self.size:
+        return
+
+    # 删除头节点
+    if index == 0:
+        self.head = self.head.next
+    else:
+        # 遍历找到删除位置的前一个节点
+        current = self.head
+        for i in range(index - 1):
+            current = current.next
+
+        # 删除节点
+        current.next = current.next.next
+
+    self.size -= 1"""
+
+LINKED_SEARCH = """def search(self, value):
+    # 从头节点开始遍历
+    current = self.head
+    index = 0
+
+    while current:
+        if current.value == value:
+            return index  # 找到，返回索引
+        current = current.next
+        index += 1
+
+    return -1  # 未找到"""
+
+# ==================== 二叉搜索树代码模板 ====================
+BST_INSERT = """def insert(self, value):
+    # 创建新节点
+    new_node = Node(value)
+
+    # 如果树为空
+    if self.root is None:
+        self.root = new_node
+        return
+
+    # 从根节点开始遍历
+    current = self.root
+    while current:
+        if value < current.value:
+            # 左子树
+            if current.left is None:
+                current.left = new_node
+                break
+            current = current.left
+        else:
+            # 右子树
+            if current.right is None:
+                current.right = new_node
+                break
+            current = current.right"""
+
+BST_DELETE = """def delete(self, value):
+    self.root = self._delete_node(self.root, value)
+
+def _delete_node(self, node, value):
+    if node is None:
+        return None
+
+    if value < node.value:
+        node.left = self._delete_node(node.left, value)
+    elif value > node.value:
+        node.right = self._delete_node(node.right, value)
+    else:
+        # 找到要删除的节点
+        if node.left is None:
+            return node.right
+        if node.right is None:
+            return node.left
+
+        # 两个子节点情况
+        min_larger_node = node.right
+        while min_larger_node.left:
+            min_larger_node = min_larger_node.left
+
+        node.value = min_larger_node.value
+        node.right = self._delete_node(node.right, min_larger_node.value)
+
+    return node"""
+
+BST_SEARCH = """def search(self, value):
+    current = self.root
+
+    while current:
+        if current.value == value:
+            return True  # 找到
+        elif value < current.value:
+            current = current.left
+        else:
+            current = current.right
+
+    return False  # 未找到"""
+
+# ==================== AVL树代码模板 ====================
+AVL_INSERT = """def insert(self, value):
+    self.root = self._insert_node(self.root, value)
+
+def _insert_node(self, node, value):
+    # 递归插入
+    if node is None:
+        return Node(value)
+
+    if value < node.value:
+        node.left = self._insert_node(node.left, value)
+    elif value > node.value:
+        node.right = self._insert_node(node.right, value)
+    else:
+        return node
+
+    # 更新高度
+    node.height = 1 + max(self._get_height(node.left), self._get_height(node.right))
+
+    # 计算平衡因子
+    balance = self._get_balance(node)
+
+    # 执行旋转
+    if balance > 1 and value < node.left.value:
+        return self._rotate_right(node)
+    if balance < -1 and value > node.right.value:
+        return self._rotate_left(node)
+    if balance > 1 and value > node.left.value:
+        node.left = self._rotate_left(node.left)
+        return self._rotate_right(node)
+    if balance < -1 and value < node.right.value:
+        node.right = self._rotate_right(node.right)
+        return self._rotate_left(node)
+
+    return node"""
+
+AVL_DELETE = """def delete(self, value):
+    self.root = self._delete_node(self.root, value)
+
+def _delete_node(self, node, value):
+    if node is None:
+        return None
+
+    if value < node.value:
+        node.left = self._delete_node(node.left, value)
+    elif value > node.value:
+        node.right = self._delete_node(node.right, value)
+    else:
+        if node.left is None:
+            return node.right
+        if node.right is None:
+            return node.left
+
+        min_larger_node = node.right
+        while min_larger_node.left:
+            min_larger_node = min_larger_node.left
+
+        node.value = min_larger_node.value
+        node.right = self._delete_node(node.right, min_larger_node.value)
+
+    # 更新高度和平衡
+    if node:
+        node.height = 1 + max(self._get_height(node.left), self._get_height(node.right))
+        balance = self._get_balance(node)
+
+        if balance > 1:
+            return self._rotate_right(node)
+        if balance < -1:
+            return self._rotate_left(node)
+
+    return node"""
+
+# ==================== 代码模板字典 ====================
+PYTHON_CODE_TEMPLATES = {
+    'sequential_insert': SEQUENTIAL_INSERT,
+    'sequential_delete': SEQUENTIAL_DELETE,
+    'sequential_search': SEQUENTIAL_SEARCH,
+    'sequential_expand': SEQUENTIAL_EXPAND,
+    'stack_push': STACK_PUSH,
+    'stack_pop': STACK_POP,
+    'stack_peek': STACK_PEEK,
+    'linked_insert': LINKED_INSERT,
+    'linked_delete': LINKED_DELETE,
+    'linked_search': LINKED_SEARCH,
+    'bst_insert': BST_INSERT,
+    'bst_delete': BST_DELETE,
+    'bst_search': BST_SEARCH,
+    'avl_insert': AVL_INSERT,
+    'avl_delete': AVL_DELETE,
+}
+
+def get_python_template(structure_type, operation):
+    """获取Python代码模板"""
+    template_key = f"{structure_type}_{operation}"
+
+    if template_key in PYTHON_CODE_TEMPLATES:
+        code = PYTHON_CODE_TEMPLATES[template_key]
+        total_lines = len(code.split('\n'))
+        return code, total_lines
+
+    return None, 0

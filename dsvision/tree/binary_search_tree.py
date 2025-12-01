@@ -8,7 +8,10 @@ class BinarySearchTree(TreeStructureBase):
         super().__init__()
         step = OperationStep(
             OperationType.INIT,
-            description = "初始化二叉搜索树"
+            description = "初始化二叉搜索树",
+            code_template='bst_insert',
+            code_line=1,
+            code_highlight=[1, 2]
         )
         self.add_operation_step(step)
 
@@ -29,7 +32,10 @@ class BinarySearchTree(TreeStructureBase):
         step = OperationStep(
             OperationType.INSERT,
             value = value,
-            description = f"准备插入节点{value}"
+            description = f"准备插入节点{value}",
+            code_template='bst_insert',
+            code_line=2,
+            code_highlight=[2, 3, 4, 5, 6, 7]
         )
         self.add_operation_step(step)
 
@@ -140,10 +146,16 @@ class BinarySearchTree(TreeStructureBase):
 
     def search(self, value:Any) -> Optional[TreeNode]:
         """搜索节点"""
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
+
         step = OperationStep(
             OperationType.SEARCH,
             value = value,
-            description=f"开始搜索节点{value}"
+            description=f"开始搜索节点{value}",
+            code_template='bst_search',
+            code_line=2,
+            code_highlight=[2]
         )
         self.add_operation_step(step)
         return self._search_recursive(self._root, value)

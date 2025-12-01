@@ -320,5 +320,22 @@ export default{
       provider,
       api_key: apiKey
     });
+  },
+
+  // ==================== 代码模板接口 ====================
+
+  /**
+   * 获取代码模板 - 支持多语言
+   * @param {string} structureType - 数据结构类型 (sequential, linked, stack, binary, bst, avl, huffman)
+   * @param {string} operation - 操作类型 (insert, delete, search, push, pop, etc.)
+   * @param {string} language - 编程语言 ('cpp' | 'python' | 'java')，默认为 'cpp'
+   * @returns {Promise} 包含代码模板和行数
+   */
+  getCodeTemplate(structureType, operation, language = 'cpp') {
+    return apiClient.get(`/code/template/${structureType}/${operation}`, {
+      params: {
+        language
+      }
+    });
   }
 };

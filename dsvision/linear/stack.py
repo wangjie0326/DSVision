@@ -15,7 +15,10 @@ class SequentialStack(LinearStructureBase):
         # 记录初始化步骤
         step = OperationStep(
             OperationType.INIT,
-            description=f"初始化顺序栈，容量为{capacity}"
+            description=f"初始化顺序栈，容量为{capacity}",
+            code_template='stack_push',
+            code_line=1,
+            code_highlight=[1]
         )
         self.add_operation_step(step)
 
@@ -24,7 +27,10 @@ class SequentialStack(LinearStructureBase):
         if len(values) > self._capacity:
             step = OperationStep(
                 OperationType.INIT,
-                description=f'初始化失败：元素数量({len(values)})超过容量({self._capacity})'
+                description=f'初始化失败：元素数量({len(values)})超过容量({self._capacity})',
+                code_template='stack_push',
+                code_line=3,
+                code_highlight=[2, 3, 4]
             )
             self.add_operation_step(step)
             return False
@@ -41,7 +47,10 @@ class SequentialStack(LinearStructureBase):
         step = OperationStep(
             OperationType.INIT,
             description=f'批量初始化栈，{len(values)}个元素: {values}',
-            highlight_indices=list(range(len(values)))
+            highlight_indices=list(range(len(values))),
+            code_template='stack_push',
+            code_line=11,
+            code_highlight=[7, 8, 9, 10, 11]
         )
         self.add_operation_step(step)
         return True
@@ -101,6 +110,9 @@ class SequentialStack(LinearStructureBase):
                 OperationType.DELETE,
                 self._top,
                 description='出栈失败：栈为空',
+                code_template='stack_pop',
+                code_line=3,
+                code_highlight=[2, 3, 4]
             )
             self.add_operation_step(step)
             return None
@@ -146,6 +158,9 @@ class SequentialStack(LinearStructureBase):
                 OperationType.SEARCH,
                 self._top,
                 description='查看失败：栈为空',
+                code_template='stack_peek',
+                code_line=3,
+                code_highlight=[2, 3, 4]
             )
             self.add_operation_step(step)
             return None

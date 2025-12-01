@@ -271,6 +271,10 @@
       :currentLine="currentCodeLine"
       :highlightedLines="currentCodeHighlight"
       :operationName="currentOperationName"
+      :structureType="structureType"
+      :operation="currentOperation"
+      @code-loaded="handleCodeLoaded"
+      @language-change="handleLanguageChange"
     />
   </div>
 </template>
@@ -327,6 +331,7 @@ const currentCode = ref('')  // 当前显示的代码
 const currentCodeLine = ref(null)  // 当前执行的代码行
 const currentCodeHighlight = ref([])  // 当前高亮的代码行
 const currentOperationName = ref('')  // 当前操作名称
+const currentLanguage = ref('cpp')  // 当前选择的编程语言
 
 // 历史记录
 const operationHistory = ref([])
@@ -629,8 +634,11 @@ const goBack = () => {
 }
 
 // 🔥 加载代码模板
-const loadCodeTemplate = async (templateKey) => {
+const loadCodeTemplate = async (templateKey, language = null) => {
   try {
+    // If no language specified, use current selected language
+    const lang = language || currentLanguage.value
+
     // 解析模板key (格式: "structure_operation")
     const parts = templateKey.split('_')
     if (parts.length < 2) {
@@ -641,10 +649,10 @@ const loadCodeTemplate = async (templateKey) => {
     const structureType = parts[0]
     const operation = parts.slice(1).join('_')
 
-    console.log(`🔥 加载代码模板: ${structureType}/${operation}`)
+    console.log(`🔥 加载代码模板: ${structureType}/${operation} [语言: ${lang}]`)
 
     // 使用axios发送请求，会通过vite代理
-    const response = await fetch(`/api/code/template/${structureType}/${operation}`)
+    const response = await fetch(`/api/code/template/${structureType}/${operation}?language=${lang}`)
 
     if (!response.ok) {
       console.error('API请求失败:', response.status, response.statusText)
@@ -652,13 +660,11 @@ const loadCodeTemplate = async (templateKey) => {
     }
 
     const data = await response.json()
-    console.log('API返回数据:', data)
 
     if (data.success) {
       currentCode.value = data.code
       currentOperationName.value = `${structureType}::${operation}()`
-      console.log('✓ 代码模板加载成功，代码长度:', data.code.length)
-      console.log('代码预览:', data.code.substring(0, 100))
+      console.log(`✓ 代码模板加载成功 [${lang}]，代码长度:`, data.code.length)
     } else {
       console.error('❌ 代码模板加载失败:', data.error)
       if (data.available_templates) {
@@ -757,6 +763,31 @@ const createNewStructure = async () => {
   } catch (error) {
     console.error('创建数据结构失败:', error)
     alert('创建数据结构失败')
+  }
+}
+
+// 🔥 处理代码加载完成
+const handleCodeLoaded = (code) => {
+  currentCode.value = code
+  console.log('✓ 代码已加载:', code.substring(0, 100))
+}
+
+// 🔥 处理语言切换
+const handleLanguageChange = async (language) => {
+  console.log('🔥 语言切换:', currentLanguage.value, '->', language)
+  currentLanguage.value = language
+
+  // If currently displaying code, reload in new language
+  if (currentOperationName.value) {
+    // Extract template key from currentOperationName
+    // Format: "sequential::insert()" -> "sequential_insert"
+    const parts = currentOperationName.value.split('::')
+    if (parts.length === 2) {
+      const structureType = parts[0]
+      const operation = parts[1].replace('()', '')
+      const templateKey = `${structureType}_${operation}`
+      await loadCodeTemplate(templateKey, language)
+    }
   }
 }
 

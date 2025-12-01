@@ -1318,30 +1318,81 @@ def llm_config():
                 'success': False,
                 'error': str(e)
             }), 500
-# 🔥 代码模板API
+# 🔥 代码模板API - 支持多语言
 @app.route('/api/code/template/<structure_type>/<operation>', methods=['GET'])
-def get_code_template(structure_type, operation):
-    """获取代码模板"""
+def get_code_template_endpoint(structure_type, operation):
+    """获取代码模板 - 支持多语言"""
     try:
-        from dsvision.code_templates import get_code_template, CODE_TEMPLATES
+        from dsvision.code_templates import (
+            get_code_template, CODE_TEMPLATES,
+            get_python_template, PYTHON_CODE_TEMPLATES,
+            get_java_template, JAVA_CODE_TEMPLATES
+        )
+
+        # 从查询参数获取语言，默认为 cpp
+        language = request.args.get('language', 'cpp').lower()
 
         # 构建模板key
         template_key = f"{structure_type}_{operation}"
 
-        if template_key in CODE_TEMPLATES:
-            code, total_lines = get_code_template(structure_type, operation)
-            return jsonify({
-                'success': True,
-                'code': code,
-                'total_lines': total_lines,
-                'template_key': template_key
-            })
+        # 根据语言选择对应的模板
+        if language == 'cpp':
+            if template_key in CODE_TEMPLATES:
+                code, total_lines = get_code_template(structure_type, operation)
+                return jsonify({
+                    'success': True,
+                    'code': code,
+                    'total_lines': total_lines,
+                    'template_key': template_key,
+                    'language': 'cpp'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'未找到 C++ 模板: {template_key}',
+                    'available_templates': list(CODE_TEMPLATES.keys())
+                }), 404
+
+        elif language == 'python':
+            if template_key in PYTHON_CODE_TEMPLATES:
+                code, total_lines = get_python_template(structure_type, operation)
+                return jsonify({
+                    'success': True,
+                    'code': code,
+                    'total_lines': total_lines,
+                    'template_key': template_key,
+                    'language': 'python'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'未找到 Python 模板: {template_key}',
+                    'available_templates': list(PYTHON_CODE_TEMPLATES.keys())
+                }), 404
+
+        elif language == 'java':
+            if template_key in JAVA_CODE_TEMPLATES:
+                code, total_lines = get_java_template(structure_type, operation)
+                return jsonify({
+                    'success': True,
+                    'code': code,
+                    'total_lines': total_lines,
+                    'template_key': template_key,
+                    'language': 'java'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'未找到 Java 模板: {template_key}',
+                    'available_templates': list(JAVA_CODE_TEMPLATES.keys())
+                }), 404
+
         else:
             return jsonify({
                 'success': False,
-                'error': f'未找到模板: {template_key}',
-                'available_templates': list(CODE_TEMPLATES.keys())
-            }), 404
+                'error': f'不支持的语言: {language}',
+                'supported_languages': ['cpp', 'python', 'java']
+            }), 400
 
     except Exception as e:
         return jsonify({

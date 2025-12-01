@@ -1,15 +1,30 @@
 <template>
   <div class="code-panel" :class="{ 'collapsed': isCollapsed }">
     <!-- 标题栏 -->
-    <div class="panel-header" @click="toggleCollapse">
-      <div class="header-left">
+    <div class="panel-header">
+      <div class="header-left" @click="toggleCollapse" style="cursor: pointer;">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="16 18 22 12 16 6"></polyline>
           <polyline points="8 6 2 12 8 18"></polyline>
         </svg>
-        <span class="panel-title">C++ Implementation</span>
+        <span class="panel-title">{{ getPanelTitle }}</span>
       </div>
-      <button class="collapse-button">
+
+      <!-- 语言选择器 -->
+      <div class="language-selector">
+        <button
+          v-for="lang in supportedLanguages"
+          :key="lang.value"
+          @click="handleLanguageChange(lang.value)"
+          class="lang-button"
+          :class="{ 'active': selectedLanguage === lang.value }"
+          :title="lang.label"
+        >
+          {{ lang.abbr }}
+        </button>
+      </div>
+
+      <button class="collapse-button" @click="toggleCollapse">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'rotated': isCollapsed }">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
@@ -44,7 +59,7 @@
           <polyline points="8 6 2 12 8 18"></polyline>
         </svg>
         <p>No code to display</p>
-        <p class="hint">Perform an operation to see the C++ implementation</p>
+        <p class="hint">Perform an operation to see the {{ selectedLanguage.toUpperCase() }} implementation</p>
       </div>
     </div>
   </div>
@@ -52,6 +67,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
+import api from '../services/api.js'
 
 const props = defineProps({
   code: {
@@ -69,11 +85,36 @@ const props = defineProps({
   operationName: {
     type: String,
     default: ''
+  },
+  structureType: {
+    type: String,
+    default: ''
+  },
+  operation: {
+    type: String,
+    default: ''
   }
 })
 
+const emit = defineEmits(['language-change', 'code-loaded'])
+
 const isCollapsed = ref(false)
 const codeContainer = ref(null)
+const selectedLanguage = ref('cpp')
+const loadedCode = ref({})  // 缓存已加载的代码 {language: code}
+
+// 支持的编程语言
+const supportedLanguages = [
+  { value: 'cpp', label: 'C++', abbr: 'C++' },
+  { value: 'python', label: 'Python', abbr: 'Py' },
+  { value: 'java', label: 'Java', abbr: 'Java' }
+]
+
+// 获取面板标题
+const getPanelTitle = computed(() => {
+  const lang = supportedLanguages.find(l => l.value === selectedLanguage.value)
+  return lang ? `${lang.label} Implementation` : 'Code Implementation'
+})
 
 // 将代码分割成行
 const codeLines = computed(() => {
@@ -92,6 +133,41 @@ const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
 }
 
+// 处理语言切换
+const handleLanguageChange = async (language) => {
+  if (selectedLanguage.value === language) return
+
+  selectedLanguage.value = language
+
+  // 如果有 structureType 和 operation，主动获取代码
+  if (props.structureType && props.operation) {
+    await fetchCodeForLanguage(language)
+  }
+
+  // 通知父组件语言已切换
+  emit('language-change', language)
+}
+
+// 获取指定语言的代码
+const fetchCodeForLanguage = async (language) => {
+  // 检查缓存
+  const cacheKey = `${props.structureType}_${props.operation}_${language}`
+  if (loadedCode.value[cacheKey]) {
+    emit('code-loaded', loadedCode.value[cacheKey])
+    return
+  }
+
+  try {
+    const response = await api.getCodeTemplate(props.structureType, props.operation, language)
+    if (response.success) {
+      loadedCode.value[cacheKey] = response.code
+      emit('code-loaded', response.code)
+    }
+  } catch (error) {
+    console.error(`获取${language}代码模板失败:`, error)
+  }
+}
+
 // 当高亮行变化时，滚动到对应位置
 watch(() => props.currentLine, async (newLine) => {
   if (newLine && codeContainer.value) {
@@ -102,15 +178,22 @@ watch(() => props.currentLine, async (newLine) => {
     }
   }
 })
+
+// 监听 structureType 和 operation 的变化，自动获取当前语言的代码
+watch([() => props.structureType, () => props.operation], async ([newType, newOp]) => {
+  if (newType && newOp) {
+    await fetchCodeForLanguage(selectedLanguage.value)
+  }
+}, { immediate: false })
 </script>
 
 <style scoped>
 .code-panel {
   position: fixed;
-  top: 0;
+  top: 156px;
   right: 0;
   width: 480px;
-  height: 100vh;
+  height: calc(100vh - 326px);
   background: #1e1e1e;
   color: #d4d4d4;
   display: flex;
@@ -119,6 +202,7 @@ watch(() => props.currentLine, async (newLine) => {
   transition: transform 0.3s ease;
   z-index: 100;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  border-top: 1px solid #3e3e42;
 }
 
 .code-panel.collapsed {
@@ -130,11 +214,11 @@ watch(() => props.currentLine, async (newLine) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.25rem;
+  padding: 0.75rem 1rem;
   background: #252526;
   border-bottom: 1px solid #3e3e42;
-  cursor: pointer;
   user-select: none;
+  gap: 0.5rem;
 }
 
 .panel-header:hover {
@@ -146,12 +230,49 @@ watch(() => props.currentLine, async (newLine) => {
   align-items: center;
   gap: 0.75rem;
   color: #cccccc;
+  flex: 1;
+  min-width: 0;
 }
 
 .panel-title {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* 语言选择器 */
+.language-selector {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.lang-button {
+  padding: 0.35rem 0.65rem;
+  background: #1e1e1e;
+  color: #858585;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.lang-button:hover {
+  color: #cccccc;
+  border-color: #4e4e4e;
+  background: #2a2a2b;
+}
+
+.lang-button.active {
+  background: #094771;
+  color: #4fc3f7;
+  border-color: #0369a1;
+  box-shadow: 0 0 8px rgba(15, 114, 207, 0.3);
 }
 
 .collapse-button {
@@ -163,6 +284,7 @@ watch(() => props.currentLine, async (newLine) => {
   display: flex;
   align-items: center;
   transition: color 0.2s;
+  flex-shrink: 0;
 }
 
 .collapse-button:hover {
@@ -195,13 +317,14 @@ watch(() => props.currentLine, async (newLine) => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 1px solid #1e4d69;
+  flex-shrink: 0;
 }
 
 /* 代码容器 */
 .code-container {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem 0;
+  padding: 0.5rem 0;
 }
 
 .code-block {
@@ -212,29 +335,33 @@ watch(() => props.currentLine, async (newLine) => {
 }
 
 .code-line {
-  padding: 0.25rem 1.25rem 0.25rem 3.5rem;
+  padding: 0.35rem 1.25rem 0.35rem 3.5rem;
   position: relative;
   transition: all 0.2s ease;
   white-space: pre-wrap;
-  word-break: break-all;
+  word-break: break-word;
+  min-height: 1.6em;
 }
 
 /* 行号 */
 .code-line::before {
   content: attr(data-line-number);
   position: absolute;
-  left: 1rem;
-  width: 2rem;
+  left: 0.75rem;
+  top: 0.35rem;
+  width: 2.5rem;
   text-align: right;
   color: #858585;
   font-size: 0.75rem;
   user-select: none;
+  line-height: 1.6;
 }
 
 /* 高亮行 */
 .code-line.highlighted {
   background: rgba(255, 255, 0, 0.1);
   border-left: 3px solid #ffd700;
+  padding-left: calc(3.5rem - 3px);
 }
 
 /* 当前执行行 - 红色强调 */
@@ -243,6 +370,7 @@ watch(() => props.currentLine, async (newLine) => {
   border-left: 3px solid #ef4444;
   font-weight: 600;
   animation: pulse 1.5s ease-in-out infinite;
+  padding-left: calc(3.5rem - 3px);
 }
 
 .code-line.current-line::before {
@@ -312,6 +440,8 @@ watch(() => props.currentLine, async (newLine) => {
 @media (max-width: 1200px) {
   .code-panel {
     width: 400px;
+    top: 160px;
+    height: calc(100vh - 360px);
   }
 
   .code-panel.collapsed {
@@ -322,6 +452,8 @@ watch(() => props.currentLine, async (newLine) => {
 @media (max-width: 768px) {
   .code-panel {
     width: 100%;
+    top: 160px;
+    height: calc(100vh - 360px);
   }
 
   .code-panel.collapsed {
