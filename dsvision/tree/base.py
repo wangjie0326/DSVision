@@ -189,7 +189,10 @@ class TreeStructureBase(ABC):
                 description=f"访问节点: {node.value}",
                 highlight_indices=[node.node_id],
                 animation_type="highlight",
-                duration=1.0
+                duration=1.0,
+                code_template='tree_traversal_preorder',
+                code_line=5,
+                code_highlight=[5]
             )
             self.add_operation_step(step)
 
@@ -212,7 +215,10 @@ class TreeStructureBase(ABC):
                 description=f"访问节点: {node.value}",
                 highlight_indices=[node.node_id],
                 animation_type="highlight",
-                duration=1.0
+                duration=1.0,
+                code_template='tree_traversal_inorder',
+                code_line=8,
+                code_highlight=[8]
             )
             self.add_operation_step(step)
 
@@ -235,7 +241,10 @@ class TreeStructureBase(ABC):
                 description=f"访问节点: {node.value}",
                 highlight_indices=[node.node_id],
                 animation_type="highlight",
-                duration=1.0
+                duration=1.0,
+                code_template='tree_traversal_postorder',
+                code_line=11,
+                code_highlight=[11]
             )
             self.add_operation_step(step)
 
@@ -257,7 +266,10 @@ class TreeStructureBase(ABC):
                 description=f"访问节点: {node.value}",
                 highlight_indices=[node.node_id],
                 animation_type="highlight",
-                duration=1.0
+                duration=1.0,
+                code_template='tree_traversal_levelorder',
+                code_line=12,
+                code_highlight=[12]
             )
             self.add_operation_step(step)
 

@@ -183,6 +183,9 @@ class BinaryTree(TreeStructureBase):
 
     def search(self, value: Any) -> Optional[TreeNode]:
         """搜索指定值的节点"""
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
+
         step = OperationStep(
             OperationType.SEARCH,
             value = value,
@@ -214,6 +217,9 @@ class BinaryTree(TreeStructureBase):
                 OperationType.SEARCH,
                 value = value,
                 description = f"检查节点 {node.value}",
+                node_id=node.node_id,
+                highlight_indices=[node.node_id],
+                tree_snapshot=self._get_tree_snapshot(),
                 code_template='binary_search',
                 code_line=9,
                 code_highlight=[8, 9, 10]
@@ -225,6 +231,9 @@ class BinaryTree(TreeStructureBase):
                     OperationType.SEARCH,
                     value = value,
                     description = f"找到目标节点{value}",
+                    node_id=node.node_id,
+                    highlight_indices=[node.node_id],
+                    tree_snapshot=self._get_tree_snapshot(),
                     code_template='binary_search',
                     code_line=11,
                     code_highlight=[11, 12]
@@ -305,6 +314,14 @@ class BinaryTree(TreeStructureBase):
         )
         self.add_operation_step(step)
         return True
+
+    def _get_tree_snapshot(self) -> dict:
+        """获取当前树的完整快照,用于动画回放"""
+        return {
+            'root': self._node_to_dict(self._root),
+            'size': self._size,
+            'height': self.get_height()
+        }
 
 
 

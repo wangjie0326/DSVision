@@ -120,7 +120,10 @@ class HuffmanTree(TreeStructureBase):
 
         step = OperationStep(
             OperationType.INIT,
-            description="初始化哈夫曼树"
+            description="初始化哈夫曼树",
+            code_template='huffman_build',
+            code_line=1,
+            code_highlight=[1, 2, 3]
         )
         self.add_operation_step(step)
 
@@ -129,10 +132,16 @@ class HuffmanTree(TreeStructureBase):
         从数字列表构建哈夫曼树（纯数字模式）
         numbers: 数字列表，例如 [2, 4, 6, 8]
         """
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
+
         if not numbers:
             step = OperationStep(
                 OperationType.INIT,
-                description="构建失败:数字列表为空"
+                description="构建失败:数字列表为空",
+                code_template='huffman_build',
+                code_line=1,
+                code_highlight=[1]
             )
             self.add_operation_step(step)
             return False
@@ -142,7 +151,10 @@ class HuffmanTree(TreeStructureBase):
 
         step = OperationStep(
                 OperationType.INIT,
-            description=f"开始构建哈夫曼树（数字模式），输入权重列表: {numbers}"
+            description=f"开始构建哈夫曼树（数字模式），输入权重列表: {numbers}",
+            code_template='huffman_build',
+            code_line=2,
+            code_highlight=[1, 2, 3]
         )
         self.add_operation_step(step)
 
@@ -194,7 +206,10 @@ class HuffmanTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.INSERT,
                 value=value,
-                description=f"创建叶子节点: 字符='{value}', 权重={wei}"
+                description=f"创建叶子节点: 字符='{value}', 权重={wei}",
+                code_template='huffman_build',
+                code_line=6,
+                code_highlight=[5, 6, 7]
             )
             self.add_operation_step(step)
 
@@ -240,7 +255,10 @@ class HuffmanTree(TreeStructureBase):
                 OperationType.INSERT,
                 description=f"【第{merge_count}次合并】从堆中取出权重最小的两个节点: "
                             f"左节点='{left.value}'(频率{left.weight}), "
-                            f"右节点='{right.value}'(频率{right.weight})"
+                            f"右节点='{right.value}'(频率{right.weight})",
+                code_template='huffman_build',
+                code_line=12,
+                code_highlight=[11, 12, 13, 14, 15]
             )
             self.add_operation_step(step)
 
@@ -318,6 +336,9 @@ class HuffmanTree(TreeStructureBase):
         从字符串构建哈夫曼树(自动统计频率)
         text: 输入字符串,例如 "ABRACADABRA"
         """
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
+
         if not text:
             step = OperationStep(
                 OperationType.INIT,
@@ -391,7 +412,10 @@ class HuffmanTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.SEARCH,
                 value=node.value,
-                description=f"字符 '{node.value}' (频率={node.weight}) 的编码为: {final_code}"
+                description=f"字符 '{node.value}' (频率={node.weight}) 的编码为: {final_code}",
+                code_template='huffman_generate_codes',
+                code_line=5,
+                code_highlight=[4, 5, 6]
             )
             self.add_operation_step(step)
             return
@@ -417,7 +441,10 @@ class HuffmanTree(TreeStructureBase):
 
         step = OperationStep(
             OperationType.SEARCH,
-            description=f"开始编码文本: '{text}'"
+            description=f"开始编码文本: '{text}'",
+            code_template='huffman_encode',
+            code_line=2,
+            code_highlight=[1, 2, 3, 4]
         )
         self.add_operation_step(step)
 
@@ -459,7 +486,10 @@ class HuffmanTree(TreeStructureBase):
 
         step = OperationStep(
             OperationType.SEARCH,
-            description=f"开始解码二进制串: {encoded[:50]}{'...' if len(encoded) > 50 else ''} (长度={len(encoded)}位)"
+            description=f"开始解码二进制串: {encoded[:50]}{'...' if len(encoded) > 50 else ''} (长度={len(encoded)}位)",
+            code_template='huffman_decode',
+            code_line=2,
+            code_highlight=[1, 2, 3, 4]
         )
         self.add_operation_step(step)
 

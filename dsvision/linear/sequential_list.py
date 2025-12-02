@@ -85,6 +85,9 @@ class SequentialList(LinearStructureBase):
 
     def insert(self,index:int,value:Any) -> bool:
         """在指定位置插入元素"""
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
+
         # === 步骤1: 检查容量，如果满了就扩容 ===
         # 🔥 对应C++代码第2-4行
         step = OperationStep(
@@ -237,6 +240,8 @@ class SequentialList(LinearStructureBase):
 
     def delete(self, index: int) -> Any:
         """删除元素 - 详细过程版"""
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
 
         # === 步骤1: 检查索引 ===
         if index < 0 or index >= self._size:
@@ -322,6 +327,8 @@ class SequentialList(LinearStructureBase):
 
     def search(self, value: Any) -> int:
         """搜索元素 - 详细过程版"""
+        # 🔥 清空操作历史，避免累积之前的操作
+        self._operation_history = []
 
         # === 步骤1: 开始搜索 ===
         step = OperationStep(

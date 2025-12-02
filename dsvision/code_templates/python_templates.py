@@ -283,6 +283,141 @@ def _delete_node(self, node, value):
 
     return node"""
 
+# ==================== 树遍历代码模板 ====================
+TREE_TRAVERSAL_INORDER = """def inorder(self, node):
+    if node is None:
+        return
+
+    # 递归左子树
+    self.inorder(node.left)
+
+    # 访问当前节点
+    self.visit(node)
+
+    # 递归右子树
+    self.inorder(node.right)"""
+
+TREE_TRAVERSAL_PREORDER = """def preorder(self, node):
+    if node is None:
+        return
+
+    # 访问当前节点
+    self.visit(node)
+
+    # 递归左子树
+    self.preorder(node.left)
+
+    # 递归右子树
+    self.preorder(node.right)"""
+
+TREE_TRAVERSAL_POSTORDER = """def postorder(self, node):
+    if node is None:
+        return
+
+    # 递归左子树
+    self.postorder(node.left)
+
+    # 递归右子树
+    self.postorder(node.right)
+
+    # 访问当前节点
+    self.visit(node)"""
+
+TREE_TRAVERSAL_LEVELORDER = """def levelorder(self, root):
+    if root is None:
+        return
+
+    queue = [root]
+
+    while queue:
+        node = queue.pop(0)
+
+        # 访问当前节点
+        self.visit(node)
+
+        if node.left:
+            queue.append(node.left)
+        if node.right:
+            queue.append(node.right)"""
+
+# ==================== Huffman 树代码模板 ====================
+HUFFMAN_BUILD = """def build_huffman_tree(self, frequencies):
+    # 创建最小堆
+    import heapq
+    heap = []
+
+    # 为每个字符创建叶子节点并加入堆
+    for char, freq in frequencies.items():
+        node = HuffmanNode(char, freq)
+        heapq.heappush(heap, (freq, node))
+
+    # 合并节点直到只剩一个根节点
+    while len(heap) > 1:
+        # 取出频率最小的两个节点
+        freq1, left = heapq.heappop(heap)
+        freq2, right = heapq.heappop(heap)
+
+        # 创建新的内部节点
+        merged_freq = freq1 + freq2
+        merged = HuffmanNode(None, merged_freq)
+        merged.left = left
+        merged.right = right
+
+        # 将新节点插入堆
+        heapq.heappush(heap, (merged_freq, merged))
+
+    # 最后一个节点就是根节点
+    self.root = heap[0][1] if heap else None"""
+
+HUFFMAN_ENCODE = """def encode(self, text):
+    # 检查编码表是否已生成
+    if not self.huffman_codes:
+        self.generate_codes(self.root, "")
+
+    encoded = ""
+
+    # 遍历文本，用编码替换每个字符
+    for char in text:
+        if char in self.huffman_codes:
+            encoded += self.huffman_codes[char]
+
+    return encoded"""
+
+HUFFMAN_DECODE = """def decode(self, encoded):
+    if self.root is None:
+        return ""
+
+    decoded = ""
+    current = self.root
+
+    # 遍历编码串
+    for bit in encoded:
+        # 根据位向左或向右移动
+        if bit == '0':
+            current = current.left
+        else:
+            current = current.right
+
+        # 到达叶子节点，记录字符并返回根节点
+        if current.is_leaf():
+            decoded += current.value
+            current = self.root
+
+    return decoded"""
+
+HUFFMAN_GENERATE_CODES = """def generate_codes(self, node, code):
+    if node is None:
+        return
+
+    # 如果是叶子节点，记录编码
+    if node.is_leaf():
+        self.huffman_codes[node.value] = code if code else "0"
+        return
+
+    # 递归处理左右子树（左=0，右=1）
+    self.generate_codes(node.left, code + "0")
+    self.generate_codes(node.right, code + "1")"""
+
 # ==================== 代码模板字典 ====================
 PYTHON_CODE_TEMPLATES = {
     'sequential_insert': SEQUENTIAL_INSERT,
@@ -300,6 +435,18 @@ PYTHON_CODE_TEMPLATES = {
     'bst_search': BST_SEARCH,
     'avl_insert': AVL_INSERT,
     'avl_delete': AVL_DELETE,
+
+    # 树遍历
+    'tree_traversal_inorder': TREE_TRAVERSAL_INORDER,
+    'tree_traversal_preorder': TREE_TRAVERSAL_PREORDER,
+    'tree_traversal_postorder': TREE_TRAVERSAL_POSTORDER,
+    'tree_traversal_levelorder': TREE_TRAVERSAL_LEVELORDER,
+
+    # Huffman树
+    'huffman_build': HUFFMAN_BUILD,
+    'huffman_encode': HUFFMAN_ENCODE,
+    'huffman_decode': HUFFMAN_DECODE,
+    'huffman_generate_codes': HUFFMAN_GENERATE_CODES,
 }
 
 def get_python_template(structure_type, operation):

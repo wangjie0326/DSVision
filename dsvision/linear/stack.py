@@ -129,7 +129,7 @@ class SequentialStack(LinearStructureBase):
             highlight_indices=[self._top],
             code_template='stack_pop',
             code_line=7,
-            code_highlight=[6, 7]
+            code_highlight=[7]
         )
         self.add_operation_step(step)
 

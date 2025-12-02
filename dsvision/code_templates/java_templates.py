@@ -334,6 +334,155 @@ private Node deleteNode(Node node, int value) {
     return node;
 }"""
 
+# ==================== 树遍历代码模板 ====================
+TREE_TRAVERSAL_INORDER = """void inorder(Node node) {
+    if (node == null) return;
+
+    // 递归左子树
+    inorder(node.left);
+
+    // 访问当前节点
+    visit(node);
+
+    // 递归右子树
+    inorder(node.right);
+}"""
+
+TREE_TRAVERSAL_PREORDER = """void preorder(Node node) {
+    if (node == null) return;
+
+    // 访问当前节点
+    visit(node);
+
+    // 递归左子树
+    preorder(node.left);
+
+    // 递归右子树
+    preorder(node.right);
+}"""
+
+TREE_TRAVERSAL_POSTORDER = """void postorder(Node node) {
+    if (node == null) return;
+
+    // 递归左子树
+    postorder(node.left);
+
+    // 递归右子树
+    postorder(node.right);
+
+    // 访问当前节点
+    visit(node);
+}"""
+
+TREE_TRAVERSAL_LEVELORDER = """void levelorder(Node root) {
+    if (root == null) return;
+
+    Queue<Node> queue = new LinkedList<>();
+    queue.add(root);
+
+    while (!queue.isEmpty()) {
+        Node node = queue.poll();
+
+        // 访问当前节点
+        visit(node);
+
+        if (node.left != null) queue.add(node.left);
+        if (node.right != null) queue.add(node.right);
+    }
+}"""
+
+# ==================== Huffman 树代码模板 ====================
+HUFFMAN_BUILD = """void buildHuffmanTree(Map<Character, Integer> frequencies) {
+    // 创建最小堆
+    PriorityQueue<Node> minHeap = new PriorityQueue<>(
+        (a, b) -> a.weight - b.weight
+    );
+
+    // 为每个字符创建叶子节点并加入堆
+    for (Map.Entry<Character, Integer> entry : frequencies.entrySet()) {
+        Node node = new Node(entry.getKey(), entry.getValue());
+        minHeap.add(node);
+    }
+
+    // 合并节点直到只剩一个根节点
+    while (minHeap.size() > 1) {
+        // 取出频率最小的两个节点
+        Node left = minHeap.poll();
+        Node right = minHeap.poll();
+
+        // 创建新的内部节点
+        int mergedWeight = left.weight + right.weight;
+        Node merged = new Node('\\0', mergedWeight);
+        merged.left = left;
+        merged.right = right;
+
+        // 将新节点插入堆
+        minHeap.add(merged);
+    }
+
+    // 最后一个节点就是根节点
+    root = minHeap.poll();
+}"""
+
+HUFFMAN_ENCODE = """String encode(String text) {
+    // 检查编码表是否已生成
+    if (huffmanCodes.isEmpty()) {
+        generateCodes(root, "");
+    }
+
+    StringBuilder encoded = new StringBuilder();
+
+    // 遍历文本，用编码替换每个字符
+    for (char c : text.toCharArray()) {
+        if (huffmanCodes.containsKey(c)) {
+            encoded.append(huffmanCodes.get(c));
+        }
+    }
+
+    return encoded.toString();
+}"""
+
+HUFFMAN_DECODE = """String decode(String encoded) {
+    if (root == null) {
+        return "";
+    }
+
+    StringBuilder decoded = new StringBuilder();
+    Node current = root;
+
+    // 遍历编码串
+    for (char bit : encoded.toCharArray()) {
+        // 根据位向左或向右移动
+        if (bit == '0') {
+            current = current.left;
+        } else {
+            current = current.right;
+        }
+
+        // 到达叶子节点，记录字符并返回根节点
+        if (current.isLeaf()) {
+            decoded.append(current.value);
+            current = root;
+        }
+    }
+
+    return decoded.toString();
+}"""
+
+HUFFMAN_GENERATE_CODES = """void generateCodes(Node node, String code) {
+    if (node == null) return;
+
+    // 如果是叶子节点，记录编码
+    if (node.isLeaf()) {
+        huffmanCodes.put(node.value, code.isEmpty() ? "0" : code);
+        return;
+    }
+
+    // 递归处理左右子树（左=0，右=1）
+    generateCodes(node.left, code + "0");
+    generateCodes(node.right, code + "1");
+}"""
+
 # ==================== 代码模板字典 ====================
 JAVA_CODE_TEMPLATES = {
     'sequential_insert': SEQUENTIAL_INSERT,
@@ -351,6 +500,18 @@ JAVA_CODE_TEMPLATES = {
     'bst_search': BST_SEARCH,
     'avl_insert': AVL_INSERT,
     'avl_delete': AVL_DELETE,
+
+    # 树遍历
+    'tree_traversal_inorder': TREE_TRAVERSAL_INORDER,
+    'tree_traversal_preorder': TREE_TRAVERSAL_PREORDER,
+    'tree_traversal_postorder': TREE_TRAVERSAL_POSTORDER,
+    'tree_traversal_levelorder': TREE_TRAVERSAL_LEVELORDER,
+
+    # Huffman树
+    'huffman_build': HUFFMAN_BUILD,
+    'huffman_encode': HUFFMAN_ENCODE,
+    'huffman_decode': HUFFMAN_DECODE,
+    'huffman_generate_codes': HUFFMAN_GENERATE_CODES,
 }
 
 def get_java_template(structure_type, operation):

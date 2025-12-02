@@ -245,7 +245,10 @@ class LinearLinkedList(LinearStructureBase):
             highlight_indices=[0],
             animation_type="highlight",
             duration=0.5,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='linked_insert_tail',
+            code_line=7,
+            code_highlight=[7, 8, 9, 10]
         )
         self.add_operation_step(step)
 
