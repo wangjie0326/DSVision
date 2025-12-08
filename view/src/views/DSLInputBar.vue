@@ -92,11 +92,35 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api.js'
 
 const router = useRouter()
+
+// 🔥 接收当前页面的结构状态
+const props = defineProps({
+  currentStructureType: {
+    type: String,
+    default: null
+  },
+  currentStructureId: {
+    type: String,
+    default: null
+  },
+  currentElements: {
+    type: Array,
+    default: () => []
+  },
+  currentTreeData: {
+    type: Object,
+    default: null
+  },
+  category: {
+    type: String,
+    default: null  // 'linear' 或 'tree'
+  }
+})
 
 // 状态
 const isCollapsed = ref(false)
@@ -108,7 +132,6 @@ const statusType = ref('info')  // 'info' | 'success' | 'error'
 const currentLLMModel = ref('gpt-3.5-turbo')  // LLM 模型显示
 
 // LLM 会话状态
-const currentStructureInfo = ref(null)  // 当前结构信息 {id, type, data, sessionId}
 const llmSessionId = ref(null)  // LLM 会话 ID
 
 const exampleButtons = [
@@ -138,6 +161,24 @@ const canExecute = computed(() => {
   }
   return llmInput.value.trim().length > 0
 })
+
+// 🔥 从树结构中提取所有节点值（中序遍历）
+const extractTreeValues = (node) => {
+  if (!node) return []
+
+  const values = []
+
+  // 递归中序遍历
+  const inorder = (n) => {
+    if (!n) return
+    if (n.left) inorder(n.left)
+    values.push(n.value)
+    if (n.right) inorder(n.right)
+  }
+
+  inorder(node)
+  return values
+}
 
 // 执行代码
 const handleExecute = async () => {
@@ -180,17 +221,29 @@ const executeDSL = async () => {
 
       console.log('📊 跳转信息:', { category, type, structureId })
 
+      // 🔥 关键：检查是否已经在目标页面
+      const targetPath = category === 'linear' ? `/linear/${type}` : `/tree/${type}`
+      const currentPath = router.currentRoute.value.path
+      const currentImportId = router.currentRoute.value.query.importId
+
       setTimeout(() => {
-        if (category === 'linear') {
-          router.push({
-            path: `/linear/${type}`,
-            query: { importId: structureId, fromDSL: 'true' }
-          })
+        if (currentPath === targetPath && currentImportId === structureId) {
+          // 已经在目标页面且是同一个结构，强制刷新
+          console.log('🔄 当前页面已是目标页面，强制刷新...')
+          window.location.href = `${targetPath}?importId=${structureId}&fromDSL=true&_refresh=${Date.now()}`
         } else {
-          router.push({
-            path: `/tree/${type}`,
-            query: { importId: structureId, fromDSL: 'true' }
-          })
+          // 跳转到新页面
+          if (category === 'linear') {
+            router.push({
+              path: `/linear/${type}`,
+              query: { importId: structureId, fromDSL: 'true' }
+            })
+          } else {
+            router.push({
+              path: `/tree/${type}`,
+              query: { importId: structureId, fromDSL: 'true' }
+            })
+          }
         }
       }, 800)
     } else {
@@ -212,15 +265,33 @@ const executeLLM = async () => {
     statusMessage.value = '正在推理中...'
     statusType.value = 'info'
 
-    // 构建上下文消息
-    let userMessage = llmInput.value
-    if (currentStructureInfo.value) {
-      // 如果有当前结构，添加上下文信息
-      const { type, data } = currentStructureInfo.value
-      userMessage = `[当前数据结构：${type}，数据：${data}]\n${userMessage}`
+    // 🔥 构建上下文对象 - 使用当前页面的状态
+    let context = null
+    if (props.currentStructureType && props.currentStructureId) {
+      // 如果当前页面有结构，构建上下文对象
+      let currentData = []
+
+      if (props.category === 'linear' && props.currentElements) {
+        // 线性结构：使用elements数组（已经是简单数组，直接filter掉null/undefined）
+        currentData = props.currentElements.filter(el => el !== null && el !== undefined)
+      } else if (props.category === 'tree' && props.currentTreeData) {
+        // 树结构：提取树节点值（中序遍历）
+        currentData = extractTreeValues(props.currentTreeData)
+      }
+
+      context = {
+        current_page: {
+          category: props.category,  // 'linear' 或 'tree'
+          type: props.currentStructureType,  // 'sequential', 'bst', etc.
+          structure_id: props.currentStructureId,
+          data: currentData
+        }
+      }
+
+      console.log('🔥 LLM上下文:', context)
     }
 
-    const response = await api.llmChat(userMessage, llmSessionId.value)
+    const response = await api.llmChat(llmInput.value, llmSessionId.value, context)
 
     console.log('✅ LLM 推理成功:', response)
 
@@ -247,20 +318,12 @@ const executeLLM = async () => {
     statusMessage.value = `✓ 推理成功! DSL: ${dslCode.substring(0, 50)}...`
     statusType.value = 'success'
 
-    // 如果有执行结果，保存结构信息并跳转到对应视图
+    // 如果有执行结果，跳转到对应视图
     if (response.execution?.success && response.execution?.structures?.length > 0) {
       const firstStruct = response.execution.structures[0]
       const category = firstStruct.category  // 'linear' 或 'tree'
       const type = firstStruct.type
       const structureId = firstStruct.structure_id
-
-      // 保存当前结构信息以便下次 LLM 调用时使用
-      currentStructureInfo.value = {
-        id: structureId,
-        type: type,
-        category: category,
-        data: firstStruct.data?.join(',') || '[]'
-      }
 
       // 保存 LLM session ID 用于会话记忆
       if (response.session_id) {
@@ -268,19 +331,30 @@ const executeLLM = async () => {
       }
 
       console.log('📊 跳转信息:', { category, type, structureId })
-      console.log('💾 已保存结构信息:', currentStructureInfo.value)
+
+      // 🔥 关键：检查是否已经在目标页面
+      const targetPath = category === 'linear' ? `/linear/${type}` : `/tree/${type}`
+      const currentPath = router.currentRoute.value.path
+      const currentImportId = router.currentRoute.value.query.importId
 
       setTimeout(() => {
-        if (category === 'linear') {
-          router.push({
-            path: `/linear/${type}`,
-            query: { importId: structureId, fromDSL: 'true' }
-          })
+        if (currentPath === targetPath && currentImportId === structureId) {
+          // 已经在目标页面且是同一个结构，强制刷新
+          console.log('🔄 当前页面已是目标页面，强制刷新...')
+          window.location.href = `${targetPath}?importId=${structureId}&fromDSL=true&_refresh=${Date.now()}`
         } else {
-          router.push({
-            path: `/tree/${type}`,
-            query: { importId: structureId, fromDSL: 'true' }
-          })
+          // 跳转到新页面
+          if (category === 'linear') {
+            router.push({
+              path: `/linear/${type}`,
+              query: { importId: structureId, fromDSL: 'true' }
+            })
+          } else {
+            router.push({
+              path: `/tree/${type}`,
+              query: { importId: structureId, fromDSL: 'true' }
+            })
+          }
         }
       }, 800)
     } else if (response.execution?.error) {

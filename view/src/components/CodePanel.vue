@@ -1,13 +1,26 @@
 <template>
-  <div class="code-panel" :class="{ 'collapsed': isCollapsed }">
-    <!-- 标题栏 -->
-    <div class="panel-header">
-      <div class="header-left" @click="toggleCollapse" style="cursor: pointer;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+  <div
+    class="code-panel"
+    :class="{ 'collapsed': isCollapsed }"
+    :style="panelStyle"
+    ref="panelRef"
+  >
+    <!-- 标题栏 (可拖动) -->
+    <div
+      class="panel-header"
+      @mousedown="startDrag"
+    >
+      <div class="header-left">
+        <button class="collapse-button" @click="toggleCollapse">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'rotated': isCollapsed }">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="cursor: move;">
           <polyline points="16 18 22 12 16 6"></polyline>
           <polyline points="8 6 2 12 8 18"></polyline>
         </svg>
-        <span class="panel-title">{{ getPanelTitle }}</span>
+        <span class="panel-title" style="cursor: move;">{{ getPanelTitle }}</span>
       </div>
 
       <!-- 语言选择器 -->
@@ -23,13 +36,17 @@
           {{ lang.abbr }}
         </button>
       </div>
-
-      <button class="collapse-button" @click="toggleCollapse">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'rotated': isCollapsed }">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-      </button>
     </div>
+
+    <!-- 调整大小手柄 -->
+    <div class="resize-handle resize-left" @mousedown.stop="(e) => startResize('left', e)"></div>
+    <div class="resize-handle resize-right" @mousedown.stop="(e) => startResize('right', e)"></div>
+    <div class="resize-handle resize-top" @mousedown.stop="(e) => startResize('top', e)"></div>
+    <div class="resize-handle resize-bottom" @mousedown.stop="(e) => startResize('bottom', e)"></div>
+    <div class="resize-handle resize-corner-tl" @mousedown.stop="(e) => startResize('top-left', e)"></div>
+    <div class="resize-handle resize-corner-tr" @mousedown.stop="(e) => startResize('top-right', e)"></div>
+    <div class="resize-handle resize-corner-bl" @mousedown.stop="(e) => startResize('bottom-left', e)"></div>
+    <div class="resize-handle resize-corner-br" @mousedown.stop="(e) => startResize('bottom-right', e)"></div>
 
     <!-- 代码内容区域 -->
     <div v-if="!isCollapsed" class="panel-content">
@@ -40,7 +57,8 @@
 
       <!-- 代码显示区 -->
       <div class="code-container" ref="codeContainer">
-        <pre class="code-block"><code><div
+        <div class="code-block">
+          <div
             v-for="(line, index) in codeLines"
             :key="index"
             class="code-line"
@@ -49,7 +67,9 @@
               'current-line': currentLine === index + 1
             }"
             :data-line-number="index + 1"
-          >{{ line }}</div></code></pre>
+            v-html="line.html"
+          ></div>
+        </div>
       </div>
 
       <!-- 空状态提示 -->
@@ -66,8 +86,19 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import api from '../services/api.js'
+// 使用 highlight.js 进行语法高亮
+import hljs from 'highlight.js/lib/core'
+import cpp from 'highlight.js/lib/languages/cpp'
+import python from 'highlight.js/lib/languages/python'
+import java from 'highlight.js/lib/languages/java'
+import 'highlight.js/styles/atom-one-dark.css'
+
+// 注册语言
+hljs.registerLanguage('cpp', cpp)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('java', java)
 
 const props = defineProps({
   code: {
@@ -100,8 +131,19 @@ const emit = defineEmits(['language-change', 'code-loaded'])
 
 const isCollapsed = ref(false)
 const codeContainer = ref(null)
+const panelRef = ref(null)
 const selectedLanguage = ref('cpp')
 const loadedCode = ref({})  // 缓存已加载的代码 {language: code}
+
+// 拖动和缩放状态
+const panelPosition = ref({ x: null, y: 156 })
+const panelSize = ref({ width: 480, height: null })
+const isDragging = ref(false)
+const isResizing = ref(false)
+const resizeDirection = ref('')
+const dragStart = ref({ x: 0, y: 0 })
+const initialPosition = ref({ x: 0, y: 0 })
+const initialSize = ref({ width: 0, height: 0 })
 
 // 支持的编程语言
 const supportedLanguages = [
@@ -116,10 +158,30 @@ const getPanelTitle = computed(() => {
   return lang ? `${lang.label} Implementation` : 'Code Implementation'
 })
 
-// 将代码分割成行
+// 获取带语法高亮的代码行
 const codeLines = computed(() => {
   if (!props.code) return []
-  return props.code.split('\n')
+
+  try {
+    // 使用 highlight.js 进行语法高亮
+    const result = hljs.highlight(props.code, { language: selectedLanguage.value })
+    const highlightedCode = result.value
+
+    // 分割成行
+    const lines = highlightedCode.split('\n')
+
+    return lines.map(line => ({
+      raw: line.replace(/<[^>]*>/g, ''), // 纯文本版本
+      html: line // 带 HTML 标签的高亮版本
+    }))
+  } catch (error) {
+    console.error('语法高亮失败:', error)
+    // 如果高亮失败，返回原始代码
+    return props.code.split('\n').map(line => ({
+      raw: line,
+      html: line
+    }))
+  }
 })
 
 // 当前操作显示名称
@@ -168,7 +230,208 @@ const fetchCodeForLanguage = async (language) => {
   }
 }
 
-// 当高亮行变化时，滚动到对应位置
+// 面板样式计算
+const panelStyle = computed(() => {
+  const style = {}
+
+  if (panelPosition.value.x !== null) {
+    style.left = `${panelPosition.value.x}px`
+    style.right = 'auto'
+  }
+
+  if (panelPosition.value.y !== null) {
+    style.top = `${panelPosition.value.y}px`
+  }
+
+  if (panelSize.value.width !== null) {
+    style.width = `${panelSize.value.width}px`
+  }
+
+  if (panelSize.value.height !== null) {
+    style.height = `${panelSize.value.height}px`
+  }
+
+  return style
+})
+
+// 开始拖动
+const startDrag = (e) => {
+  if (e.target.closest('.lang-button') || e.target.closest('.collapse-button')) {
+    return // 不在语言按钮和折叠按钮上触发拖动
+  }
+
+  isDragging.value = true
+  dragStart.value = { x: e.clientX, y: e.clientY }
+
+  const rect = panelRef.value.getBoundingClientRect()
+  initialPosition.value = { x: rect.left, y: rect.top }
+
+  // 如果还没有设置位置，初始化位置
+  if (panelPosition.value.x === null) {
+    panelPosition.value.x = rect.left
+  }
+  if (panelPosition.value.y === null) {
+    panelPosition.value.y = rect.top
+  }
+  if (panelSize.value.height === null) {
+    panelSize.value.height = rect.height
+  }
+
+  document.addEventListener('mousemove', onDrag)
+  document.addEventListener('mouseup', stopDrag)
+  e.preventDefault()
+}
+
+// 拖动过程
+const onDrag = (e) => {
+  if (!isDragging.value) return
+
+  const deltaX = e.clientX - dragStart.value.x
+  const deltaY = e.clientY - dragStart.value.y
+
+  let newX = initialPosition.value.x + deltaX
+  let newY = initialPosition.value.y + deltaY
+
+  // 限制在视口内
+  const minX = 0
+  const minY = 0
+  const maxX = window.innerWidth - panelSize.value.width
+  const maxY = window.innerHeight - 50 // 至少保留 50px 可见
+
+  newX = Math.max(minX, Math.min(newX, maxX))
+  newY = Math.max(minY, Math.min(newY, maxY))
+
+  panelPosition.value.x = newX
+  panelPosition.value.y = newY
+}
+
+// 停止拖动
+const stopDrag = () => {
+  isDragging.value = false
+  document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('mouseup', stopDrag)
+  savePosition()
+}
+
+// 开始缩放
+const startResize = (direction, e) => {
+  isResizing.value = true
+  resizeDirection.value = direction
+  dragStart.value = { x: e.clientX, y: e.clientY }
+
+  const rect = panelRef.value.getBoundingClientRect()
+  initialPosition.value = { x: rect.left, y: rect.top }
+  initialSize.value = { width: rect.width, height: rect.height }
+
+  // 初始化位置和大小
+  if (panelPosition.value.x === null) {
+    panelPosition.value.x = rect.left
+  }
+  if (panelPosition.value.y === null) {
+    panelPosition.value.y = rect.top
+  }
+  if (panelSize.value.height === null) {
+    panelSize.value.height = rect.height
+  }
+
+  document.addEventListener('mousemove', onResize)
+  document.addEventListener('mouseup', stopResize)
+  e.preventDefault()
+}
+
+// 缩放过程
+const onResize = (e) => {
+  if (!isResizing.value) return
+
+  const deltaX = e.clientX - dragStart.value.x
+  const deltaY = e.clientY - dragStart.value.y
+
+  const minWidth = 300
+  const minHeight = 200
+
+  let newWidth = initialSize.value.width
+  let newHeight = initialSize.value.height
+  let newX = initialPosition.value.x
+  let newY = initialPosition.value.y
+
+  // 根据方向调整大小
+  if (resizeDirection.value.includes('right')) {
+    newWidth = Math.max(minWidth, initialSize.value.width + deltaX)
+  }
+  if (resizeDirection.value.includes('left')) {
+    const widthChange = -deltaX
+    newWidth = Math.max(minWidth, initialSize.value.width + widthChange)
+    if (newWidth > minWidth) {
+      newX = initialPosition.value.x + deltaX
+    }
+  }
+  if (resizeDirection.value.includes('bottom')) {
+    newHeight = Math.max(minHeight, initialSize.value.height + deltaY)
+  }
+  if (resizeDirection.value.includes('top')) {
+    const heightChange = -deltaY
+    newHeight = Math.max(minHeight, initialSize.value.height + heightChange)
+    if (newHeight > minHeight) {
+      newY = initialPosition.value.y + deltaY
+    }
+  }
+
+  panelSize.value.width = newWidth
+  panelSize.value.height = newHeight
+  panelPosition.value.x = newX
+  panelPosition.value.y = newY
+}
+
+// 停止缩放
+const stopResize = () => {
+  isResizing.value = false
+  resizeDirection.value = ''
+  document.removeEventListener('mousemove', onResize)
+  document.removeEventListener('mouseup', stopResize)
+  savePosition()
+}
+
+// 保存位置到 localStorage
+const savePosition = () => {
+  const state = {
+    x: panelPosition.value.x,
+    y: panelPosition.value.y,
+    width: panelSize.value.width,
+    height: panelSize.value.height
+  }
+  localStorage.setItem('codePanelState', JSON.stringify(state))
+}
+
+// 从 localStorage 加载位置
+const loadPosition = () => {
+  try {
+    const saved = localStorage.getItem('codePanelState')
+    if (saved) {
+      const state = JSON.parse(saved)
+      panelPosition.value.x = state.x
+      panelPosition.value.y = state.y
+      panelSize.value.width = state.width
+      panelSize.value.height = state.height
+    }
+  } catch (error) {
+    console.error('加载面板位置失败:', error)
+  }
+}
+
+// 组件挂载时加载位置
+onMounted(() => {
+  loadPosition()
+})
+
+// 组件卸载时清理事件监听
+onUnmounted(() => {
+  document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('mouseup', stopDrag)
+  document.removeEventListener('mousemove', onResize)
+  document.removeEventListener('mouseup', stopResize)
+})
+
+// 当高亮行变化时,滚动到对应位置
 watch(() => props.currentLine, async (newLine) => {
   if (newLine && codeContainer.value) {
     await nextTick()
@@ -201,12 +464,12 @@ watch([() => props.structureType, () => props.operation], async ([newType, newOp
   box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3);
   transition: transform 0.3s ease;
   z-index: 100;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
   border-top: 1px solid #3e3e42;
 }
 
 .code-panel.collapsed {
-  transform: translateX(440px);
+  transform: translateX(calc(100% - 50px));
 }
 
 /* 标题栏 */
@@ -259,7 +522,7 @@ watch([() => props.structureType, () => props.operation], async ([newType, newOp
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
 .lang-button:hover {
@@ -330,17 +593,21 @@ watch([() => props.structureType, () => props.operation], async ([newType, newOp
 .code-block {
   margin: 0;
   padding: 0;
-  font-size: 0.875rem;
-  line-height: 1.6;
+  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: 0.01em;
 }
 
 .code-line {
-  padding: 0.35rem 1.25rem 0.35rem 3.5rem;
+  padding: 0.25rem 1.25rem 0.25rem 3.5rem;
   position: relative;
   transition: all 0.2s ease;
   white-space: pre-wrap;
   word-break: break-word;
-  min-height: 1.6em;
+  min-height: 1.5em;
+  line-height: 1.5;
 }
 
 /* 行号 */
@@ -348,13 +615,13 @@ watch([() => props.structureType, () => props.operation], async ([newType, newOp
   content: attr(data-line-number);
   position: absolute;
   left: 0.75rem;
-  top: 0.35rem;
+  top: 0.25rem;
   width: 2.5rem;
   text-align: right;
   color: #858585;
-  font-size: 0.75rem;
+  font-size: 11px;
   user-select: none;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 /* 高亮行 */
@@ -436,6 +703,81 @@ watch([() => props.structureType, () => props.operation], async ([newType, newOp
   background: #4e4e4e;
 }
 
+/* 调整大小手柄 */
+.resize-handle {
+  position: absolute;
+  z-index: 10;
+}
+
+.resize-left,
+.resize-right {
+  width: 6px;
+  top: 0;
+  bottom: 0;
+  cursor: ew-resize;
+}
+
+.resize-left {
+  left: 0;
+}
+
+.resize-right {
+  right: 0;
+}
+
+.resize-top,
+.resize-bottom {
+  height: 6px;
+  left: 0;
+  right: 0;
+  cursor: ns-resize;
+}
+
+.resize-top {
+  top: 0;
+}
+
+.resize-bottom {
+  bottom: 0;
+}
+
+.resize-corner-tl,
+.resize-corner-tr,
+.resize-corner-bl,
+.resize-corner-br {
+  width: 12px;
+  height: 12px;
+}
+
+.resize-corner-tl {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.resize-corner-tr {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.resize-corner-bl {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+
+.resize-corner-br {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}
+
+/* 鼠标悬停时显示手柄提示 */
+.resize-handle:hover {
+  background: rgba(79, 195, 247, 0.2);
+}
+
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .code-panel {
@@ -445,7 +787,7 @@ watch([() => props.structureType, () => props.operation], async ([newType, newOp
   }
 
   .code-panel.collapsed {
-    transform: translateX(360px);
+    transform: translateX(calc(100% - 50px));
   }
 }
 
@@ -457,7 +799,7 @@ watch([() => props.structureType, () => props.operation], async ([newType, newOp
   }
 
   .code-panel.collapsed {
-    transform: translateX(calc(100% - 40px));
+    transform: translateX(calc(100% - 50px));
   }
 }
 </style>

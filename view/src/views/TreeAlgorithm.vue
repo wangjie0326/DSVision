@@ -290,7 +290,13 @@
         </div>
       </div>
     </div>
-    <DSLInputBar />
+    <!-- 🔥 DSL 输入栏 - 传递当前页面状态 -->
+    <DSLInputBar
+      :currentStructureType="structureType"
+      :currentStructureId="structureId"
+      :currentTreeData="treeData"
+      category="tree"
+    />
 
     <!-- 🔥 代码面板 -->
     <CodePanel
@@ -303,6 +309,12 @@
       @code-loaded="handleCodeLoaded"
       @language-change="handleLanguageChange"
     />
+
+    <!-- 🔥 算法复杂度指示器 -->
+    <ComplexityIndicator
+      :structureType="structureType"
+      :operation="currentOperation"
+    />
   </div>
 </template>
 
@@ -312,6 +324,7 @@ import { useRouter, useRoute } from 'vue-router'
 import api from '../services/api.js'
 import TreeNodeComponent from './TreeNodeSimple.vue'
 import { TreeLayoutEngine } from '../utils/treeLayout.js'
+import ComplexityIndicator from '../components/ComplexityIndicator.vue'  // 🔥 复杂度指示器
 import DSLInputBar from './DSLInputBar.vue'  // 🔥 添加导入
 import CodePanel from '../components/CodePanel.vue'  // 🔥 代码面板组件
 

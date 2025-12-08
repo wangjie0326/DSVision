@@ -142,12 +142,18 @@ class Parser:
                 index = self.expect(TokenType.NUMBER).value
             return InsertOperation(value=value, index=index, line=line, column=column)
 
-        # delete at 2
+        # delete at 2 或 delete 5
         elif token.type == TokenType.DELETE:
             self.advance()
-            self.expect(TokenType.AT)
-            index = self.expect(TokenType.NUMBER).value
-            return DeleteOperation(index=index, line=line, column=column)
+            # 检查是否是 "delete at index" 还是 "delete value"
+            if self.current_token and self.current_token.type == TokenType.AT:
+                self.advance()  # 跳过 at
+                index = self.expect(TokenType.NUMBER).value
+                return DeleteOperation(index=index, value=None, line=line, column=column)
+            else:
+                # 按值删除
+                value = self.parse_value()
+                return DeleteOperation(index=None, value=value, line=line, column=column)
 
         # search 10
         elif token.type == TokenType.SEARCH:
@@ -343,6 +349,9 @@ class Parser:
             return self.advance().value
         elif self.current_token.type == TokenType.STRING:
             return self.advance().value
+        elif self.current_token.type == TokenType.RANDOM:
+            # 解析 random(max) 或 random(min, max)
+            return self.parse_random_call()
         elif self.current_token.type == TokenType.IDENTIFIER:
             identifier = self.advance().value
             # 处理 null/None
@@ -351,6 +360,27 @@ class Parser:
             return identifier
         else:
             self.error(f"Expected value, got {self.current_token.type.name}")
+
+    def parse_random_call(self) -> RandomCall:
+        """解析random函数调用 random(max) 或 random(min, max)"""
+        line = self.current_token.line
+        column = self.current_token.column
+        self.advance()  # 跳过 random
+
+        self.expect(TokenType.LPAREN)
+
+        # 读取第一个参数
+        first_arg = self.expect(TokenType.NUMBER).value
+
+        # 检查是否有第二个参数
+        if self.current_token.type == TokenType.COMMA:
+            self.advance()  # 跳过逗号
+            second_arg = self.expect(TokenType.NUMBER).value
+            self.expect(TokenType.RPAREN)
+            return RandomCall(min_value=first_arg, max_value=second_arg, line=line, column=column)
+        else:
+            self.expect(TokenType.RPAREN)
+            return RandomCall(min_value=0, max_value=first_arg, line=line, column=column)
 
     def parse_array(self) -> List[Any]:
         """解析数组 [1, 2, 3]"""

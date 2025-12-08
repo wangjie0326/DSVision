@@ -361,8 +361,8 @@ class SequentialList(LinearStructureBase):
             )
             self.add_operation_step(step)
 
-            # 比较结果
-            if self._data[i] == value:
+            # 比较结果（支持类型容错：字符串 vs 数字）
+            if self._data[i] == value or str(self._data[i]) == str(value):
                 # 找到了
                 step = OperationStep(
                     OperationType.SEARCH,

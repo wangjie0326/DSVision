@@ -42,8 +42,9 @@ class InsertOperation(Operation):
 
 @dataclass
 class DeleteOperation(Operation):
-    """删除操作 delete at 2"""
-    index: int
+    """删除操作 delete at 2 或 delete 5"""
+    index: Optional[int] = None  # 按索引删除
+    value: Optional[Any] = None  # 按值删除
 
 @dataclass
 class SearchOperation(Operation):
@@ -229,6 +230,13 @@ class SpeedOperation(Operation):
 class PauseOperation(Operation):
     """暂停 pause 2s"""
     duration: Optional[str] = None
+
+
+@dataclass
+class RandomCall(ASTNode):
+    """随机数调用 random(100) 或 random(5, 10)"""
+    min_value: int = 0
+    max_value: int = 100
 
 
 @dataclass

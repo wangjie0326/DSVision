@@ -284,13 +284,20 @@ export default{
    * LLM对话 - 自然语言转DSL并执行
    * @param {string} message - 用户输入的自然语言
    * @param {string} sessionId - 会话ID(可选)
+   * @param {object} context - 当前页面上下文(可选)
    * @returns {Promise} 包含DSL代码和执行结果
    */
-  llmChat(message, sessionId = null) {
-    return apiClient.post('/llm/chat', {
+  llmChat(message, sessionId = null, context = null) {
+    const payload = {
       message,
       session_id: sessionId
-    });
+    };
+
+    if (context) {
+      payload.context = context;
+    }
+
+    return apiClient.post('/llm/chat', payload);
   },
 
   /**

@@ -1118,7 +1118,15 @@ def llm_chat():
 
     请求体: {
         "message": "创建一个包含5,3,7的二叉搜索树",
-        "session_id": "optional-session-id"
+        "session_id": "optional-session-id",
+        "context": {  # 可选：当前页面上下文
+            "current_structure": {
+                "type": "linked",
+                "data": [1, 2, 3],
+                "name": "myLinkedList"
+            },
+            "all_structures": [...]  # 所有已创建的结构列表
+        }
     }
     """
     try:
@@ -1132,6 +1140,7 @@ def llm_chat():
         data = request.json
         user_message = data.get('message', '').strip()
         session_id = data.get('session_id', str(uuid.uuid4()))
+        context = data.get('context', None)  # 🔥 获取上下文
 
         if not user_message:
             return jsonify({'error': '消息不能为空'}), 400
@@ -1139,10 +1148,53 @@ def llm_chat():
         print(f"\n{'=' * 60}")
         print(f"[LLM Chat] Session: {session_id}")
         print(f"用户: {user_message}")
+        if context:
+            print(f"上下文: {context}")
         print(f"{'=' * 60}\n")
 
+        # 🔥 如果有上下文，构建增强的消息
+        enhanced_message = user_message
+        current_struct_info = None
+
+        # 支持两种格式：current_page（新格式）或 current_structure（旧格式）
+        if context:
+            if 'current_page' in context:
+                current_page = context['current_page']
+                current_struct_info = {
+                    'category': current_page.get('category', ''),
+                    'type': current_page.get('type', ''),
+                    'structure_id': current_page.get('structure_id', ''),
+                    'data': current_page.get('data', [])
+                }
+            elif 'current_structure' in context:
+                # 向后兼容旧格式
+                current_struct = context['current_structure']
+                current_struct_info = {
+                    'type': current_struct.get('type', ''),
+                    'data': current_struct.get('data', []),
+                    'name': current_struct.get('name', '')
+                }
+
+        if current_struct_info:
+            struct_type = current_struct_info.get('type', '')
+            struct_data = current_struct_info.get('data', [])
+            category = current_struct_info.get('category', '')
+            structure_id = current_struct_info.get('structure_id', '')
+
+            # 构建上下文前缀
+            if structure_id and structure_id in structures:
+                # 用户在现有结构基础上操作
+                context_prefix = f"[当前页面：{category} - {struct_type}，已有数据：{','.join(map(str, struct_data))}，structure_id: {structure_id}]\n用户想要："
+                enhanced_message = context_prefix + user_message
+            else:
+                # 旧格式或新建结构
+                context_prefix = f"[当前数据结构：{struct_type}，数据：{','.join(map(str, struct_data))}]\n"
+                enhanced_message = context_prefix + user_message
+
+            print(f"🔥 增强后的消息（带上下文）:\n{enhanced_message}\n")
+
         # 调用LLM生成DSL
-        result = llm_service.natural_language_to_dsl(user_message)
+        result = llm_service.natural_language_to_dsl(enhanced_message)
 
         if not result['success']:
             return jsonify({
@@ -1177,6 +1229,48 @@ def llm_chat():
                     interpreters[session_id] = Interpreter(manager, global_structures=structures)
 
                 interpreter = interpreters[session_id]
+
+                # 🔥 如果有当前页面的structure_id，在执行前强制使用当前页面的结构
+                # 这样interpreter就会操作当前页面的结构，而不是会话中旧的结构
+                if current_struct_info and current_struct_info.get('structure_id'):
+                    current_sid = current_struct_info['structure_id']
+                    if current_sid in structures:
+                        # 从DSL代码中提取结构名称（例如 "BST myBST { ... }" -> "myBST"）
+                        import re
+                        match = re.search(r'\b(Sequential|Linked|Stack|Queue|BST|Binary|AVL|Huffman)\s+(\w+)\s*\{', dsl_code)
+                        if match:
+                            struct_name = match.group(2)  # 例如 "myBST"
+                            struct_type = current_struct_info.get('type', '')
+
+                            # 强制更新interpreter的映射
+                            interpreter.register_structure_mapping(struct_name, current_sid)
+
+                            # 🔥 关键：同时更新context.structures，否则会被会话内存中的旧结构覆盖
+                            # 清除旧的会话内存，强制使用全局结构
+                            if struct_name in interpreter.context.structures:
+                                del interpreter.context.structures[struct_name]
+
+                            # 将当前页面的真实结构放入context
+                            real_structure = structures[current_sid]
+                            interpreter.context.structures[struct_name] = {
+                                'type': struct_type,
+                                'instance': real_structure,
+                                'data': [],
+                                'structure_id': current_sid
+                            }
+
+                            # 🔥 调试：打印结构的实际数据
+                            try:
+                                if hasattr(real_structure, 'to_list'):
+                                    actual_data = real_structure.to_list()
+                                    print(f"🔥 强制使用当前页面结构: {struct_name} -> {current_sid[:8]}... ({struct_type})")
+                                    print(f"   实际数据: {actual_data}")
+                                else:
+                                    print(f"🔥 强制使用当前页面结构: {struct_name} -> {current_sid[:8]}... ({struct_type})")
+                            except Exception as e:
+                                print(f"🔥 强制使用当前页面结构: {struct_name} -> {current_sid[:8]}... ({struct_type})")
+                                print(f"   警告: 无法读取数据: {e}")
+
                 exec_result = interpreter.execute(ast)
 
                 # 提取结构信息

@@ -63,6 +63,7 @@ class TokenType(Enum):
     TRY = "TRY"
     CATCH = "CATCH"
     RANGE = "RANGE"
+    RANDOM = "RANDOM"
     SPEED = "SPEED"
     PAUSE = "PAUSE"
 
@@ -165,6 +166,7 @@ class Lexer:
         'try': TokenType.TRY,
         'catch': TokenType.CATCH,
         'range': TokenType.RANGE,
+        'random': TokenType.RANDOM,
         'speed': TokenType.SPEED,
         'pause': TokenType.PAUSE,
 

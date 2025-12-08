@@ -4,6 +4,7 @@ DSL解释器 (Interpreter)
 """
 
 import json
+import random
 from typing import Dict, Any, List, Optional
 from .ast_nodes import *
 
@@ -70,6 +71,17 @@ class Interpreter:
         """注册结构名称到ID的映射"""
         self.structure_id_map[name] = structure_id
         self.log(f"注册结构映射: {name} -> {structure_id[:8]}...")
+
+    def evaluate_value(self, value: Any) -> Any:
+        """评估值，将RandomCall节点替换为实际随机数"""
+        if isinstance(value, RandomCall):
+            random_num = random.randint(value.min_value, value.max_value)
+            self.log(f"    random({value.min_value}, {value.max_value}) -> {random_num}")
+            return random_num
+        elif isinstance(value, list):
+            return [self.evaluate_value(v) for v in value]
+        else:
+            return value
 
     def execute(self,program: Program) -> Dict[str, Any]:
         """执行整个程序"""
@@ -173,8 +185,10 @@ class Interpreter:
 
         # 根据操作类型执行
         if isinstance(operation, InitOperation):
+            # 评估随机数
+            values = self.evaluate_value(operation.values)
             capacity_info = f" capacity {operation.capacity}" if operation.capacity else ""
-            self.log(f"  init {operation.values}{capacity_info}")
+            self.log(f"  init {values}{capacity_info}")
 
             # 如果指定了 capacity 且结构支持设置容量，先更新容量
             if operation.capacity and hasattr(structure, '_capacity'):
@@ -185,31 +199,49 @@ class Interpreter:
                 self.log(f"    设置容量: {old_capacity} -> {operation.capacity}")
 
             if hasattr(structure, 'initlist'):
-                structure.initlist(operation.values)
+                structure.initlist(values)
             else:
-                for value in operation.values:
+                for value in values:
                     structure.insert(structure.size(), value)
-            op_record['details'] = {'values': operation.values, 'capacity': operation.capacity}
+            op_record['details'] = {'values': values, 'capacity': operation.capacity}
 
         elif isinstance(operation, InsertOperation):
+            # 评估随机数
+            value = self.evaluate_value(operation.value)
             index = operation.index if operation.index is not None else structure.size()
-            self.log(f"  insert {operation.value} at {index}")
+            self.log(f"  insert {value} at {index}")
 
             # 针对不同结构类型区分处理
             if struct_type in ['stack']:
-                structure.push(operation.value)
+                structure.push(value)
             elif struct_type in ['bst', 'binary', 'avl', 'huffman']:
                 # 这些树形结构的 insert 不需要 index
-                structure.insert(operation.value)
+                structure.insert(value)
             else:
-                structure.insert(index, operation.value)
+                structure.insert(index, value)
 
-            op_record['details'] = {'value': operation.value, 'index': index}
+            op_record['details'] = {'value': value, 'index': index}
 
         elif isinstance(operation, DeleteOperation):
-            self.log(f"  delete at {operation.index}")
-            structure.delete(operation.index)
-            op_record['details'] = {'index': operation.index}
+            if operation.index is not None:
+                # 按索引删除
+                self.log(f"  delete at {operation.index}")
+                structure.delete(operation.index)
+                op_record['details'] = {'index': operation.index}
+            elif operation.value is not None:
+                # 按值删除
+                value = self.evaluate_value(operation.value)
+                self.log(f"  delete value {value}")
+                # 先搜索找到索引
+                index = structure.search(value)
+                if index == -1:
+                    self.log(f"    警告: 值 {value} 不存在")
+                else:
+                    structure.delete(index)
+                    self.log(f"    在索引 {index} 处删除")
+                op_record['details'] = {'value': value, 'index': index if index != -1 else None}
+            else:
+                self.error("DeleteOperation requires either index or value")
 
         elif isinstance(operation, SearchOperation):
             self.log(f"  search {operation.value}")
@@ -237,9 +269,10 @@ class Interpreter:
             op_record['details'] = {'filename': operation.filename}
 
         elif isinstance(operation, PushOperation):
-            self.log(f"  push {operation.value}")
-            structure.push(operation.value)
-            op_record['details'] = {'value': operation.value}
+            value = self.evaluate_value(operation.value)
+            self.log(f"  push {value}")
+            structure.push(value)
+            op_record['details'] = {'value': value}
 
         elif isinstance(operation, PopOperation):
             self.log(f"  pop")
@@ -254,10 +287,11 @@ class Interpreter:
             op_record['details'] = {'result': result}
 
         elif isinstance(operation, BuildOperation):
-            self.log(f"  build {operation.values}")
+            values = self.evaluate_value(operation.values)
+            self.log(f"  build {values}")
             if hasattr(structure, 'build_from_list'):
-                structure.build_from_list(operation.values)
-            op_record['details'] = {'values': operation.values}
+                structure.build_from_list(values)
+            op_record['details'] = {'values': values}
 
         elif isinstance(operation, TraverseOperation):
             self.log(f"  traverse {operation.method}")
@@ -310,10 +344,11 @@ class Interpreter:
             op_record['details'] = {'text': operation.text}
 
         elif isinstance(operation, BuildNumbersOperation):
-            self.log(f"  build_numbers {operation.numbers}")
+            numbers = self.evaluate_value(operation.numbers)
+            self.log(f"  build_numbers {numbers}")
             if hasattr(structure, 'build_from_numbers'):
-                structure.build_from_numbers(operation.numbers)
-            op_record['details'] = {'numbers': operation.numbers}
+                structure.build_from_numbers(numbers)
+            op_record['details'] = {'numbers': numbers}
 
         elif isinstance(operation, EncodeOperation):
             self.log(f"  encode \"{operation.text}\"")
@@ -338,14 +373,16 @@ class Interpreter:
                 op_record['details'] = {'codes': codes}
 
         elif isinstance(operation, InsertHeadOperation):
-            self.log(f"  insert_head {operation.value}")
-            structure.insert(0, operation.value)
-            op_record['details'] = {'value': operation.value}
+            value = self.evaluate_value(operation.value)
+            self.log(f"  insert_head {value}")
+            structure.insert(0, value)
+            op_record['details'] = {'value': value}
 
         elif isinstance(operation, InsertTailOperation):
-            self.log(f"  insert_tail {operation.value}")
-            structure.insert(structure.size(), operation.value)
-            op_record['details'] = {'value': operation.value}
+            value = self.evaluate_value(operation.value)
+            self.log(f"  insert_tail {value}")
+            structure.insert(structure.size(), value)
+            op_record['details'] = {'value': value}
 
         elif isinstance(operation, DeleteHeadOperation):
             self.log(f"  delete_head")

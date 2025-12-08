@@ -262,8 +262,13 @@
         </div>
       </div>
     </div>
-    <!-- 🔥 新增: DSL 输入栏 -->
-    <DSLInputBar />
+    <!-- 🔥 新增: DSL 输入栏 - 传递当前页面状态 -->
+    <DSLInputBar
+      :currentStructureType="structureType"
+      :currentStructureId="structureId"
+      :currentElements="elements"
+      category="linear"
+    />
 
     <!-- 🔥 代码面板 -->
     <CodePanel
@@ -276,6 +281,12 @@
       @code-loaded="handleCodeLoaded"
       @language-change="handleLanguageChange"
     />
+
+    <!-- 🔥 算法复杂度指示器 -->
+    <ComplexityIndicator
+      :structureType="structureType"
+      :operation="currentOperation"
+    />
   </div>
 </template>
 
@@ -286,6 +297,7 @@ import api from '../services/api.js'
 import DSLInputBar from './DSLInputBar.vue'  // 🔥 添加导入
 import LinkedList from '../components/LinkedList.vue'  // 🔥 链表SVG组件
 import CodePanel from '../components/CodePanel.vue'  // 🔥 代码面板组件
+import ComplexityIndicator from '../components/ComplexityIndicator.vue'  // 🔥 复杂度指示器
 
 const router = useRouter()
 const route = useRoute()
@@ -385,7 +397,7 @@ const needsIndex = computed(() => {
 })
 
 const indexPlaceholder = computed(() => {
-  return currentOperation.value === 'insert' ? 'Optional' : 'Required'
+  return currentOperation.value === 'insert' ? 'Optional (default: append to end)' : 'Required'
 })
 
 const canExecute = computed(() => {
@@ -539,7 +551,8 @@ const executeOperation = async () => {
 
   try {
     let response
-    const index = inputIndex.value === '' ? elements.value.length : parseInt(inputIndex.value)
+    // 当用户不输入index时，发送null让后端处理默认值
+    const index = inputIndex.value === '' ? null : parseInt(inputIndex.value)
 
     switch (currentOperation.value) {
       case 'batch_init':
