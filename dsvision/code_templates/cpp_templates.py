@@ -495,6 +495,56 @@ TREE_TRAVERSAL_POSTORDER = """void postorder(Node* node) {
     visit(node);
 }"""
 
+# 🔄 非递归遍历
+TREE_TRAVERSAL_PREORDER_ITERATIVE = """void preorder_iterative(Node* root) {
+    if (root == nullptr) return;
+
+    std::stack<Node*> st;
+    st.push(root);
+
+    while (!st.empty()) {
+        Node* node = st.top(); st.pop();
+        visit(node);
+
+        if (node->right) st.push(node->right);
+        if (node->left)  st.push(node->left);
+    }
+}"""
+
+TREE_TRAVERSAL_INORDER_ITERATIVE = """void inorder_iterative(Node* root) {
+    std::stack<Node*> st;
+    Node* curr = root;
+
+    while (curr != nullptr || !st.empty()) {
+        while (curr != nullptr) {
+            st.push(curr);
+            curr = curr->left;
+        }
+        curr = st.top(); st.pop();
+        visit(curr);
+        curr = curr->right;
+    }
+}"""
+
+TREE_TRAVERSAL_POSTORDER_ITERATIVE = """void postorder_iterative(Node* root) {
+    if (root == nullptr) return;
+
+    std::stack<Node*> s1, s2;
+    s1.push(root);
+
+    while (!s1.empty()) {
+        Node* node = s1.top(); s1.pop();
+        s2.push(node);
+        if (node->left)  s1.push(node->left);
+        if (node->right) s1.push(node->right);
+    }
+
+    while (!s2.empty()) {
+        visit(s2.top());
+        s2.pop();
+    }
+}"""
+
 TREE_TRAVERSAL_LEVELORDER = """void levelorder(Node* root) {
     if (root == nullptr) return;
 
@@ -644,6 +694,9 @@ CODE_TEMPLATES = {
     'tree_traversal_preorder': TREE_TRAVERSAL_PREORDER,
     'tree_traversal_postorder': TREE_TRAVERSAL_POSTORDER,
     'tree_traversal_levelorder': TREE_TRAVERSAL_LEVELORDER,
+    'tree_traversal_preorder_iterative': TREE_TRAVERSAL_PREORDER_ITERATIVE,
+    'tree_traversal_inorder_iterative': TREE_TRAVERSAL_INORDER_ITERATIVE,
+    'tree_traversal_postorder_iterative': TREE_TRAVERSAL_POSTORDER_ITERATIVE,
 
     # Huffman树
     'huffman_build': HUFFMAN_BUILD,

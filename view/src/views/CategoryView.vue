@@ -1,20 +1,28 @@
 <template>
   <div class="category-container" :class="{ 'fade-out': fadeOut }">
-    <!-- 顶部导入按钮 -->
-    <div class="import-button">
-      <button @click="handleImport" class="btn-import">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="17 8 12 3 7 8"></polyline>
-          <line x1="12" y1="3" x2="12" y2="15"></line>
-        </svg>
-        <span>Import History Files</span>
-      </button>
-    </div>
+    <!-- Top Navigation Bar -->
+    <TopNavBar
+      @open-dsl-manual="showDSLManual = true"
+      @open-llm-guide="showLLMGuide = true"
+      @import-file="handleImport"
+    />
+
+    <!-- PDF Modal -->
+    <PDFModal
+      :is-open="showDSLManual"
+      :pdf-path="'/dsl-manual.pdf'"
+      @close="showDSLManual = false"
+    />
+
+    <!-- LLM Guide Modal -->
+    <LLMGuideModal
+      :is-open="showLLMGuide"
+      @close="showLLMGuide = false"
+    />
 
     <!-- 中央选择区域 -->
     <div class="categories-wrapper">
-      <div class="categories">
+      <div class="categories" :class="{ 'hero-exit': heroExit }">
         <div class="choose-text">{{ displayedText1 }}<span class="cursor" v-if="showCursor1">|</span></div>
         <div class="choose-text">{{ displayedText2 }}<span class="cursor" v-if="showCursor2">|</span></div>
         <div class="category-buttons">
@@ -33,6 +41,38 @@
           </button>
         </div>
       </div>
+
+      <!-- LLM 推理舞台 -->
+      <div v-if="llmShowcase" class="llm-visualizer">
+        <div class="llm-label">
+          <span class="glow-dot"></span>
+          LLM ChatGPT 4o
+        </div>
+        <div class="llm-panels">
+          <div class="panel glass">
+            <div class="panel-title">Reasoning</div>
+            <div class="typing-line" :class="{ active: llmStage === 'reasoning' || llmStage === 'dsl' }">
+              <pre>{{ llmReasoning }}</pre>
+              <span class="caret" v-if="llmStage === 'reasoning'"></span>
+            </div>
+          </div>
+          <div class="panel code">
+            <div class="panel-title">DSL</div>
+            <div class="typing-block" :class="{ active: llmStage === 'dsl' || llmStage === 'complete' }">
+              <pre>{{ llmDSL }}</pre>
+              <span class="caret" v-if="llmStage === 'dsl'"></span>
+            </div>
+          </div>
+        </div>
+        <div class="stage-footer" v-if="llmStage === 'complete'">
+          <span class="pill success">Ready · 跳转中</span>
+        </div>
+        <div class="cloud-wrapper" v-if="llmStage === 'reject'">
+          <div class="cloud-bubble">
+            {{ cloudMessage }}
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- DSL/LLM 模式选择 + 输入框 -->
@@ -44,14 +84,14 @@
           class="mode-button"
           :class="{ active: currentMode === 'dsl' }"
         >
-          <span>DSL Coding</span>
+          <span>{{ t('dslCoding') }}</span>
         </button>
         <button
           @click="currentMode = 'llm'"
           class="mode-button"
           :class="{ active: currentMode === 'llm' }"
         >
-          <span>LLM</span>
+          <span>{{ t('llm') }}</span>
         </button>
       </div>
 
@@ -63,12 +103,7 @@
           v-if="currentMode === 'dsl'"
           v-model="dslInput"
           @keydown.ctrl.enter="handleExecute"
-          placeholder="Enter DSL code here... (Ctrl+Enter to execute)
-Example:
-Sequential myList {
-    init [1, 2, 3, 4, 5]
-    insert 10 at 2
-}"
+          :placeholder="t('dslPlaceholder')"
           class="dsl-input"
           rows="4"
         />
@@ -77,10 +112,10 @@ Sequential myList {
           v-model="llmInput"
           @keyup.enter="handleExecute"
           type="text"
-          placeholder="Send a natural language instruction here..."
+          :placeholder="t('llmPlaceholder')"
           class="chat-input"
         />
-        <button @click="handleExecute" class="send-button" :disabled="!canExecute">
+        <button @click="handleExecute" class="send-button" :disabled="!canExecute || (currentMode === 'llm' && isAnimating)">
           <svg xmlns="http://www.w3.org/2000/svg" class="send-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12l14-7-4 7 4 7-14-7z" />
           </svg>
@@ -89,7 +124,7 @@ Sequential myList {
 
       <!-- 🔥 DSL 模式下显示示例按钮 -->
       <div v-if="currentMode === 'dsl'" class="examples-row">
-        <span class="examples-label">Quick Examples:</span>
+        <span class="examples-label">{{ t('quickExamples') }}</span>
         <button
           v-for="example in exampleButtons"
           :key="example.type"
@@ -107,36 +142,53 @@ Sequential myList {
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api.js'
+import TopNavBar from '../components/TopNavBar.vue'
+import PDFModal from '../components/PDFModal.vue'
+import LLMGuideModal from '../components/LLMGuideModal.vue'
+import { useLanguage } from '../stores/language.js'
+
+const { t } = useLanguage()
 
 const router = useRouter()
 const hoveredIndex = ref(null)
 const fadeOut = ref(false)
 const userInput = ref('')
+const heroExit = ref(false)
 
 const currentMode = ref('dsl')  // 'dsl' 或 'llm'
 const dslInput = ref('')
 const llmInput = ref('')
+const llmShowcase = ref(false)
+const llmStage = ref('idle') // idle | reasoning | dsl | complete | reject
+const llmReasoning = ref('')
+const llmDSL = ref('')
+const cloudMessage = ref('')
+const isAnimating = ref(false)
+
+// Modal states
+const showDSLManual = ref(false)
+const showLLMGuide = ref(false)
 
 // 🔥 打字机动画相关
-const fullText1 = "Hi! You can choose structure first."
-const fullText2 = "Or you can also use DSL or LLM to explore!"
+const fullText1 = t('chooseStructure')
+const fullText2 = t('useDSLorLLM')
 const displayedText1 = ref('')
 const displayedText2 = ref('')
 const showCursor1 = ref(true)
 const showCursor2 = ref(false)
 
-const categories = [
-  { id: 'linear', label: 'Linear Structure' },
-  { id: 'tree', label: 'Tree Structure' }
-]
+const categories = computed(() => [
+  { id: 'linear', label: t('linearStructure') },
+  { id: 'tree', label: t('treeStructure') }
+])
 
-const exampleButtons = [
-  { type: 'sequential', label: 'Sequential' },
-  { type: 'linked', label: 'Linked' },
-  { type: 'stack', label: 'Stack' },
-  { type: 'bst', label: 'BST' },
-  { type: 'huffman', label: 'Huffman' }
-]
+const exampleButtons = computed(() => [
+  { type: 'sequential', label: t('sequential') },
+  { type: 'linked', label: t('linked') },
+  { type: 'stack', label: t('stack') },
+  { type: 'bst', label: t('bst') },
+  { type: 'huffman', label: t('huffman') }
+])
 
 const canExecute = computed(() => {
   if (currentMode.value === 'dsl') {
@@ -267,59 +319,65 @@ const executeDSL = async () => {
 
 // 🔥 执行 LLM - 自然语言转DSL并执行
 const executeLLM = async () => {
+  if (isAnimating.value) return
   try {
+    isAnimating.value = true
+    heroExit.value = true
+    llmShowcase.value = true
+    llmStage.value = 'reasoning'
+    llmReasoning.value = '模型推理中...'
+    llmDSL.value = ''
+    cloudMessage.value = ''
+
     console.log('执行 LLM 推理:', llmInput.value)
 
     const response = await api.llmChat(llmInput.value)
 
     console.log('✅ LLM 推理成功:', response)
+    console.log('🔍 LLM 执行结果:', response.execution)
 
     if (!response.success) {
-      alert(`错误: ${response.error}`)
+      cloudMessage.value = response.error || '无法生成 DSL 代码'
+      llmStage.value = 'reject'
       return
     }
 
-    // 显示推理结果
     const llmResponse = response.llm_response
-    const dslCode = llmResponse.dsl_code
-    const explanation = llmResponse.explanation
+    const dslCode = llmResponse.dsl_code || ''
+    const explanation = llmResponse.explanation || ''
 
-    // 如果 DSL 代码为空，显示 LLM 的解释（通常是拒绝信息）
-    if (!dslCode || dslCode.trim() === '') {
-      alert(explanation || '无法生成 DSL 代码')
+    // 无关问题或拒绝场景：展示云朵对话
+    if (!dslCode.trim()) {
+      cloudMessage.value = explanation || '我是DSVion,只能帮你学习数据结构操作。你可以想创建或操作的数据结构。☺'
+      llmStage.value = 'reject'
       return
     }
 
-    alert(`✓ 推理成功!\n\nDSL 代码:\n${dslCode}\n\n说明: ${explanation}`)
+    llmReasoning.value = ''
+    await typeWriter(explanation, llmReasoning, 18)
+    llmStage.value = 'dsl'
+    await typeWriter(dslCode, llmDSL, 12)
+    llmStage.value = 'complete'
 
-    // 如果有执行结果，跳转到对应视图
+    // 优先使用后端执行结果跳转
     if (response.execution?.success && response.execution?.structures?.length > 0) {
       const firstStruct = response.execution.structures[0]
-      const category = firstStruct.category  // 'linear' 或 'tree'
-      const type = firstStruct.type
-      const structureId = firstStruct.structure_id
-
-      console.log('📊 跳转信息:', { category, type, structureId })
-
-      setTimeout(() => {
-        if (category === 'linear') {
-          router.push({
-            path: `/linear/${type}`,
-            query: { importId: structureId, fromDSL: 'true' }
-          })
-        } else {
-          router.push({
-            path: `/tree/${type}`,
-            query: { importId: structureId, fromDSL: 'true' }
-          })
-        }
-      }, 800)
+      navigateToStruct(firstStruct.category, firstStruct.type, firstStruct.structure_id)
+    } else {
+      // 兜底：解析 DSL 首个结构类型推断跳转
+      const parsed = deriveRouteFromDSL(dslCode)
+      if (parsed) {
+        navigateToStruct(parsed.category, parsed.type)
+      }
     }
 
     llmInput.value = ''
   } catch (error) {
     console.error('❌ LLM 推理失败:', error)
-    alert('推理失败: ' + (error.response?.data?.error || error.message))
+    cloudMessage.value = error.response?.data?.error || error.message || '推理失败'
+    llmStage.value = 'reject'
+  } finally {
+    isAnimating.value = false
   }
 }
 
@@ -343,27 +401,56 @@ const handleSend = () => {
 }
 
 // 🔥 打字机动画函数
-const typeWriter = async (text, displayRef, showCursorRef, speed = 130) => {
-  showCursorRef.value = true
+const typeWriter = async (text, displayRef, speed = 130) => {
   for (let i = 0; i <= text.length; i++) {
     displayRef.value = text.substring(0, i)
     await new Promise(resolve => setTimeout(resolve, speed))
   }
-  // 打完后光标闪烁一会儿再消失
-  await new Promise(resolve => setTimeout(resolve, 500))  // 初始延迟
-  showCursorRef.value = false
+}
+
+const deriveRouteFromDSL = (code) => {
+  if (!code) return null
+  const match = code.match(/\b(Sequential|Linked|Stack|Queue|Binary|BST|AVL|Huffman)\b/i)
+  if (!match) return null
+  const mapping = {
+    sequential: { category: 'linear', type: 'sequential' },
+    linked: { category: 'linear', type: 'linked' },
+    stack: { category: 'linear', type: 'stack' },
+    queue: { category: 'linear', type: 'queue' },
+    binary: { category: 'tree', type: 'binary' },
+    bst: { category: 'tree', type: 'bst' },
+    avl: { category: 'tree', type: 'avl' },
+    huffman: { category: 'tree', type: 'huffman' }
+  }
+  return mapping[match[1].toLowerCase()] || null
+}
+
+const navigateToStruct = (category, type, structureId = null) => {
+  if (!category || !type) return
+  console.log('📊 跳转信息:', { category, type, structureId })
+  setTimeout(() => {
+    const routeBase = category === 'linear' ? '/linear' : '/tree'
+    const query = structureId ? { importId: structureId, fromDSL: 'true' } : {}
+    router.push({
+      path: `${routeBase}/${type}`,
+      query
+    })
+  }, 900)
 }
 
 // 组件挂载时启动打字机动画
 onMounted(async () => {
   // 延迟 500ms 后开始第一行
   await new Promise(resolve => setTimeout(resolve, 500))
-  await typeWriter(fullText1, displayedText1, showCursor1, 40)// 打字速度（
+  showCursor1.value = true
+  await typeWriter(fullText1, displayedText1, 40)// 打字速度（
+  showCursor1.value = false
 
   // 第一行打完后，延迟 300ms 再开始第二行
   await new Promise(resolve => setTimeout(resolve, 100))
   showCursor2.value = true
-  await typeWriter(fullText2, displayedText2, showCursor2, 40)// 打字速度（
+  await typeWriter(fullText2, displayedText2, 40)// 打字速度（
+  showCursor2.value = false
 })
 </script>
 
@@ -382,36 +469,14 @@ onMounted(async () => {
   opacity: 0;
 }
 
-.import-button {
-  position: absolute;
-  top: 2rem;
-  right: 2rem;
-  z-index: 10;
-}
-
-.btn-import {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.btn-import:hover {
-  color: black;
-}
-
 /* 中心内容 */
 .categories-wrapper {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-top: 64px; /* Account for fixed nav bar */
+  position: relative;
 }
 
 .categories {
@@ -419,6 +484,7 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   gap: 2rem;
+  transition: transform 0.9s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s ease;
 }
 
 .choose-text {
@@ -428,6 +494,12 @@ onMounted(async () => {
   color: black;
   margin-bottom: 1rem;
   min-height: 3rem; /* 保持高度稳定 */
+}
+
+.hero-exit {
+  transform: translateY(-120px);
+  opacity: 0;
+  filter: blur(2px);
 }
 
 /* 🔥 打字机光标动画 */
@@ -639,6 +711,163 @@ onMounted(async () => {
   border-color: #9ca3af;
 }
 
+.llm-visualizer {
+  position: absolute;
+  inset: 12% 8% auto 8%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: linear-gradient(145deg, rgba(255,255,255,0.92), rgba(233,240,255,0.96));
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 24px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.08);
+  z-index: 2;
+}
+
+.llm-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #0f172a;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.glow-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #a5b4fc, #4338ca);
+  box-shadow: 0 0 12px rgba(67, 56, 202, 0.7);
+}
+
+.llm-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.panel {
+  position: relative;
+  border-radius: 18px;
+  padding: 1rem 1.2rem 1.4rem;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.05);
+  min-height: 180px;
+}
+
+.panel-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1f2937;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.75rem;
+}
+
+.panel.glass {
+  background: linear-gradient(160deg, rgba(255,255,255,0.95), rgba(236,242,255,0.85));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.panel.code {
+  background: #0b1021;
+  color: #e2e8f0;
+  border: 1px solid #1f2937;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+
+.typing-line pre,
+.typing-block pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.typing-line {
+  color: #111827;
+}
+
+.typing-block {
+  background: rgba(255,255,255,0.02);
+  border: 1px dashed rgba(255,255,255,0.08);
+  padding: 0.75rem;
+  border-radius: 12px;
+  min-height: 140px;
+}
+
+.typing-line.active,
+.typing-block.active {
+  animation: breathe 1.6s ease-in-out infinite;
+}
+
+.caret {
+  display: inline-block;
+  width: 10px;
+  height: 18px;
+  background: currentColor;
+  margin-left: 4px;
+  animation: blink 1s infinite;
+  vertical-align: bottom;
+}
+
+.stage-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pill {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.pill.success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.cloud-wrapper {
+  position: absolute;
+  right: 6%;
+  bottom: -12px;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.cloud-bubble {
+  background: white;
+  border-radius: 30px;
+  padding: 0.9rem 1.2rem;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+  border: 1px solid rgba(0,0,0,0.04);
+  font-weight: 600;
+  color: #0f172a;
+  animation: floatUp 2.2s ease-out forwards;
+}
+
+@keyframes breathe {
+  0% { box-shadow: 0 0 0 0 rgba(67,56,202,0.08); }
+  50% { box-shadow: 0 0 0 8px rgba(67,56,202,0.0); }
+  100% { box-shadow: 0 0 0 0 rgba(67,56,202,0.0); }
+}
+
+@keyframes floatUp {
+  0% { transform: translateY(0) scale(0.96); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(-70px) scale(1); opacity: 1; }
+}
+
 @media (max-width: 768px) {
   .category-buttons {
     flex-direction: column;
@@ -662,6 +891,14 @@ onMounted(async () => {
     width: 95%;
     padding: 0.75rem;
   }
-
+  .llm-visualizer {
+    position: relative;
+    inset: unset;
+    width: 92%;
+    margin-top: 1rem;
+  }
+  .llm-panels {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

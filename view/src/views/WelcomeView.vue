@@ -1,7 +1,7 @@
 <template>
   <div class = "welcome-container":class="{'fade-out':fadeOut}">
     <h1 class="welcome-title">
-      Welcome to DSVision!
+      {{ t('welcomeTitle') }}
     </h1>
   </div>
 </template>
@@ -9,7 +9,9 @@
 <script setup>
 import { ref, onMounted} from 'vue'
 import { useRouter } from 'vue-router'
+import { useLanguage } from '../stores/language.js'
 
+const { t } = useLanguage()
 const router = useRouter()
 const fadeOut = ref(false)
 

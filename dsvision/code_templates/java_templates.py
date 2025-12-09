@@ -374,6 +374,55 @@ TREE_TRAVERSAL_POSTORDER = """void postorder(Node node) {
     visit(node);
 }"""
 
+# 🔄 非递归遍历
+TREE_TRAVERSAL_PREORDER_ITERATIVE = """void preorderIterative(Node root) {
+    if (root == null) return;
+
+    Deque<Node> stack = new ArrayDeque<>();
+    stack.push(root);
+
+    while (!stack.isEmpty()) {
+        Node node = stack.pop();
+        visit(node);
+        if (node.right != null) stack.push(node.right);
+        if (node.left != null) stack.push(node.left);
+    }
+}"""
+
+TREE_TRAVERSAL_INORDER_ITERATIVE = """void inorderIterative(Node root) {
+    Deque<Node> stack = new ArrayDeque<>();
+    Node curr = root;
+
+    while (curr != null || !stack.isEmpty()) {
+        while (curr != null) {
+            stack.push(curr);
+            curr = curr.left;
+        }
+        curr = stack.pop();
+        visit(curr);
+        curr = curr.right;
+    }
+}"""
+
+TREE_TRAVERSAL_POSTORDER_ITERATIVE = """void postorderIterative(Node root) {
+    if (root == null) return;
+
+    Deque<Node> s1 = new ArrayDeque<>();
+    Deque<Node> s2 = new ArrayDeque<>();
+    s1.push(root);
+
+    while (!s1.isEmpty()) {
+        Node node = s1.pop();
+        s2.push(node);
+        if (node.left != null) s1.push(node.left);
+        if (node.right != null) s1.push(node.right);
+    }
+
+    while (!s2.isEmpty()) {
+        visit(s2.pop());
+    }
+}"""
+
 TREE_TRAVERSAL_LEVELORDER = """void levelorder(Node root) {
     if (root == null) return;
 
@@ -506,6 +555,9 @@ JAVA_CODE_TEMPLATES = {
     'tree_traversal_preorder': TREE_TRAVERSAL_PREORDER,
     'tree_traversal_postorder': TREE_TRAVERSAL_POSTORDER,
     'tree_traversal_levelorder': TREE_TRAVERSAL_LEVELORDER,
+    'tree_traversal_preorder_iterative': TREE_TRAVERSAL_PREORDER_ITERATIVE,
+    'tree_traversal_inorder_iterative': TREE_TRAVERSAL_INORDER_ITERATIVE,
+    'tree_traversal_postorder_iterative': TREE_TRAVERSAL_POSTORDER_ITERATIVE,
 
     # Huffman树
     'huffman_build': HUFFMAN_BUILD,

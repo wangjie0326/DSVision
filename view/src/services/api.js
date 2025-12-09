@@ -1,13 +1,12 @@
 import axios from 'axios'; //用于调用Flask接口
 
-//const API_BASE_URL = 'http://localhost:5000/api';
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 
 //创建axios实例
 const apiClient = axios.create({
   baseURL:API_BASE_URL,
-  timeout: 10000,
+  timeout: 20000,
   headers:{
     'Content-Type':'application/json'
   },
@@ -142,9 +141,10 @@ export default{
   },
 
   // 🎬 树遍历
-  traverseTree(structureId, traversalType) {
+  traverseTree(structureId, traversalType, useRecursion = true) {
     return apiClient.post(`/tree/${structureId}/traverse`, {
-      traversal_type: traversalType
+      traversal_type: traversalType,
+      use_recursion: useRecursion
     });
   },
 

@@ -48,11 +48,20 @@
       <!-- 🎬 遍历类型选择 -->
       <div v-if="currentOperation === 'traverse'" class="operation-group">
         <label class="label">Traversal Type:</label>
-        <select v-model="traversalType" class="select-input">
+        <select v-model="traversalType" class="select-input" @change="onTraversalTypeChange">
           <option value="preorder">前序遍历 (Preorder)</option>
           <option value="inorder">中序遍历 (Inorder)</option>
           <option value="postorder">后序遍历 (Postorder)</option>
           <option value="levelorder">层次遍历 (Level Order)</option>
+        </select>
+      </div>
+
+      <!-- 🔄 递归/非递归方法选择 -->
+      <div v-if="currentOperation === 'traverse' && traversalType !== 'levelorder'" class="operation-group">
+        <label class="label">Method:</label>
+        <select v-model="useRecursion" class="select-input" @change="onMethodChange">
+          <option :value="true">递归 (Recursive)</option>
+          <option :value="false">非递归 (Iterative)</option>
         </select>
       </div>
 
@@ -327,6 +336,7 @@ import { TreeLayoutEngine } from '../utils/treeLayout.js'
 import ComplexityIndicator from '../components/ComplexityIndicator.vue'  // 🔥 复杂度指示器
 import DSLInputBar from './DSLInputBar.vue'  // 🔥 添加导入
 import CodePanel from '../components/CodePanel.vue'  // 🔥 代码面板组件
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 const router = useRouter()
 const route = useRoute()
@@ -341,6 +351,7 @@ const huffmanText = ref('')
 const huffmanMode = ref('text')  // 🔥 Huffman树模式: 'text' 或 'number'
 const huffmanNumbers = ref('')   // 🔥 Huffman树数字模式输入
 const traversalType = ref('inorder')  // 🎬 遍历类型
+const useRecursion = ref(true)  // 🔄 是否使用递归方法
 const isAnimating = ref(false)
 const highlightedNodes = ref([])
 const dashedNodes = ref([])  // 虚线节点（新插入还未平衡的）
@@ -824,6 +835,26 @@ const createStructure = async () => {
   }
 }
 
+// 🔄 处理遍历类型变更（重新执行遍历）
+const onTraversalTypeChange = async () => {
+  if (currentOperation.value === 'traverse' && structureId.value && !isAnimating.value) {
+    // 层次遍历没有递归选项，重置为递归模式
+    if (traversalType.value === 'levelorder') {
+      useRecursion.value = true
+    }
+    // 自动重新执行遍历
+    await executeOperation()
+  }
+}
+
+// 🔄 处理递归方法变更（重新执行遍历）
+const onMethodChange = async () => {
+  if (currentOperation.value === 'traverse' && structureId.value && !isAnimating.value) {
+    // 自动重新执行遍历
+    await executeOperation()
+  }
+}
+
 const executeOperation = async () => {
   if (!structureId.value || !canExecute.value) return
 
@@ -864,8 +895,8 @@ const executeOperation = async () => {
         break
       }
       case 'traverse': {
-        console.log('🎬 执行遍历操作，类型:', traversalType.value)
-        response = await api.traverseTree(structureId.value, traversalType.value)
+        console.log('🎬 执行遍历操作，类型:', traversalType.value, '方法:', useRecursion.value ? '递归' : '非递归')
+        response = await api.traverseTree(structureId.value, traversalType.value, useRecursion.value)
         break
       }
       default:
@@ -992,16 +1023,16 @@ const createOrLoadTreeStructure = async () => {
 
         // 如果是从DSL跳转过来的，并且有操作历史，播放动画
         if (isFromDSL && hasOperationHistory) {
-          console.log('🎬 检测到从DSL跳转，将播放构建动画')
+          console.log('🎬 检测到从DSL跳转，将播放构建/遍历动画')
 
-          // 先清空树数据，准备播放动画
-          treeData.value = { root: null, size: 0, height: 0 }
+          // 对遍历类步骤，直接使用已有树作为舞台，避免空白闪烁
+          treeData.value = response.tree_data
           await nextTick()
+          calculateTreeLayout()
 
-          // 播放动画
           await playTreeAnimationSteps(response.operation_history)
 
-          // 动画结束后，更新最终数据
+          // 动画结束后，更新最终数据（保持一致）
           treeData.value = response.tree_data
           operationHistory.value = response.operation_history
 
@@ -1086,19 +1117,21 @@ const loadCodeTemplate = async (templateKey, language = null) => {
     const lang = language || currentLanguage.value
 
     // 解析模板key (格式: "structure_operation")
+    // 例如: "tree_traversal_preorder" -> structure="tree", operation="traversal_preorder"
     const parts = templateKey.split('_')
     if (parts.length < 2) {
       console.warn('无效的模板key:', templateKey)
       return
     }
 
-    const structureType = parts[0]
+    const structureTypeFromKey = parts[0]  // 从模板key中提取的结构类型
     const operation = parts.slice(1).join('_')
 
-    console.log(`🔥 加载代码模板: ${structureType}/${operation} [语言: ${lang}]`)
+    console.log(`🔥 加载代码模板: ${structureTypeFromKey}/${operation} [语言: ${lang}]`)
 
     // 使用fetch发送请求，会通过vite代理，添加language参数
-    const response = await fetch(`/api/code/template/${structureType}/${operation}?language=${lang}`)
+    // 注意：使用从templateKey中提取的结构类型，而不是页面的structureType
+    const response = await fetch(`${API_BASE_URL}/api/code/template/${structureTypeFromKey}/${operation}?language=${lang}`)
 
     if (!response.ok) {
       console.error('API请求失败:', response.status, response.statusText)
@@ -1110,7 +1143,7 @@ const loadCodeTemplate = async (templateKey, language = null) => {
 
     if (data.success) {
       currentCode.value = data.code
-      currentOperationName.value = `${structureType}::${operation}()`
+      currentOperationName.value = `${structureTypeFromKey}::${operation}()`
       console.log(`✓ 代码模板加载成功 [${lang}]，代码长度:`, data.code.length)
       console.log('代码预览:', data.code.substring(0, 100))
     } else {

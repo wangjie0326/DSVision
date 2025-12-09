@@ -566,7 +566,10 @@ def delete_tree(structure_id):
 def traverse_tree(structure_id):
     """
     执行树遍历并返回动画步骤
-    请求体: {"traversal_type": "preorder" | "inorder" | "postorder" | "levelorder"}
+    请求体: {
+        "traversal_type": "preorder" | "inorder" | "postorder" | "levelorder",
+        "use_recursion": true | false  (可选，默认 true)
+    }
     """
     try:
         structure = structures.get(structure_id)
@@ -575,6 +578,7 @@ def traverse_tree(structure_id):
 
         data = request.json
         traversal_type = data.get('traversal_type', 'inorder')
+        use_recursion = data.get('use_recursion', True)  # 默认使用递归
 
         # 验证遍历类型
         valid_types = ['preorder', 'inorder', 'postorder', 'levelorder']
@@ -582,11 +586,12 @@ def traverse_tree(structure_id):
             return jsonify({'error': f'无效的遍历类型: {traversal_type}，可选值: {valid_types}'}), 400
 
         # 执行遍历（会自动记录OperationStep）
-        result = structure.traverse_with_animation(traversal_type)
+        result = structure.traverse_with_animation(traversal_type, use_recursion)
 
         return jsonify({
             'success': True,
             'traversal_result': result,
+            'traversal_method': 'recursive' if use_recursion else 'iterative',
             'tree_data': structure.get_tree_data(),
             'operation_history': [step.to_dict() for step in structure.get_operation_history()]
         })

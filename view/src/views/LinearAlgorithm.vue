@@ -298,6 +298,7 @@ import DSLInputBar from './DSLInputBar.vue'  // 🔥 添加导入
 import LinkedList from '../components/LinkedList.vue'  // 🔥 链表SVG组件
 import CodePanel from '../components/CodePanel.vue'  // 🔥 代码面板组件
 import ComplexityIndicator from '../components/ComplexityIndicator.vue'  // 🔥 复杂度指示器
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 const router = useRouter()
 const route = useRoute()
@@ -519,8 +520,11 @@ const playOperationSteps = async (steps) => {
       console.log('数据快照:', step.data_snapshot)
     }
 
-    // 6. 延迟（根据速度调整）
-    const baseDelay = step.duration || 0.5
+    // 6. 延迟（根据速度调整）——提高默认停留时间，保证代码高亮可见
+    let baseDelay = step.duration || 0.9
+    if (step.code_highlight && step.code_highlight.length > 0) {
+      baseDelay += 0.3
+    }
     const delay = (baseDelay / animationSpeed.value) * 1000
     await new Promise(resolve => setTimeout(resolve, delay))
   }
@@ -665,7 +669,7 @@ const loadCodeTemplate = async (templateKey, language = null) => {
     console.log(`🔥 加载代码模板: ${structureType}/${operation} [语言: ${lang}]`)
 
     // 使用axios发送请求，会通过vite代理
-    const response = await fetch(`/api/code/template/${structureType}/${operation}?language=${lang}`)
+    const response = await fetch(`${API_BASE_URL}/api/code/template/${structureType}/${operation}?language=${lang}`)
 
     if (!response.ok) {
       console.error('API请求失败:', response.status, response.statusText)

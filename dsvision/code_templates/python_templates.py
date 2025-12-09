@@ -323,6 +323,47 @@ TREE_TRAVERSAL_POSTORDER = """def postorder(self, node):
     # 访问当前节点
     self.visit(node)"""
 
+# 🔄 非递归遍历
+TREE_TRAVERSAL_PREORDER_ITERATIVE = """def preorder_iterative(self, root):
+    if root is None:
+        return
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        self.visit(node)
+        if node.right:
+            stack.append(node.right)
+        if node.left:
+            stack.append(node.left)
+"""
+
+TREE_TRAVERSAL_INORDER_ITERATIVE = """def inorder_iterative(self, root):
+    stack = []
+    curr = root
+    while curr or stack:
+        while curr:
+            stack.append(curr)
+            curr = curr.left
+        curr = stack.pop()
+        self.visit(curr)
+        curr = curr.right
+"""
+
+TREE_TRAVERSAL_POSTORDER_ITERATIVE = """def postorder_iterative(self, root):
+    if root is None:
+        return
+    s1, s2 = [root], []
+    while s1:
+        node = s1.pop()
+        s2.append(node)
+        if node.left:
+            s1.append(node.left)
+        if node.right:
+            s1.append(node.right)
+    while s2:
+        self.visit(s2.pop())
+"""
+
 TREE_TRAVERSAL_LEVELORDER = """def levelorder(self, root):
     if root is None:
         return
@@ -441,6 +482,9 @@ PYTHON_CODE_TEMPLATES = {
     'tree_traversal_preorder': TREE_TRAVERSAL_PREORDER,
     'tree_traversal_postorder': TREE_TRAVERSAL_POSTORDER,
     'tree_traversal_levelorder': TREE_TRAVERSAL_LEVELORDER,
+    'tree_traversal_preorder_iterative': TREE_TRAVERSAL_PREORDER_ITERATIVE,
+    'tree_traversal_inorder_iterative': TREE_TRAVERSAL_INORDER_ITERATIVE,
+    'tree_traversal_postorder_iterative': TREE_TRAVERSAL_POSTORDER_ITERATIVE,
 
     # Huffman树
     'huffman_build': HUFFMAN_BUILD,
