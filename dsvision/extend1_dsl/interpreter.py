@@ -202,7 +202,11 @@ class Interpreter:
                 structure.initlist(values)
             else:
                 for value in values:
-                    structure.insert(structure.size(), value)
+                    # 线性结构按索引插入，树形结构直接按值插入
+                    if struct_type in ['bst', 'binary', 'avl', 'huffman']:
+                        structure.insert(value)
+                    else:
+                        structure.insert(structure.size(), value)
             op_record['details'] = {'values': values, 'capacity': operation.capacity}
 
         elif isinstance(operation, InsertOperation):
