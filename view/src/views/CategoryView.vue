@@ -77,27 +77,40 @@
 
     <!-- DSL/LLM 模式选择 + 输入框 -->
     <div class="input-section">
-      <!-- 模式选择按钮 -->
-      <div class="mode-selector">
-        <button
-          @click="currentMode = 'dsl'"
-          class="mode-button"
-          :class="{ active: currentMode === 'dsl' }"
-        >
-          <span>{{ t('dslCoding') }}</span>
-        </button>
-        <button
-          @click="currentMode = 'llm'"
-          class="mode-button"
-          :class="{ active: currentMode === 'llm' }"
-        >
-          <span>{{ t('llm') }}</span>
-        </button>
+      <div class="input-header">
+        <!-- 模式选择按钮 -->
+        <div class="mode-selector">
+          <button
+            @click="currentMode = 'dsl'"
+            class="mode-button"
+            :class="{ active: currentMode === 'dsl' }"
+          >
+            <span>{{ t('dslCoding') }}</span>
+          </button>
+          <button
+            @click="currentMode = 'llm'"
+            class="mode-button"
+            :class="{ active: currentMode === 'llm' }"
+          >
+            <span>{{ t('llm') }}</span>
+          </button>
+        </div>
+
+        <!-- 🔥 DSL 模式下显示示例按钮 -->
+        <div v-if="currentMode === 'dsl'" class="examples-row header-examples">
+          <span class="examples-label">{{ t('quickExamples') }}</span>
+          <button
+            v-for="example in exampleButtons"
+            :key="example.type"
+            @click="loadExample(example.type)"
+            class="example-btn"
+          >
+            {{ example.label }}
+          </button>
+        </div>
       </div>
 
-
-
-    <!-- 输入框 -->
+      <!-- 输入框 -->
       <div class="chat-input-bar">
         <textarea
           v-if="currentMode === 'dsl'"
@@ -105,33 +118,33 @@
           @keydown.ctrl.enter="handleExecute"
           :placeholder="t('dslPlaceholder')"
           class="dsl-input"
-          rows="4"
+          rows="1"
         />
-        <input
-          v-else
-          v-model="llmInput"
-          @keyup.enter="handleExecute"
-          type="text"
-          :placeholder="t('llmPlaceholder')"
-          class="chat-input"
-        />
+        <template v-else>
+          <input
+            v-model="llmInput"
+            @keyup.enter="handleExecute"
+            type="text"
+            :placeholder="t('llmPlaceholder')"
+            class="chat-input"
+          />
+          <button
+            type="button"
+            @click="handleVoiceInput"
+            class="send-button voice-button"
+            :class="{ listening: isListening }"
+            :aria-pressed="isListening"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="send-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1a3 3 0 00-3 3v7a3 3 0 006 0V4a3 3 0 00-3-3z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10v1a7 7 0 0014 0v-1M12 21v-3" />
+            </svg>
+          </button>
+        </template>
         <button @click="handleExecute" class="send-button" :disabled="!canExecute || (currentMode === 'llm' && isAnimating)">
           <svg xmlns="http://www.w3.org/2000/svg" class="send-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12l14-7-4 7 4 7-14-7z" />
           </svg>
-        </button>
-      </div>
-
-      <!-- 🔥 DSL 模式下显示示例按钮 -->
-      <div v-if="currentMode === 'dsl'" class="examples-row">
-        <span class="examples-label">{{ t('quickExamples') }}</span>
-        <button
-          v-for="example in exampleButtons"
-          :key="example.type"
-          @click="loadExample(example.type)"
-          class="example-btn"
-        >
-          {{ example.label }}
         </button>
       </div>
     </div>
@@ -164,6 +177,9 @@ const llmReasoning = ref('')
 const llmDSL = ref('')
 const cloudMessage = ref('')
 const isAnimating = ref(false)
+const isListening = ref(false)
+let recognitionInstance = null
+let pendingTranscript = ''
 
 // Modal states
 const showDSLManual = ref(false)
@@ -259,6 +275,57 @@ const handleImport = async () => {
   }
 
   input.click()
+}
+
+const handleVoiceInput = () => {
+  if (currentMode.value !== 'llm') return
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+  if (!SpeechRecognition) {
+    console.warn('Speech recognition not supported in this browser.')
+    return
+  }
+
+  // Toggle off if already listening
+  if (isListening.value && recognitionInstance) {
+    recognitionInstance.stop()
+    return
+  }
+
+  pendingTranscript = ''
+  recognitionInstance = new SpeechRecognition()
+  recognitionInstance.lang = 'zh-CN'
+  recognitionInstance.interimResults = false
+  recognitionInstance.maxAlternatives = 1
+  recognitionInstance.continuous = false
+
+  isListening.value = true
+
+  recognitionInstance.onresult = (event) => {
+    const lastResult = event.results[event.results.length - 1]
+    const transcript = lastResult?.[0]?.transcript || ''
+    pendingTranscript = transcript
+    if (lastResult?.isFinal && transcript.trim()) {
+      llmInput.value = transcript
+    }
+  }
+
+  recognitionInstance.onerror = () => {
+    isListening.value = false
+    recognitionInstance = null
+    pendingTranscript = ''
+  }
+
+  recognitionInstance.onend = () => {
+    isListening.value = false
+    if (pendingTranscript.trim()) {
+      llmInput.value = pendingTranscript
+    }
+    recognitionInstance = null
+    pendingTranscript = ''
+  }
+
+  recognitionInstance.start()
 }
 
 // 执行 DSL 或 LLM
@@ -560,27 +627,34 @@ onMounted(async () => {
   bottom: 0;
   left: 0;
   right: 0;
-  background: #f9fafb;
+  background: transparent;
   border-top: 1px solid #e5e7eb;
-  padding: 0rem 0 1.5rem;
+  padding: 0 0 1.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  overflow: visible;
+}
+
+.input-header {
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  left: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 /* 模式选择器 */
 .mode-selector {
   display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-  position: absolute;
-  top: -2.46rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
+  justify-content: flex-start;
+  gap: 0.75rem;
 }
 
 .mode-button {
@@ -616,7 +690,7 @@ onMounted(async () => {
   background: #f9fafb;
   border-top: 1px solid #e5e7eb;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   padding: 0.75rem 1rem;
   gap: 0.75rem;
 }
@@ -632,16 +706,17 @@ onMounted(async () => {
   font-size: 1rem;
   background-color: white;
   font-family: 'Consolas', 'Monaco', monospace;
-  resize: vertical;
+  resize: none;
   transition: all 0.1s;
+  box-sizing: border-box;
 }
 .chat-input {
-  min-height: 48px;
+  height: 48px;
 }
 
 .dsl-input {
-  min-height: 100px;
-  line-height: 1.6;
+  height: 48px;
+  line-height: 1.4;
 }
 .chat-input:focus,
 .dsl-input:focus{
@@ -664,6 +739,10 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
+.voice-button.listening {
+  background: #1f2937;
+}
+
 .send-button:hover:not(:disabled) {
   background: #374151;
   transform: scale(1.05);
@@ -684,9 +763,12 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  justify-content: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
-  margin-top: 0.25rem;
+}
+
+.header-examples {
+  margin-left: auto;
 }
 
 .examples-label {

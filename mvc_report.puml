@@ -1,0 +1,188 @@
+@startuml mvc_overview
+skinparam backgroundColor #FFFFFF
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor White
+  BorderColor #333333
+}
+
+title DSVision MVC 总览
+
+package "Model" #E8F5E9 {
+  class LinearStructureBase
+  class TreeStructureBase
+  class Interpreter
+  class LLMService
+}
+
+package "Controller" #FFF9C4 {
+  class FlaskApp
+}
+
+package "View" #EDE7F6 {
+  class ApiClient
+  class CategoryView
+  class LinearAlgorithmView
+  class TreeAlgorithmView
+  class DSLInputBar
+}
+
+ApiClient --> FlaskApp : REST
+FlaskApp --> LinearStructureBase : manages
+FlaskApp --> TreeStructureBase : manages
+FlaskApp --> Interpreter : executes DSL
+FlaskApp --> LLMService : NL to DSL
+CategoryView ..> ApiClient
+LinearAlgorithmView ..> ApiClient
+TreeAlgorithmView ..> ApiClient
+DSLInputBar ..> ApiClient
+CategoryView ..> DSLInputBar : embeds
+LinearAlgorithmView ..> DSLInputBar : shares input
+TreeAlgorithmView ..> DSLInputBar : shares input
+@enduml
+
+@startuml model_detail
+skinparam backgroundColor #FFFFFF
+title Model 层（核心数据与算法）
+
+package "operation" {
+  class OperationType
+  class OperationStep {
+    + operation: OperationType
+    + description: str
+    + data_snapshot: List
+    + tree_snapshot: dict
+  }
+  OperationStep --> OperationType
+}
+
+package "linear" {
+  abstract class LinearStructureBase
+  class SequentialList
+  class LinkedList
+  class Stack
+  LinearStructureBase <|-- SequentialList
+  LinearStructureBase <|-- LinkedList
+  LinearStructureBase <|-- Stack
+  LinearStructureBase --> OperationStep : records
+}
+
+package "tree" {
+  abstract class TreeStructureBase
+  class BinaryTree
+  class BinarySearchTree
+  class AVLTree
+  class HuffmanTree
+  TreeStructureBase <|-- BinaryTree
+  BinaryTree <|-- BinarySearchTree
+  BinarySearchTree <|-- AVLTree
+  TreeStructureBase <|-- HuffmanTree
+  TreeStructureBase --> OperationStep : records
+}
+
+package "extend1_dsl" {
+  class Lexer
+  class Parser
+  class Interpreter
+  Lexer --> Parser : tokens
+  Parser --> Interpreter : AST
+  Interpreter ..> LinearStructureBase
+  Interpreter ..> TreeStructureBase
+}
+
+package "extend2_llm" {
+  class LLMService
+  abstract class LLMProvider
+  class OpenAIProvider
+  class ClaudeProvider
+  class GroqProvider
+  LLMService *-- LLMProvider
+  LLMProvider <|-- OpenAIProvider
+  LLMProvider <|-- ClaudeProvider
+  LLMProvider <|-- GroqProvider
+}
+@enduml
+
+@startuml controller_detail
+skinparam backgroundColor #FFFFFF
+title Controller 层（Flask API）
+
+class FlaskApp {
+  == 线性结构 ==
+  + create_structure(type, capacity)
+  + insert_element(id, index, value)
+  + delete_element(id, index)
+  + search_element(id, value)
+  + export_structure(id)
+  == 树结构 ==
+  + create_tree_structure(type)
+  + insert_tree_node(id, value)
+  + delete_tree_node(id, value)
+  + search_tree_node(id, value)
+  + build_huffman_tree(id, data)
+  == DSL/LLM ==
+  + execute_dsl(code)
+  + natural_language_to_dsl(input)
+  + get_llm_config()
+}
+
+FlaskApp --> LinearStructureBase : manages
+FlaskApp --> TreeStructureBase : manages
+FlaskApp --> Interpreter : executes DSL
+FlaskApp --> LLMService : calls
+@enduml
+
+@startuml view_detail
+skinparam backgroundColor #FFFFFF
+title View 层（Vue 前端）
+
+package "services" {
+  class ApiClient {
+    + createStructure()
+    + getState()
+    + insertElement()
+    + deleteElement()
+    + searchElement()
+    + createTreeStructure()
+    + insertTreeNode()
+    + deleteTreeNode()
+    + buildHuffmanTree()
+    + executeDSL()
+    + naturalLanguageToDSL()
+    + getLLMConfig()
+  }
+}
+
+package "views" {
+  class WelcomeView
+  class CategoryView
+  class LinearAlgorithmView
+  class TreeAlgorithmView
+  class DSLInputBar
+  class LLMGuideModal
+}
+
+package "components" {
+  class LinkedListComponent
+  class TreeNodeComponent
+  class TreeCanvas
+}
+
+package "stores/utils" {
+  class languageStore
+  class TreeLayoutEngine
+}
+
+CategoryView ..> ApiClient
+LinearAlgorithmView ..> ApiClient
+TreeAlgorithmView ..> ApiClient
+DSLInputBar ..> ApiClient
+LLMGuideModal ..> ApiClient : config
+LinearAlgorithmView ..> LinkedListComponent
+TreeAlgorithmView ..> TreeNodeComponent
+TreeAlgorithmView ..> TreeCanvas
+TreeAlgorithmView ..> TreeLayoutEngine
+CategoryView ..> DSLInputBar
+CategoryView ..> LLMGuideModal
+WelcomeView ..> languageStore
+@enduml

@@ -1,0 +1,286 @@
+@startuml dsv_overview
+title DSVision Final MVC Overview
+skinparam packageStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam class {
+  BackgroundColor White
+  BorderColor #333333
+}
+
+package "Model (dsvision)" #E8F5E9 {
+  class LinearStructureBase
+  class TreeStructureBase
+  class OperationStep
+  class Interpreter
+  class LLMService
+}
+
+package "Controller (Flask)" #FFF9C4 {
+  class FlaskApp
+}
+
+package "View (Vue)" #EDE7F6 {
+  class ApiClient
+  class WelcomeView
+  class CategoryView
+  class LinearAlgorithmView
+  class TreeAlgorithmView
+  class DSLInputBar
+  class LLMGuideModal
+}
+
+ApiClient --> FlaskApp : REST/JSON
+FlaskApp --> LinearStructureBase : manage lifecycle
+FlaskApp --> TreeStructureBase : manage lifecycle
+FlaskApp --> Interpreter : DSL execute
+FlaskApp --> LLMService : NL -> DSL
+CategoryView ..> ApiClient
+LinearAlgorithmView ..> ApiClient
+TreeAlgorithmView ..> ApiClient
+DSLInputBar ..> ApiClient
+CategoryView ..> DSLInputBar : embed/voice toggle
+CategoryView ..> LLMGuideModal
+LinearAlgorithmView ..> DSLInputBar : reuse bar
+TreeAlgorithmView ..> DSLInputBar : reuse bar
+@enduml
+
+@startuml dsv_model
+title Model Layer (Structures + DSL/LLM)
+skinparam backgroundColor #FFFFFF
+
+package "operation" {
+  enum OperationType
+  class OperationStep {
+    + operation: OperationType
+    + description: str
+    + highlight_indices: List
+    + pointers: Dict
+    + animation_type: str
+    + duration: float
+    + data_snapshot: List
+    + tree_snapshot: dict
+    + visual_hints: Dict
+  }
+  OperationStep --> OperationType
+}
+
+package "linear" {
+  abstract class LinearStructureBase {
+    # _operation_history
+    + initlist(values)
+    + insert(index,value)
+    + delete(index)
+    + search(value)
+    + add_operation_step(step)
+    + get_operation_history()
+    + clear_operation_history()
+    + to_list()
+  }
+  class SequentialList
+  class LinearLinkedList
+  class SequentialStack
+  LinearStructureBase <|-- SequentialList
+  LinearStructureBase <|-- LinearLinkedList
+  LinearStructureBase <|-- SequentialStack
+  LinearStructureBase --> OperationStep : records
+}
+
+package "tree" {
+  abstract class TreeStructureBase {
+    # _root
+    + insert(value)
+    + delete(value)
+    + search(value)
+    + traverse_with_animation(type, recursive)
+    + get_tree_data()
+    + size()
+    + clear()
+    + get_operation_history()
+  }
+  class BinaryTree
+  class BinarySearchTree
+  class AVLTree
+  class HuffmanTree {
+    + build_from_string(text)
+    + build_from_numbers(numbers)
+    + encode(text)
+    + decode(code)
+    + get_huffman_codes()
+  }
+  TreeStructureBase <|-- BinaryTree
+  BinaryTree <|-- BinarySearchTree
+  BinarySearchTree <|-- AVLTree
+  TreeStructureBase <|-- HuffmanTree
+  TreeStructureBase --> OperationStep : records
+}
+
+package "extend1_dsl" {
+  class Token
+  class Lexer
+  class Parser
+  class AST
+  class SimpleStructureManager
+  class Interpreter
+  Lexer --> Token
+  Parser --> AST
+  Interpreter ..> Parser
+  Interpreter ..> SimpleStructureManager
+  Interpreter ..> LinearStructureBase
+  Interpreter ..> TreeStructureBase
+}
+
+package "extend2_llm" {
+  class LLMService {
+    + natural_language_to_dsl(message)
+  }
+  abstract class LLMProvider {
+    + generate(message)
+  }
+  class OpenAIProvider
+  class ClaudeProvider
+  class GroqProvider
+  LLMService *-- LLMProvider
+  LLMProvider <|-- OpenAIProvider
+  LLMProvider <|-- ClaudeProvider
+  LLMProvider <|-- GroqProvider
+}
+
+package "code_templates" {
+  class python_templates
+  class java_templates
+  class cpp_templates
+  LLMService ..> python_templates : format DSL explanation
+}
+@enduml
+
+@startuml dsv_controller
+title Controller Layer (Flask APIs)
+skinparam backgroundColor #FFFFFF
+
+class FlaskApp {
+  == Health ==
+  + health()
+  == Linear Structures ==
+  + structure_create()
+  + get_state(id)
+  + init_batch(id, values)
+  + insert_element(id, index, value)
+  + delete_element(id, index)
+  + search_element(id, value)
+  + clear_structure(id)
+  + delete_structure(id)
+  + export_structure(id)
+  + import_structure()
+  == Tree Structures ==
+  + tree_create(type)
+  + get_tree_state(id)
+  + insert_tree_node(id, value)
+  + delete_tree_node(id, value)
+  + search_tree_node(id, value)
+  + clear_tree(id)
+  + delete_tree(id)
+  + traverse_tree(id, type, recursive?)
+  + build_huffman_tree(id, text|numbers)
+  == DSL ==
+  + execute_dsl(code, session_id?)
+  + validate_dsl(code)
+  + delete_dsl_session(session_id)
+  + get_dsl_examples()
+  == LLM ==
+  + llm_chat(message, context, session_id?)
+}
+
+FlaskApp --> LinearStructureBase : create/manage
+FlaskApp --> TreeStructureBase : create/manage
+FlaskApp --> OperationStep : return history
+FlaskApp --> Interpreter : run DSL
+FlaskApp --> LLMService : NL -> DSL
+FlaskApp --> SimpleStructureManager : DSL session store
+FlaskApp --> structures : in-memory registry (UUID -> instance)
+@enduml
+
+@startuml dsv_view
+title View Layer (Vue Frontend Modules)
+skinparam backgroundColor #FFFFFF
+
+package "services" {
+  class ApiClient {
+    + createStructure()
+    + getState()
+    + insertElement()
+    + deleteElement()
+    + searchElement()
+    + createTreeStructure()
+    + getTreeState()
+    + insertTreeNode()
+    + deleteTreeNode()
+    + searchTreeNode()
+    + traverseTree()
+    + buildHuffmanTree()
+    + exportStructure()
+    + importStructure()
+    + executeDSL()
+    + validateDSL()
+    + getDSLExamples()
+    + naturalLanguageToDSL()
+    + getLLMConfig()
+  }
+}
+
+package "views" {
+  class WelcomeView
+  class CategoryView {
+    - currentMode: dsl|llm
+    - dslInput
+    - llmInput
+    - llmStage: idle|reasoning|dsl|complete|reject
+    - hero animations + voice input (LLM only)
+    + loadExample(type)
+    + handleExecute()
+    + handleVoiceInput()
+    + handleImport()/export via ApiClient
+  }
+  class LinearAlgorithmView {
+    - structureId
+    - operationHistory
+    + executeOperation()
+    + playOperationSteps()
+  }
+  class TreeAlgorithmView {
+    - structureId
+    - treeData
+    - traversal animations
+    + playTreeAnimationSteps()
+  }
+  class DSLInputBar
+  class LLMGuideModal
+  class PDFModal
+}
+
+package "components" {
+  class TopNavBar
+  class LinkedListComponent
+  class TreeNodeComponent
+  class TreeCanvas
+}
+
+package "stores/utils" {
+  class languageStore
+  class TreeLayoutEngine
+  class typeWriter
+}
+
+CategoryView ..> ApiClient
+LinearAlgorithmView ..> ApiClient
+TreeAlgorithmView ..> ApiClient
+DSLInputBar ..> ApiClient
+LLMGuideModal ..> ApiClient : fetch config
+CategoryView ..> DSLInputBar : embeds input bar
+LinearAlgorithmView ..> DSLInputBar : reuse
+TreeAlgorithmView ..> DSLInputBar : reuse
+TreeAlgorithmView ..> TreeCanvas
+TreeCanvas ..> TreeLayoutEngine
+LinkedListComponent ..> TreeLayoutEngine : pointer calc (via canvas helpers)
+WelcomeView ..> languageStore
+CategoryView ..> languageStore
+@enduml
