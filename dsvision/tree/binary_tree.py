@@ -15,15 +15,26 @@ class BinaryTree(TreeStructureBase):
         )
         self.add_operation_step(step)
 
-    def insert(self, value:Any) -> bool:
-        """按层序方法插入节点"""
+    def _find_node_by_id(self, node: Optional[TreeNode], target_id: int) -> Optional[TreeNode]:
+        """根据 node_id 查找节点"""
+        if node is None:
+            return None
+        if node.node_id == target_id:
+            return node
+        left = self._find_node_by_id(node.left, target_id)
+        if left:
+            return left
+        return self._find_node_by_id(node.right, target_id)
+
+    def insert(self, value: Any, parent_id: Optional[int] = None, direction: Optional[str] = None) -> bool:
+        """插入节点：支持指定父节点的左/右子节点，否则按层序插入"""
         # 🔥 清空操作历史，避免累积之前的操作
         self._operation_history = []
 
         step = OperationStep(
             OperationType.INSERT,
-            value = value,
-            description = f"准备插入节点{value}",
+            value=value,
+            description=f"准备插入节点{value}",
             code_template='binary_insert',
             code_line=2,
             code_highlight=[2, 3]
@@ -38,16 +49,79 @@ class BinaryTree(TreeStructureBase):
             print(f"插入 {value} 作为根节点")
             step = OperationStep(
                 OperationType.INSERT,
-                value = value,
-                description = f'插入节点{value}作为根节点',
+                value=value,
+                description=f'插入节点{value}作为根节点',
                 code_template='binary_insert',
                 code_line=6,
-                code_highlight=[5, 6, 7]
+                code_highlight=[5, 6, 7],
+                highlight_indices=[new_node.node_id]
             )
             self.add_operation_step(step)
             return True
 
-        #宽度周游找到第一个空位置
+        # 如果用户指定了父节点和方向，优先按指定位置插入
+        if parent_id and direction in ['left', 'right']:
+            parent_node = self._find_node_by_id(self._root, parent_id)
+            if not parent_node:
+                step = OperationStep(
+                    OperationType.INSERT,
+                    value=value,
+                    description=f"插入失败：未找到ID为 {parent_id} 的节点",
+                    code_template='binary_insert',
+                    code_line=10,
+                    code_highlight=[10],
+                    highlight_indices=[]
+                )
+                self.add_operation_step(step)
+                return False
+
+            # 记录选中节点（红色强调）
+            highlight_step = OperationStep(
+                OperationType.INSERT,
+                value=value,
+                description=f"选择节点 {parent_node.value} 的{ '左' if direction == 'left' else '右'}子节点插入 {value}",
+                code_template='binary_insert',
+                code_line=12,
+                code_highlight=[11, 12],
+                highlight_indices=[parent_node.node_id],
+                duration=0.6,
+                animation_type="highlight"
+            )
+            self.add_operation_step(highlight_step)
+
+            target_child = parent_node.left if direction == 'left' else parent_node.right
+            if target_child is not None:
+                step = OperationStep(
+                    OperationType.INSERT,
+                    value=value,
+                    description=f"插入失败：节点 {parent_node.value} 的{ '左' if direction == 'left' else '右'}子节点已被占用",
+                    code_template='binary_insert',
+                    code_line=14,
+                    code_highlight=[14],
+                    highlight_indices=[parent_node.node_id]
+                )
+                self.add_operation_step(step)
+                return False
+
+            if direction == 'left':
+                parent_node.left = new_node
+            else:
+                parent_node.right = new_node
+
+            self._size += 1
+            step = OperationStep(
+                OperationType.INSERT,
+                value=value,
+                description=f'将节点{value}插入为节点{parent_node.value}的{ "左" if direction == "left" else "右"}子节点',
+                code_template='binary_insert',
+                code_line=18,
+                code_highlight=[17, 18, 19],
+                highlight_indices=[new_node.node_id]
+            )
+            self.add_operation_step(step)
+            return True
+
+        # 默认：按层序方法插入节点
         queue = [self._root]
         while queue:
             node = queue.pop(0)
@@ -60,11 +134,12 @@ class BinaryTree(TreeStructureBase):
                 self._size += 1
                 step = OperationStep(
                     OperationType.INSERT,
-                    value = value,
-                    description = f'将节点{value}插入为节点{node.value}的左子节点',
+                    value=value,
+                    description=f'将节点{value}插入为节点{node.value}的左子节点',
                     code_template='binary_insert',
                     code_line=18,
-                    code_highlight=[17, 18, 19]
+                    code_highlight=[17, 18, 19],
+                    highlight_indices=[new_node.node_id]
                 )
                 self.add_operation_step(step)
                 return True
@@ -77,11 +152,12 @@ class BinaryTree(TreeStructureBase):
                 self._size += 1
                 step = OperationStep(
                     OperationType.INSERT,
-                    value = value,
-                    description = f'将节点{value}插入为节点{node.value}的右子节点',
+                    value=value,
+                    description=f'将节点{value}插入为节点{node.value}的右子节点',
                     code_template='binary_insert',
                     code_line=25,
-                    code_highlight=[24, 25, 26]
+                    code_highlight=[24, 25, 26],
+                    highlight_indices=[new_node.node_id]
                 )
                 self.add_operation_step(step)
                 return True
@@ -322,7 +398,6 @@ class BinaryTree(TreeStructureBase):
             'size': self._size,
             'height': self.get_height()
         }
-
 
 
 

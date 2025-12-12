@@ -44,11 +44,12 @@ export default{
   },
 
   //创建数据结构
-  createStructure(type,capacity = 100) {
-    return apiClient.post('/structure/create', {
-      type,
-      capacity
-    });
+  createStructure(type,capacity = null) {
+    const payload = { type }
+    if (capacity !== undefined) {
+      payload.capacity = capacity
+    }
+    return apiClient.post('/structure/create', payload);
   },
 
   //获取数据结构状态
@@ -110,10 +111,11 @@ export default{
   },
 
   // 插入树节点
-  insertTreeNode(structureId, value) {
-    return apiClient.post(`/tree/${structureId}/insert`, {
-      value
-    });
+  insertTreeNode(structureId, value, parentId = null, direction = null) {
+    const payload = { value }
+    if (parentId) payload.parent_id = parentId
+    if (direction) payload.direction = direction
+    return apiClient.post(`/tree/${structureId}/insert`, payload);
   },
 
   // 删除树节点

@@ -124,7 +124,9 @@ def structure_create():
         elif structure_type == 'linked':
             structures[structure_id] = LinearLinkedList()
         elif structure_type == 'stack':
-            structures[structure_id] = SequentialStack(capacity=capacity)
+            # 容量为空则视为无限容量
+            cap = None if capacity in [None, '', 0] else capacity
+            structures[structure_id] = SequentialStack(capacity=cap)
         elif structure_type == 'binary':
             structures[structure_id] = BinaryTree()
         elif structure_type == 'bst':
@@ -428,13 +430,25 @@ def insert_tree_node(structure_id):
 
         data = request.json
         value = data.get('value')
+        parent_id = data.get('parent_id')
+        direction = data.get('direction')  # left / right
 
         # 🔥 关键: 清空历史记录
         structure.clear_operation_history()
 
         value = _convert_tree_value(value)
 
-        success = structure.insert(value)
+        # 仅普通二叉树支持定向插入
+        if isinstance(structure, BinaryTree) and parent_id and direction in ['left', 'right']:
+            try:
+                parent_id = int(parent_id)
+            except (TypeError, ValueError):
+                parent_id = None
+
+        if isinstance(structure, BinaryTree) and parent_id and direction in ['left', 'right']:
+            success = structure.insert(value, parent_id=parent_id, direction=direction)
+        else:
+            success = structure.insert(value)
 
         # 🔥 打印调试信息
         tree_data = structure.get_tree_data()
@@ -1043,7 +1057,7 @@ def get_dsl_examples():
     """获取 DSL 示例代码"""
     examples = {
         'sequential': """Sequential myList {
-    init [1, 2, 3, 4, 5]
+    init [1, 2, 3, 4, 5] capacity 10
     insert 10 at 2
     search 10
     delete at 3

@@ -7,10 +7,9 @@
       @import-file="handleImport"
     />
 
-    <!-- PDF Modal -->
-    <PDFModal
+    <!-- DSL Guide Modal -->
+    <DSLGuideModal
       :is-open="showDSLManual"
-      :pdf-path="'/dsl-manual.pdf'"
       @close="showDSLManual = false"
     />
 
@@ -156,8 +155,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api.js'
 import TopNavBar from '../components/TopNavBar.vue'
-import PDFModal from '../components/PDFModal.vue'
 import LLMGuideModal from '../components/LLMGuideModal.vue'
+import DSLGuideModal from '../components/DSLGuideModal.vue'
 import { useLanguage } from '../stores/language.js'
 
 const { t } = useLanguage()

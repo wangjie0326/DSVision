@@ -113,6 +113,26 @@
         />
       </div>
 
+      <!-- 二叉树插入：节点/方向选择 -->
+      <div v-if="structureType === 'binary' && currentOperation === 'insert'" class="operation-group">
+        <label class="label">Target Node:</label>
+        <div class="target-controls">
+          <span class="target-status">
+            {{ selectedParentId && findNodeById(treeData?.root, selectedParentId)
+              ? `ID: ${selectedParentId}, Val: ${findNodeById(treeData.root, selectedParentId)?.value}`
+              : 'none (level-order default)' }}
+          </span>
+          <label class="radio-inline">
+            <input type="radio" value="left" v-model="selectedDirection" />
+            left
+          </label>
+          <label class="radio-inline">
+            <input type="radio" value="right" v-model="selectedDirection" />
+            right
+          </label>
+        </div>
+      </div>
+
       <button
         @click="executeOperation"
         :disabled="isAnimating || !canExecute"
@@ -240,6 +260,8 @@
               :highlighted="highlightedNodes"
               :dashedNodes="dashedNodes"
               :isHuffman="structureType === 'huffman'"
+              :selectedNodeId="structureType === 'binary' ? selectedParentId : null"
+              @select-node="handleNodeSelect"
             />
 
             <!-- 🔥 预览节点 -->
@@ -347,6 +369,9 @@ const structureId = ref(null)
 const treeData = ref(null)
 const currentOperation = ref('insert')
 const inputValue = ref('')
+// 二叉树定向插入
+const selectedParentId = ref(null)
+const selectedDirection = ref('left')
 const huffmanText = ref('')
 const huffmanMode = ref('text')  // 🔥 Huffman树模式: 'text' 或 'number'
 const huffmanNumbers = ref('')   // 🔥 Huffman树数字模式输入
@@ -519,6 +544,20 @@ const isEdgeDashed = (edge) => {
   // 边的ID格式是 "fromId-toId"
   const toNodeId = parseInt(edge.id.split('-')[1])
   return dashedNodes.value.includes(toNodeId)
+}
+
+// 选中父节点用于定向插入（仅普通二叉树）
+const handleNodeSelect = (nodeId) => {
+  if (structureType.value !== 'binary') return
+  if (selectedParentId.value === nodeId) {
+    selectedParentId.value = null
+    return
+  }
+  selectedParentId.value = nodeId
+}
+
+const clearSelectedParent = () => {
+  selectedParentId.value = null
 }
 
 // 🔥 动画播放器（每步重新计算布局）
@@ -881,7 +920,15 @@ const executeOperation = async () => {
         break
       case 'insert': {
         const val = isNaN(Number(inputValue.value)) ? inputValue.value : Number(inputValue.value)
-        response = await api.insertTreeNode(structureId.value, val)
+        let parentIdToUse = null
+        let directionToUse = null
+
+        if (structureType.value === 'binary' && selectedParentId.value) {
+          parentIdToUse = selectedParentId.value
+          directionToUse = selectedDirection.value || 'left'
+        }
+
+        response = await api.insertTreeNode(structureId.value, val, parentIdToUse, directionToUse)
         break
       }
       case 'delete': {
@@ -934,6 +981,8 @@ const executeOperation = async () => {
     inputValue.value = ''
     huffmanText.value = ''
     huffmanNumbers.value = ''
+    selectedParentId.value = null
+    selectedDirection.value = 'left'
 
   } catch (error) {
     console.error('❌ 操作失败:', error)
@@ -1189,6 +1238,20 @@ watch(() => route.query.importId, async (newId) => {
   }
 })
 
+watch(structureType, (val) => {
+  if (val !== 'binary') {
+    selectedParentId.value = null
+    selectedDirection.value = 'left'
+  }
+})
+
+watch(currentOperation, (op) => {
+  if (op !== 'insert') {
+    selectedParentId.value = null
+    selectedDirection.value = 'left'
+  }
+})
+
 </script>
 
 <style>
@@ -1273,6 +1336,27 @@ watch(() => route.query.importId, async (newId) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.target-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.target-status {
+  color: #374151;
+  font-size: 0.95rem;
+  margin-right: 0.25rem;
+}
+
+.radio-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.95rem;
 }
 
 .label {

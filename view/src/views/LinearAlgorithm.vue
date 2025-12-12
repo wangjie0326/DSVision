@@ -51,16 +51,16 @@
         </select>
       </div>
 
-      <!-- 🔥 2. 容量输入（仅顺序表显示） -->
-      <div v-if="structureType === 'sequential' && !structureId" class="operation-group">
+      <!-- 🔥 2. 容量输入（顺序表/栈，未创建时可设） -->
+      <div v-if="(structureType === 'sequential' || structureType === 'stack') && !structureId" class="operation-group">
         <label class="label">Capacity:</label>
         <input
           v-model.number="capacity"
           type="number"
-          placeholder="100"
+          :placeholder="structureType === 'stack' ? 'optional (∞)' : '100'"
           class="text-input"
           min="1"
-          max="100"
+          max="1000"
         />
       </div>
 
@@ -211,22 +211,61 @@
             </div>
           </template>
 
-          <!-- 栈的可视化 - 保持原样 -->
+          <!-- 栈的可视化 -->
           <template v-if="structureType === 'stack'">
-            <div
-              v-for="(element, index) in elements"
-              :key="`elem-${index}`"
-              class="element-wrapper"
-            >
-              <div
-                class="element-node"
-                :class="getNodeClass(index)"
-              >
-                <span class="element-value">{{ element }}</span>
+            <div class="stack-area">
+              <!-- 旧栈 -->
+              <div class="stack-container-outer" :class="{ 'old-array-delete': oldArrayMarkedForDelete }">
+                <div class="array-label">Stack (capacity: {{ capacity ?? '∞' }})</div>
+                <div class="stack-border">
+                  <div
+                    v-for="(slot, index) in stackSlots"
+                    :key="`elem-${index}`"
+                    class="element-wrapper stack-wrapper"
+                  >
+                    <div
+                      class="element-node"
+                      :class="[
+                        getNodeClass(index),
+                        {
+                          'empty-slot': slot.value === null || slot.value === undefined,
+                          'delete-marked': oldArrayMarkedForDelete
+                        }
+                      ]"
+                    >
+                      <span class="element-value" v-if="slot.value !== null && slot.value !== undefined">{{ slot.value }}</span>
+                    </div>
+                    <div class="element-index">[{{ index }}]</div>
+                    <div v-if="slot.isTop" class="stack-top-indicator">
+                      TOP
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="element-index">[{{ index }}]</div>
-              <div v-if="index === elements.length - 1" class="stack-top-indicator">
-                TOP
+
+              <!-- 🔥 栈扩容时显示新栈（右侧虚线边框） -->
+              <div v-if="isExpanding" class="stack-container-outer ghost">
+                <div class="array-label">New Stack (capacity: {{ newCapacity }})</div>
+                <div class="stack-border ghost-border">
+                  <div
+                    v-for="idx in newCapacity"
+                    :key="`stack-new-${idx - 1}`"
+                    class="element-wrapper stack-wrapper ghost"
+                  >
+                    <div
+                      class="element-node new-array-node"
+                      :class="{
+                        'empty-slot': !newArray[idx - 1] && newArray[idx - 1] !== 0,
+                        'highlighted': highlightedIndices.includes(idx - 1)
+                      }"
+                    >
+                      <span class="element-value" v-if="newArray[idx - 1] !== null && newArray[idx - 1] !== undefined">
+                        {{ newArray[idx - 1] }}
+                      </span>
+                    </div>
+                    <div class="element-index">[{{ idx - 1 }}]</div>
+                  </div>
+                </div>
               </div>
             </div>
           </template>
@@ -307,7 +346,7 @@ const route = useRoute()
 const structureType = ref(route.params.type || 'sequential')
 const structureId = ref(null)
 const elements = ref([])
-const capacity = ref(100)
+const capacity = ref(null)
 
 // 🔥 新增: 来源标识
 const fromDSL = ref(route.query.fromDSL === 'true')
@@ -413,6 +452,26 @@ const containerClass = computed(() => {
   return 'sequential-container'
 })
 
+// 栈显示槽位（支持固定容量展示空位）
+const stackSlots = computed(() => {
+  if (structureType.value !== 'stack') return []
+  const cap = capacity.value
+  const elems = elements.value || []
+
+  if (cap && cap > 0) {
+    return Array.from({ length: cap }, (_, i) => ({
+      value: elems[i],
+      isTop: elems.length > 0 && i === elems.length - 1
+    }))
+  }
+
+  // 无容量限制：仅显示已有元素
+  return elems.map((v, i) => ({
+    value: v,
+    isTop: elems.length > 0 && i === elems.length - 1
+  }))
+})
+
 // 方法
 const getNodeClass = (index) => {
   return {
@@ -423,8 +482,18 @@ const getNodeClass = (index) => {
 
 const createStructure = async () => {
   try {
-    const response = await api.createStructure(structureType.value, capacity.value)
+    let cap = capacity.value
+    if (structureType.value === 'stack') {
+      cap = cap && cap > 0 ? cap : 5  // 栈默认 5
+    } else if (structureType.value === 'sequential') {
+      cap = cap && cap > 0 ? cap : 5   // 顺序表默认 5
+    }
+
+    const response = await api.createStructure(structureType.value, cap)
     structureId.value = response.structure_id
+    if (response.capacity !== undefined) {
+      capacity.value = response.capacity
+    }
     console.log('Structure created:', response)
   } catch (error) {
     console.error('Failed to create structure:', error)
@@ -719,7 +788,11 @@ const createOrLoadStructure = async()=>{
         console.log(`✓ 成功加载 ${response.data.length} 个元素:`, response.data)
 
         // 恢复状态
-        capacity.value = response.capacity || 100
+        if (response.capacity !== undefined) {
+          capacity.value = response.capacity
+        } else if (!capacity.value && structureType.value === 'sequential') {
+          capacity.value = 5
+        }
         operationHistory.value = response.operation_history || []
 
         // 🔥 如果来自DSL且有操作历史，播放动画
@@ -766,16 +839,25 @@ const createOrLoadStructure = async()=>{
 //新增创建数据结构的独立函数
 const createNewStructure = async () => {
   try {
-    const response = await api.createStructure(structureType.value, capacity.value)
+    let cap = capacity.value
+    if (structureType.value === 'stack') {
+      cap = cap && cap > 0 ? cap : 5  // 栈默认 5（视作初始槽位）
+    } else if (structureType.value === 'sequential') {
+      cap = cap && cap > 0 ? cap : 5   // 顺序表默认 5
+    }
+
+    const response = await api.createStructure(structureType.value, cap)
     structureId.value = response.structure_id
     console.log('新建数据结构:', response)
 
-    // 🔥 立即获取初始状态，显示所有容量槽位
-    if (structureType.value === 'sequential') {
+    // 🔥 立即获取初始状态，显示容量槽位
+    if (structureType.value === 'sequential' || structureType.value === 'stack') {
       const state = await api.getState(structureId.value)
       elements.value = state.data || []
-      capacity.value = state.capacity || capacity.value
-      console.log(`✓ 顺序表已创建，容量: ${capacity.value}，显示 ${elements.value.length} 个槽位`)
+      if (state.capacity !== undefined) {
+        capacity.value = state.capacity
+      }
+      console.log(`✓ 结构已创建，容量: ${capacity.value ?? '∞'}，元素: ${elements.value.length}`)
     }
   } catch (error) {
     console.error('创建数据结构失败:', error)
@@ -1023,7 +1105,49 @@ watch(() => route.query.importId, async (newId) => {
 
 .stack-container {
   flex-direction: column-reverse;
-  align-items: center;
+  align-items: flex-start;
+  position: relative;
+  padding-left: 60px;
+}
+
+.stack-area {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.stack-container-outer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stack-border {
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  position: relative;
+  background: white;
+  min-width: 120px;
+  box-sizing: border-box;
+}
+
+.stack-border.ghost-border {
+  border: 2px dashed #9ca3af;
+  background: #f9fafb;
+}
+
+.stack-container-outer.old-array-delete .stack-border {
+  border-color: #fca5a5;
+}
+
+.stack-container-outer.ghost .element-node {
+  opacity: 0.8;
+}
+
+.stack-wrapper {
+  align-items: flex-start;
 }
 
 .linked-container {
@@ -1080,15 +1204,15 @@ watch(() => route.query.importId, async (newId) => {
 
 .stack-top-indicator {
   position: absolute;
-  top: -30px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: -50px;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #ef4444;
   background-color: #fee2e2;
-  padding: 0.25rem 0.75rem;
-  border-radius: 1rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.75rem;
 }
 
 /* 链表节点 */

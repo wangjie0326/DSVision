@@ -223,34 +223,11 @@ class TreeStructureBase(ABC):
         )
         self.add_operation_step(step)
 
-        # 递归左子树
-        if node.left:
-            self.add_operation_step(OperationStep(
-                OperationType.SEARCH,
-                value=node.left.value,
-                description=f"递归左子树 -> {node.left.value}",
-                highlight_indices=[node.left.node_id],
-                animation_type="highlight",
-                duration=0.8,
-                code_template='tree_traversal_preorder',
-                code_line=7,
-                code_highlight=[7]
-            ))
+        # 递归左子树（不再单独高亮，避免重复）
         self._preorder_with_steps(node.left, result)
 
         # 递归右子树
-        if node.right:
-            self.add_operation_step(OperationStep(
-                OperationType.SEARCH,
-                value=node.right.value,
-                description=f"递归右子树 -> {node.right.value}",
-                highlight_indices=[node.right.node_id],
-                animation_type="highlight",
-                duration=0.8,
-                code_template='tree_traversal_preorder',
-                code_line=10,
-                code_highlight=[10]
-            ))
+        # （不高亮递归提示）
         self._preorder_with_steps(node.right, result)
 
     def _inorder_with_steps(self, node: Optional[TreeNode], result: List[Any]) -> None:
@@ -269,19 +246,7 @@ class TreeStructureBase(ABC):
             self.add_operation_step(step)
             return
 
-        # 递归左子树
-        if node.left:
-            self.add_operation_step(OperationStep(
-                OperationType.SEARCH,
-                value=node.left.value,
-                description=f"递归左子树 -> {node.left.value}",
-                highlight_indices=[node.left.node_id],
-                animation_type="highlight",
-                duration=0.8,
-                code_template='tree_traversal_inorder',
-                code_line=5,
-                code_highlight=[5]
-            ))
+        # 递归左子树（不高亮递归提示）
         self._inorder_with_steps(node.left, result)
 
         # 访问当前节点
@@ -299,19 +264,7 @@ class TreeStructureBase(ABC):
         )
         self.add_operation_step(step)
 
-        # 递归右子树
-        if node.right:
-            self.add_operation_step(OperationStep(
-                OperationType.SEARCH,
-                value=node.right.value,
-                description=f"递归右子树 -> {node.right.value}",
-                highlight_indices=[node.right.node_id],
-                animation_type="highlight",
-                duration=0.8,
-                code_template='tree_traversal_inorder',
-                code_line=11,
-                code_highlight=[11]
-            ))
+        # 递归右子树（不高亮递归提示）
         self._inorder_with_steps(node.right, result)
 
     def _postorder_with_steps(self, node: Optional[TreeNode], result: List[Any]) -> None:
@@ -330,33 +283,9 @@ class TreeStructureBase(ABC):
             self.add_operation_step(step)
             return
 
-        # 递归左子树
-        if node.left:
-            self.add_operation_step(OperationStep(
-                OperationType.SEARCH,
-                value=node.left.value,
-                description=f"递归左子树 -> {node.left.value}",
-                highlight_indices=[node.left.node_id],
-                animation_type="highlight",
-                duration=0.8,
-                code_template='tree_traversal_postorder',
-                code_line=5,
-                code_highlight=[5]
-            ))
+        # 递归左子树（不高亮递归提示）
         self._postorder_with_steps(node.left, result)
-        # 递归右子树
-        if node.right:
-            self.add_operation_step(OperationStep(
-                OperationType.SEARCH,
-                value=node.right.value,
-                description=f"递归右子树 -> {node.right.value}",
-                highlight_indices=[node.right.node_id],
-                animation_type="highlight",
-                duration=0.8,
-                code_template='tree_traversal_postorder',
-                code_line=8,
-                code_highlight=[8]
-            ))
+        # 递归右子树（不高亮递归提示）
         self._postorder_with_steps(node.right, result)
 
         # 访问当前节点

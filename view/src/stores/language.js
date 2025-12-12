@@ -43,7 +43,7 @@ export const translations = {
     huffman: 'Huffman',
 
     // Placeholders
-    dslPlaceholder: 'Enter DSL code here... (Ctrl+Enter to execute)\nExample:\nSequential myList {\n    init [1, 2, 3, 4, 5]\n    insert 10 at 2\n}',
+    dslPlaceholder: 'Enter DSL code here... (Ctrl+Enter to execute)\nExample:\nSequential myList {\n    init [1, 2, 3] capacity 10\n    insert 10 at 2\n}',
     llmPlaceholder: 'Send a natural language instruction here...',
 
     // Data Structures
@@ -109,7 +109,7 @@ export const translations = {
     huffman: '哈夫曼树',
 
     // Placeholders
-    dslPlaceholder: '在这里输入 DSL 代码... (Ctrl+Enter 执行)\n示例：\nSequential myList {\n    init [1, 2, 3, 4, 5]\n    insert 10 at 2\n}',
+    dslPlaceholder: '在这里输入 DSL 代码... (Ctrl+Enter 执行)\n示例：\nSequential myList {\n    init [1, 2, 3] capacity 10\n    insert 10 at 2\n}',
     llmPlaceholder: '在这里发送自然语言指令...',
 
     // Data Structures

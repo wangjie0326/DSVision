@@ -3,10 +3,11 @@
     v-if="node && position"
     class="tree-node"
     :class="{
-      'highlighted': isHighlighted,
+      'highlighted': isHighlighted || isSelected,
       'huffman-node': isHuffman,
       'dashed-node': isDashed,
-      'preview-node': isPreview
+      'preview-node': isPreview,
+      'selected': isSelected && !isHighlighted
     }"
     :style="{
       position: 'absolute',
@@ -14,6 +15,7 @@
       top: `${position.y}px`,
       transform: 'translate(-50%, -50%)'
     }"
+    @click.stop="selectNode"
   >
     <div class="node-content">
       <!-- 普通节点显示值 -->
@@ -52,15 +54,25 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  selectedNodeId: {
+    type: Number,
+    default: null
+  },
   isPreview: {
     type: Boolean,
     default: false
   }
 })
+const emit = defineEmits(['select-node'])
 
 const isHighlighted = computed(() => {
   const id = props.node?.node_id
   return !!(id && props.highlighted.includes(id))
+})
+
+const isSelected = computed(() => {
+  const id = props.node?.node_id
+  return !!(id && props.selectedNodeId === id)
 })
 
 const isDashed = computed(() => {
@@ -75,6 +87,11 @@ const isDashed = computed(() => {
 
   return result
 })
+
+const selectNode = () => {
+  if (!props.node?.node_id) return
+  emit('select-node', props.node.node_id)
+}
 
 </script>
 
@@ -136,6 +153,11 @@ const isDashed = computed(() => {
   animation: pulse 1s ease-in-out infinite !important;
   z-index: 200 !important;  /* 🔥 确保高亮节点在虚线节点之上 */
   border: none !important;  /* 🔥 移除虚线边框（如果同时是虚线节点） */
+}
+
+.tree-node.selected {
+  background-color: #ef4444 !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18), 0 8px 12px -2px rgba(0, 0, 0, 0.15) !important;
 }
 
 @keyframes pulse {
