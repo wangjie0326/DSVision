@@ -459,6 +459,41 @@ HUFFMAN_GENERATE_CODES = """def generate_codes(self, node, code):
     self.generate_codes(node.left, code + "0")
     self.generate_codes(node.right, code + "1")"""
 
+# ==================== Queue ====================
+QUEUE_ENQUEUE = """def enqueue(self, value):
+    # 满则扩容
+    if self.is_full():
+        self._expand()
+
+    self._rear += 1
+    self._data[self._rear] = value
+    if self._size == 0:
+        self._front = 0
+    self._size += 1"""
+
+QUEUE_DEQUEUE = """def dequeue(self):
+    if self.is_empty():
+        return None
+
+    value = self._data[self._front]
+    self._data[self._front] = None
+    self._front += 1
+    self._size -= 1
+    if self._size == 0:
+        self._front = 0
+        self._rear = -1
+    return value"""
+
+QUEUE_FRONT = """def front(self):
+    if self.is_empty():
+        return None
+    return self._data[self._front]"""
+
+QUEUE_REAR = """def rear(self):
+    if self.is_empty():
+        return None
+    return self._data[self._rear]"""
+
 # ==================== 代码模板字典 ====================
 PYTHON_CODE_TEMPLATES = {
     'sequential_insert': SEQUENTIAL_INSERT,
@@ -468,6 +503,10 @@ PYTHON_CODE_TEMPLATES = {
     'stack_push': STACK_PUSH,
     'stack_pop': STACK_POP,
     'stack_peek': STACK_PEEK,
+    'queue_enqueue': QUEUE_ENQUEUE,
+    'queue_dequeue': QUEUE_DEQUEUE,
+    'queue_front': QUEUE_FRONT,
+    'queue_rear': QUEUE_REAR,
     'linked_insert': LINKED_INSERT,
     'linked_delete': LINKED_DELETE,
     'linked_search': LINKED_SEARCH,

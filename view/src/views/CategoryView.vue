@@ -201,6 +201,7 @@ const exampleButtons = computed(() => [
   { type: 'sequential', label: t('sequential') },
   { type: 'linked', label: t('linked') },
   { type: 'stack', label: t('stack') },
+   { type: 'queue', label: 'Queue' },
   { type: 'bst', label: t('bst') },
   { type: 'huffman', label: t('huffman') }
 ])

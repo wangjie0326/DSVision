@@ -32,7 +32,10 @@ class SequentialList(LinearStructureBase):
         step = OperationStep(
             OperationType.INIT,
             description=f'开始批量初始化 {len(values)} 个元素',
-            data_snapshot=[]
+            data_snapshot=[],
+            code_template='sequential_insert',
+            code_line=1,
+            code_highlight=[1, 2, 3]
         )
         self.add_operation_step(step)
         # 逐个插入
@@ -549,7 +552,6 @@ class SequentialList(LinearStructureBase):
         self.add_operation_step(step)
 
         return True
-
 
 
 

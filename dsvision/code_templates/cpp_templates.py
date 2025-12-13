@@ -655,6 +655,37 @@ HUFFMAN_GENERATE_CODES = """void generateCodes(Node* node, string code) {
     generateCodes(node->right, code + "1");
 }"""
 
+# ==================== Queue ====================
+QUEUE_ENQUEUE = """void enqueue(int value) {
+    if (isFull()) {
+        expand();
+    }
+    rear++;
+    data[rear] = value;
+    if (size == 0) front = 0;
+    size++;
+}"""
+
+QUEUE_DEQUEUE = """int dequeue() {
+    if (isEmpty()) return -1;
+    int value = data[front];
+    data[front] = -1;
+    front++;
+    size--;
+    if (size == 0) { front = 0; rear = -1; }
+    return value;
+}"""
+
+QUEUE_FRONT = """int frontValue() const {
+    if (isEmpty()) return -1;
+    return data[front];
+}"""
+
+QUEUE_REAR = """int rearValue() const {
+    if (isEmpty()) return -1;
+    return data[rear];
+}"""
+
 # ==================== 代码模板映射 ====================
 CODE_TEMPLATES = {
     # 顺序表
@@ -667,6 +698,12 @@ CODE_TEMPLATES = {
     'stack_push': STACK_PUSH,
     'stack_pop': STACK_POP,
     'stack_peek': STACK_PEEK,
+
+    # 队列
+    'queue_enqueue': QUEUE_ENQUEUE,
+    'queue_dequeue': QUEUE_DEQUEUE,
+    'queue_front': QUEUE_FRONT,
+    'queue_rear': QUEUE_REAR,
 
     # 链表
     'linked_insert_head': LINKED_INSERT_HEAD,

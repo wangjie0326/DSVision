@@ -51,13 +51,13 @@
         </select>
       </div>
 
-      <!-- 🔥 2. 容量输入（顺序表/栈，未创建时可设） -->
-      <div v-if="(structureType === 'sequential' || structureType === 'stack') && !structureId" class="operation-group">
+      <!-- 🔥 2. 容量输入（顺序表/栈/队列，未创建时可设；栈首个操作前可修改） -->
+      <div v-if="(structureType === 'sequential' || structureType === 'stack' || structureType === 'queue') && !structureId && !stackStarted" class="operation-group">
         <label class="label">Capacity:</label>
         <input
           v-model.number="capacity"
           type="number"
-          :placeholder="structureType === 'stack' ? 'optional (∞)' : '100'"
+          :placeholder="(structureType === 'stack' || structureType === 'queue') ? 'optional (5 default)' : '5'"
           class="text-input"
           min="1"
           max="1000"
@@ -138,16 +138,16 @@
     <div class="visualization-area" :style="{ paddingBottom: '180px' }">
       <div class="canvas-wrapper">
         <!-- 🔥 空状态提示（非顺序表才显示） -->
-        <div v-if="elements.length === 0 && structureType !== 'sequential'" class="empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <path d="M9 9h6M9 15h6"/>
-          </svg>
-          <p>Start adding elements...</p>
+      <div v-if="elements.length === 0 && structureType !== 'sequential' && !capacity" class="empty-state">
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M9 9h6M9 15h6"/>
+        </svg>
+        <p>Start adding elements...</p>
         </div>
 
         <!-- 🔥 顺序表始终显示网格，即使为空 -->
-        <div v-if="structureType === 'sequential' || elements.length > 0" class="elements-container" :class="containerClass">
+        <div v-if="structureType === 'sequential' || structureType === 'queue' || structureType === 'stack' || elements.length > 0" class="elements-container" :class="containerClass">
           <!-- 🔥 链表的可视化 - 使用SVG组件 -->
           <template v-if="structureType === 'linked'">
             <LinkedList
@@ -158,10 +158,12 @@
           </template>
 
           <!-- 🔥 顺序表的可视化 - 10x10网格，显示所有容量槽位 -->
-          <template v-if="structureType === 'sequential'">
+          <template v-if="structureType === 'sequential' || structureType === 'queue'">
             <!-- 旧数组（原始数组） -->
             <div class="array-container" :class="{ 'old-array-delete': oldArrayMarkedForDelete }">
-              <div v-if="isExpanding" class="array-label">旧数组 (容量: {{ capacity }})</div>
+              <div v-if="capacity" class="array-label">
+                {{ structureType === 'queue' ? 'Queue' : 'Sequential' }} (capacity: {{ capacity ?? '∞' }})
+              </div>
               <div
                 v-for="index in capacity"
                 :key="`old-elem-${index - 1}`"
@@ -180,14 +182,16 @@
                   <span v-if="elements[index - 1] !== null && elements[index - 1] !== undefined" class="element-value">
                     {{ elements[index - 1] }}
                   </span>
+                  <div v-if="isQueueFront(index - 1)" class="queue-indicator front">FRONT</div>
+                  <div v-if="isQueueRear(index - 1)" class="queue-indicator rear">REAR</div>
                 </div>
                 <div class="element-index">[{{ index - 1 }}]</div>
               </div>
             </div>
 
             <!-- 🔥 新数组（扩容时显示） -->
-            <div v-if="isExpanding" class="array-container new-array-container">
-              <div class="array-label">新数组 (容量: {{ newCapacity }})</div>
+              <div v-if="isExpanding" class="array-container new-array-container">
+              <div class="array-label">New {{ structureType === 'queue' ? 'Queue' : 'Array' }} (capacity: {{ newCapacity }})</div>
               <div
                 v-for="index in newCapacity"
                 :key="`new-elem-${index - 1}`"
@@ -216,7 +220,7 @@
             <div class="stack-area">
               <!-- 旧栈 -->
               <div class="stack-container-outer" :class="{ 'old-array-delete': oldArrayMarkedForDelete }">
-                <div class="array-label">Stack (capacity: {{ capacity ?? '∞' }})</div>
+                <div v-if="capacity" class="array-label">Stack (capacity: {{ capacity ?? '∞' }})</div>
                 <div class="stack-border">
                   <div
                     v-for="(slot, index) in stackSlots"
@@ -347,6 +351,7 @@ const structureType = ref(route.params.type || 'sequential')
 const structureId = ref(null)
 const elements = ref([])
 const capacity = ref(null)
+const stackStarted = ref(false)
 
 // 🔥 新增: 来源标识
 const fromDSL = ref(route.query.fromDSL === 'true')
@@ -377,6 +382,8 @@ const isExpanding = ref(false)  // 是否正在扩容
 const newArray = ref([])  // 扩容时的新数组
 const newCapacity = ref(0)  // 新数组的容量
 const oldArrayMarkedForDelete = ref(false)  // 旧数组是否标记为删除
+const queueFrontIndex = ref(-1)
+const queueRearIndex = ref(-1)
 
 // 🔥 代码面板相关
 const currentCode = ref('')  // 当前显示的代码
@@ -395,7 +402,8 @@ const structureTitle = computed(() => {
   const titles = {
     'sequential': 'Sequential List Visualization',
     'linked': 'Linked List Visualization',
-    'stack': 'Stack Visualization'
+    'stack': 'Stack Visualization',
+    'queue': 'Queue Visualization'
   }
   return titles[structureType.value] || 'Data Structure Visualization'
 })
@@ -419,13 +427,27 @@ const availableOperations = computed(() => {
       { value: 'push', label: 'Push' },
       { value: 'pop', label: 'Pop' },
       { value: 'peek', label: 'Peek' }
+    ],
+    'queue': [
+      { value: 'batch_init', label: 'Batch Init' },
+      { value: 'enqueue', label: 'Enqueue' },
+      { value: 'dequeue', label: 'Dequeue' },
+      { value: 'front', label: 'Front' },
+      { value: 'rear', label: 'Rear' },
+      { value: 'search', label: 'Search' }
     ]
   }
   return ops[structureType.value] || []
 })
 
+watch(availableOperations, (ops) => {
+  if (ops && ops.length > 0) {
+    currentOperation.value = ops[0].value
+  }
+}, { immediate: true })
+
 const needsValue = computed(() => {
-  return ['batch_init','insert', 'push', 'search'].includes(currentOperation.value)
+  return ['batch_init','insert', 'push', 'enqueue', 'search'].includes(currentOperation.value)
 })
 
 const batchInput = ref('')
@@ -433,7 +455,8 @@ const showBatchDialog = ref(false)
 
 const needsIndex = computed(() => {
   return ['insert', 'delete'].includes(currentOperation.value) &&
-         structureType.value !== 'stack'
+         structureType.value !== 'stack' &&
+         structureType.value !== 'queue'
 })
 
 const indexPlaceholder = computed(() => {
@@ -449,6 +472,7 @@ const canExecute = computed(() => {
 const containerClass = computed(() => {
   if (structureType.value === 'stack') return 'stack-container'
   if (structureType.value === 'linked') return 'linked-container'
+  if (structureType.value === 'queue') return 'sequential-container'
   return 'sequential-container'
 })
 
@@ -480,12 +504,20 @@ const getNodeClass = (index) => {
   }
 }
 
+const isQueueFront = (index) => {
+  return structureType.value === 'queue' && queueFrontIndex.value >= 0 && index === queueFrontIndex.value
+}
+
+const isQueueRear = (index) => {
+  return structureType.value === 'queue' && queueRearIndex.value >= 0 && index === queueRearIndex.value
+}
+
 const createStructure = async () => {
   try {
     let cap = capacity.value
     if (structureType.value === 'stack') {
       cap = cap && cap > 0 ? cap : 5  // 栈默认 5
-    } else if (structureType.value === 'sequential') {
+    } else if (structureType.value === 'sequential' || structureType.value === 'queue') {
       cap = cap && cap > 0 ? cap : 5   // 顺序表默认 5
     }
 
@@ -493,6 +525,13 @@ const createStructure = async () => {
     structureId.value = response.structure_id
     if (response.capacity !== undefined) {
       capacity.value = response.capacity
+    }
+    if (structureType.value === 'queue') {
+      queueFrontIndex.value = response.front_index ?? -1
+      queueRearIndex.value = response.rear_index ?? -1
+    }
+    if (structureType.value === 'stack') {
+      stackStarted.value = true
     }
     console.log('Structure created:', response)
   } catch (error) {
@@ -504,6 +543,7 @@ const createStructure = async () => {
 const playOperationSteps = async (steps) => {
   isPlaying.value = true
   console.log('开始播放动画，共', steps.length, '步')
+  const complexityOps = ['insert','delete','search','push','pop','peek','enqueue','dequeue','front','rear']
 
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]
@@ -589,6 +629,21 @@ const playOperationSteps = async (steps) => {
       console.log('数据快照:', step.data_snapshot)
     }
 
+    // 队列指针可视化
+    if (step.visual_hints) {
+      if (step.visual_hints.front !== undefined) {
+        queueFrontIndex.value = step.visual_hints.front
+      }
+      if (step.visual_hints.rear !== undefined) {
+        queueRearIndex.value = step.visual_hints.rear
+      }
+    }
+
+    // 更新复杂度展示的操作类型（仅已知操作）
+    if (complexityOps.includes(step.operation)) {
+      currentOperation.value = step.operation
+    }
+
     // 6. 延迟（根据速度调整）——提高默认停留时间，保证代码高亮可见
     let baseDelay = step.duration || 0.9
     if (step.code_highlight && step.code_highlight.length > 0) {
@@ -615,6 +670,9 @@ const executeOperation = async () => {
   if (!structureId.value) {
     console.log('首次操作，创建数据结构...')
     await createNewStructure()
+    if (structureType.value === 'stack') {
+      stackStarted.value = true
+    }
   }
 
   if (!structureId.value || !canExecute.value) return
@@ -629,20 +687,28 @@ const executeOperation = async () => {
 
     switch (currentOperation.value) {
       case 'batch_init':
-        const values = inputValue.value.split(/[,\s]+/).filter(v => v.trim())
-        response = await api.initBatch(structureId.value, values)
+        // 直接将用户输入传给后端，由后端保留空位为 null
+        response = await api.initBatch(structureId.value, inputValue.value)
         break
       case 'insert':
       case 'push':
+      case 'enqueue':
         response = await api.insertElement(structureId.value, index, inputValue.value)
         break
       case 'delete':
       case 'pop':
+      case 'dequeue':
         response = await api.deleteElement(structureId.value, index)
         break
       case 'search':
       case 'peek':
         response = await api.searchElement(structureId.value, inputValue.value)
+        break
+      case 'front':
+        response = await api.getQueueFront(structureId.value)
+        break
+      case 'rear':
+        response = await api.getQueueRear(structureId.value)
         break
     }
 
@@ -658,6 +724,10 @@ const executeOperation = async () => {
       // 动画播放完后更新最终状态
       elements.value = response.data
       operationHistory.value = steps
+      if (structureType.value === 'queue') {
+        queueFrontIndex.value = response.front_index ?? -1
+        queueRearIndex.value = response.rear_index ?? -1
+      }
 
       if (steps.length > 0) {
         lastOperation.value = steps[steps.length - 1].description
@@ -686,6 +756,8 @@ const clearStructure = async () => {
     lastOperation.value = 'Structure cleared'
     highlightedIndices.value = []
     pointerStates.value = { head: -1, prev: -1, current: -1, new_node: -1 }
+    queueFrontIndex.value = -1
+    queueRearIndex.value = -1
   } catch (error) {
     console.error('Failed to clear structure:', error)
   }
@@ -790,8 +862,11 @@ const createOrLoadStructure = async()=>{
         // 恢复状态
         if (response.capacity !== undefined) {
           capacity.value = response.capacity
-        } else if (!capacity.value && structureType.value === 'sequential') {
+        } else if (!capacity.value && (structureType.value === 'sequential' || structureType.value === 'queue')) {
           capacity.value = 5
+        }
+        if (structureType.value === 'stack') {
+          stackStarted.value = true
         }
         operationHistory.value = response.operation_history || []
 
@@ -826,12 +901,11 @@ const createOrLoadStructure = async()=>{
       await createNewStructure()
     }
   }else {
-    // 🔥 修改：对于顺序表，不立即创建，让用户先选择容量
-    // 其他类型的结构则立即创建
-    if (structureType.value !== 'sequential') {
+    // 🔥 修改：顺序表/栈/队列不立即创建，等待用户设置容量；其他类型立即创建
+    if (structureType.value !== 'sequential' && structureType.value !== 'stack' && structureType.value !== 'queue') {
       await createNewStructure()
     } else {
-      console.log('等待用户设置顺序表容量...')
+      console.log('等待用户设置容量后开始操作...')
       lastOperation.value = '请设置容量后开始操作'
     }
   }
@@ -842,7 +916,7 @@ const createNewStructure = async () => {
     let cap = capacity.value
     if (structureType.value === 'stack') {
       cap = cap && cap > 0 ? cap : 5  // 栈默认 5（视作初始槽位）
-    } else if (structureType.value === 'sequential') {
+    } else if (structureType.value === 'sequential' || structureType.value === 'queue') {
       cap = cap && cap > 0 ? cap : 5   // 顺序表默认 5
     }
 
@@ -851,13 +925,20 @@ const createNewStructure = async () => {
     console.log('新建数据结构:', response)
 
     // 🔥 立即获取初始状态，显示容量槽位
-    if (structureType.value === 'sequential' || structureType.value === 'stack') {
+    if (structureType.value === 'sequential' || structureType.value === 'stack' || structureType.value === 'queue') {
       const state = await api.getState(structureId.value)
       elements.value = state.data || []
       if (state.capacity !== undefined) {
         capacity.value = state.capacity
       }
+      if (structureType.value === 'queue') {
+        queueFrontIndex.value = state.front_index ?? -1
+        queueRearIndex.value = state.rear_index ?? -1
+      }
       console.log(`✓ 结构已创建，容量: ${capacity.value ?? '∞'}，元素: ${elements.value.length}`)
+    }
+    if (structureType.value === 'stack') {
+      stackStarted.value = true
     }
   } catch (error) {
     console.error('创建数据结构失败:', error)
@@ -882,8 +963,8 @@ const handleLanguageChange = async (language) => {
     // Format: "sequential::insert()" -> "sequential_insert"
     const parts = currentOperationName.value.split('::')
     if (parts.length === 2) {
-      const structureType = parts[0]
-      const operation = parts[1].replace('()', '')
+    const structureType = parts[0]
+    const operation = parts[1].replace('()', '')
       const templateKey = `${structureType}_${operation}`
       await loadCodeTemplate(templateKey, language)
     }
@@ -894,6 +975,20 @@ const handleLanguageChange = async (language) => {
 watch(() => route.query.importId, async (newId) => {
   if (newId && newId !== structureId.value) {
     await createOrLoadStructure()
+  }
+})
+
+watch(structureType, (newType) => {
+  if (newType === 'stack') {
+    stackStarted.value = false
+  }
+  if (newType === 'queue') {
+    queueFrontIndex.value = -1
+    queueRearIndex.value = -1
+  }
+  const ops = availableOperations.value
+  if (ops.length > 0) {
+    currentOperation.value = ops[0].value
   }
 })
 </script>
@@ -1104,7 +1199,7 @@ watch(() => route.query.importId, async (newId) => {
 }
 
 .stack-container {
-  flex-direction: column-reverse;
+  flex-direction: column;
   align-items: flex-start;
   position: relative;
   padding-left: 60px;
@@ -1131,6 +1226,10 @@ watch(() => route.query.importId, async (newId) => {
   background: white;
   min-width: 120px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column-reverse; /* 栈底在下方，栈顶在上方 */
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .stack-border.ghost-border {
@@ -1148,6 +1247,7 @@ watch(() => route.query.importId, async (newId) => {
 
 .stack-wrapper {
   align-items: flex-start;
+  flex-direction: column;
 }
 
 .linked-container {
@@ -1170,6 +1270,7 @@ watch(() => route.query.importId, async (newId) => {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   background-color: #10b981;
   color: white;
   font-size: 1.25rem;
@@ -1213,6 +1314,27 @@ watch(() => route.query.importId, async (newId) => {
   background-color: #fee2e2;
   padding: 0.25rem 0.6rem;
   border-radius: 0.75rem;
+}
+
+.queue-indicator {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 0.15rem 0.4rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.queue-indicator.front {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.queue-indicator.rear {
+  background: #f3e8ff;
+  color: #7c3aed;
 }
 
 /* 链表节点 */

@@ -62,6 +62,7 @@ from dsvision.linear.sequential_list import SequentialList
 from dsvision.linear.linked_list import LinearLinkedList
 from dsvision.operation.operation import OperationType
 from dsvision.linear.stack import SequentialStack
+from dsvision.linear.queue import SequentialQueue
 from dsvision.tree.binary_tree import BinaryTree
 from dsvision.tree.binary_search_tree import BinarySearchTree
 from dsvision.tree.huffman import HuffmanTree
@@ -127,6 +128,10 @@ def structure_create():
             # 容量为空则视为无限容量
             cap = None if capacity in [None, '', 0] else capacity
             structures[structure_id] = SequentialStack(capacity=cap)
+        elif structure_type == 'queue':
+            # 队列容量可选，默认 5
+            cap = 5 if capacity in [None, '', 0] else capacity
+            structures[structure_id] = SequentialQueue(capacity=cap)
         elif structure_type == 'binary':
             structures[structure_id] = BinaryTree()
         elif structure_type == 'bst':
@@ -168,7 +173,9 @@ def get_state(structure_id):
             'size':structure.size(),
             'is_empty':structure.is_empty(),
             'operation_history':[step.to_dict() for step in structure.get_operation_history()],
-            'capacity':getattr(structure,'_capacity',None) #没懂getattr
+            'capacity':getattr(structure,'_capacity',None), #没懂getattr
+            'front_index': getattr(structure, 'get_front_index', lambda: None)(),
+            'rear_index': getattr(structure, 'get_rear_index', lambda: None)()
         })
 
     except Exception as e:
@@ -191,13 +198,26 @@ def init_batch(structure_id):
         data = request.json
         values_input = data.get('values')
 
-        # 处理不同格式的输入
+        def normalize_list(raw_list):
+            """将列表中的空字符串转为 None，其他值保持原样"""
+            normalized = []
+            for item in raw_list:
+                if isinstance(item, str):
+                    v = item.strip()
+                    normalized.append(None if v == '' else v)
+                else:
+                    normalized.append(item)
+            return normalized
+
+        # 处理不同格式的输入，保留空位为 None
         if isinstance(values_input, str):
-            # 支持逗号或空格分隔
-            values_input = values_input.replace(',', ' ')
-            values = [v.strip() for v in values_input.split() if v.strip()]
+            if ',' in values_input:
+                parts = values_input.split(',')
+            else:
+                parts = values_input.split()
+            values = normalize_list(parts)
         elif isinstance(values_input, list):
-            values = values_input
+            values = normalize_list(values_input)
         else:
             return jsonify({'error': '无效的输入格式'}), 400
 
@@ -208,7 +228,9 @@ def init_batch(structure_id):
             'success': success,
             'data': structure.to_list(),
             'size': structure.size(),
-            'operation_history': [step.to_dict() for step in structure.get_operation_history()]
+            'operation_history': [step.to_dict() for step in structure.get_operation_history()],
+            'front_index': getattr(structure, 'get_front_index', lambda: None)(),
+            'rear_index': getattr(structure, 'get_rear_index', lambda: None)()
         })
 
     except Exception as e:
@@ -257,7 +279,9 @@ def insert_element(structure_id):
             'success': success,
             'data': structure.to_list(),
             'size': structure.size(),
-            'operation_history':[step.to_dict() for step in structure.get_operation_history()]
+            'operation_history':[step.to_dict() for step in structure.get_operation_history()],
+            'front_index': getattr(structure, 'get_front_index', lambda: None)(),
+            'rear_index': getattr(structure, 'get_rear_index', lambda: None)()
         })
 
     except Exception as e:
@@ -292,7 +316,9 @@ def delete_element(structure_id):
             'deleted_value': deleted_value,
             'data': structure.to_list(),
             'size': structure.size(),
-            'operation_history':[step.to_dict() for step in structure.get_operation_history()]
+            'operation_history':[step.to_dict() for step in structure.get_operation_history()],
+            'front_index': getattr(structure, 'get_front_index', lambda: None)(),
+            'rear_index': getattr(structure, 'get_rear_index', lambda: None)()
         })
 
     except Exception as e:
@@ -322,7 +348,61 @@ def search_element(structure_id):
             'index':result_index,
             'data': structure.to_list(),
             'size': structure.size(),
-            'operation_history':[step.to_dict() for step in structure.get_operation_history()]
+            'operation_history':[step.to_dict() for step in structure.get_operation_history()],
+            'front_index': getattr(structure, 'get_front_index', lambda: None)(),
+            'rear_index': getattr(structure, 'get_rear_index', lambda: None)()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/structure/<structure_id>/front', methods=['GET'])
+def get_front(structure_id):
+    """获取队首元素"""
+    try:
+        structure = structures.get(structure_id)
+        if not structure:
+            return jsonify({'error':'结构不存在，请先创建'}),404
+
+        if not hasattr(structure, 'front'):
+            return jsonify({'error':'该结构不支持 front 操作'}),400
+
+        structure.clear_operation_history()
+        value = structure.front()
+
+        return jsonify({
+            'success': value is not None,
+            'value': value,
+            'data': structure.to_list(),
+            'size': structure.size(),
+            'operation_history':[step.to_dict() for step in structure.get_operation_history()],
+            'front_index': getattr(structure, 'get_front_index', lambda: None)(),
+            'rear_index': getattr(structure, 'get_rear_index', lambda: None)()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/structure/<structure_id>/rear', methods=['GET'])
+def get_rear(structure_id):
+    """获取队尾元素"""
+    try:
+        structure = structures.get(structure_id)
+        if not structure:
+            return jsonify({'error':'结构不存在，请先创建'}),404
+
+        if not hasattr(structure, 'rear'):
+            return jsonify({'error':'该结构不支持 rear 操作'}),400
+
+        structure.clear_operation_history()
+        value = structure.rear()
+
+        return jsonify({
+            'success': value is not None,
+            'value': value,
+            'data': structure.to_list(),
+            'size': structure.size(),
+            'operation_history':[step.to_dict() for step in structure.get_operation_history()],
+            'front_index': getattr(structure, 'get_front_index', lambda: None)(),
+            'rear_index': getattr(structure, 'get_rear_index', lambda: None)()
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -345,11 +425,22 @@ def clear_structure(structure_id):
         elif isinstance(structure,LinearLinkedList):
             structure._head = None
             structure._size = 0
+        elif isinstance(structure, SequentialQueue):
+            # 复位队列
+            if structure._capacity is not None:
+                structure._data = [None] * structure._capacity
+            else:
+                structure._data = []
+            structure._size = 0
+            structure._front = 0
+            structure._rear = -1
         return jsonify({
             'success': True,
             'data': structure.to_list(),
             'size': structure.size(),
-            'operation_history':[]
+            'operation_history':[],
+            'front_index': getattr(structure, 'get_front_index', lambda: None)(),
+            'rear_index': getattr(structure, 'get_rear_index', lambda: None)()
         })
 
     except Exception as e:
@@ -950,6 +1041,9 @@ def execute_dsl():
                     struct_data['data'] = structure.to_list()
                     struct_data['size'] = structure.size()
                     struct_data['category'] = 'linear'
+                    if struct_type == 'queue':
+                        struct_data['front_index'] = getattr(structure, 'get_front_index', lambda: None)()
+                        struct_data['rear_index'] = getattr(structure, 'get_rear_index', lambda: None)()
                 elif struct_type in ['binary', 'bst', 'avl', 'huffman']:
                     # 树结构
                     struct_data['tree_data'] = structure.get_tree_data()
@@ -1074,6 +1168,14 @@ def get_dsl_examples():
     push 3
     peek
     pop
+}""",
+        'queue': """Queue myQueue {
+    init [1, 2, 3] capacity 5
+    enqueue 4
+    enqueue 5
+    front
+    dequeue
+    rear
 }""",
         'bst': """BST myBST {
     insert 50

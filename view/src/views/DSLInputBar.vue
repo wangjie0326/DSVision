@@ -136,8 +136,9 @@ const llmSessionId = ref(null)  // LLM 会话 ID
 
 const exampleButtons = [
   { type: 'sequential', label: 'Sequential' },
+  { type: 'queue', label: 'Queue' },
   { type: 'bst', label: 'BST' },
-  { type: 'stack', label: 'Stack' }
+  { type: 'stack', label: 'Stack' },
 ]
 
 // 初始化：加载 LLM 配置

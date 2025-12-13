@@ -78,6 +78,7 @@ const complexityMap = {
     dequeue: { time: 'O(1)', space: 'O(1)', total: 'O(1)' },
     front: { time: 'O(1)', space: 'O(1)', total: 'O(1)' },
     rear: { time: 'O(1)', space: 'O(1)', total: 'O(1)' },
+    search: { time: 'O(n)', space: 'O(1)', total: 'O(n)' },
     clear: { time: 'O(1)', space: 'O(1)', total: 'O(1)' },
     init: { time: 'O(n)', space: 'O(n)', total: 'O(n)' }
   },

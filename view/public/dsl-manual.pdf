@@ -1,0 +1,107 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 1737 >>
+stream
+BT
+/F1 18 Tf
+20 TL
+50 780 Td
+(DSVision DSL Manual) Tj
+T*
+(Quick guide for the home page PDF) Tj
+T*
+T*
+(Why this DSL) Tj
+T*
+(- Action words match operations \(insert/delete/search\)) Tj
+T*
+(- Demo friendly: one DSL block = multiple Python lines + animations) Tj
+T*
+(- Extensible: add keywords in lexer/parser/interpreter once) Tj
+T*
+(- LLM friendly: natural language can be translated \(see LLM Guide\)) Tj
+T*
+T*
+(5-second starter) Tj
+T*
+(Sequential demo {) Tj
+T*
+(  init [1, 2, 3] capacity 5) Tj
+T*
+(  insert 10 at 1) Tj
+T*
+(  delete at 0) Tj
+T*
+(  search 3) Tj
+T*
+(}) Tj
+T*
+(Result: capacity slots visible; insert/delete/search animate in order) Tj
+T*
+T*
+(Structures & operations) Tj
+T*
+(- Sequential: init/batch_init, insert [at], delete at, search, capacity) Tj
+T*
+(- Linked: init, insert_head/tail, insert at, delete at, search) Tj
+T*
+(- Stack: init \(capacity\), push/pop/peek; auto expand animation when full) Tj
+T*
+(- BST/AVL: insert/delete/search, traverse inorder|preorder|postorder|level, min/max) Tj
+T*
+(- Huffman: build_text | build_numbers, show_codes, encode/decode) Tj
+T*
+T*
+(Good vs avoid) Tj
+T*
+(- ok  BST myTree { insert 50; insert 30; search 30 }) Tj
+T*
+(- bad make a tree with some numbers \(missing type/data\)) Tj
+T*
+(- ok  insert 10 at 2) Tj
+T*
+(- bad insert 10 at \(missing index\)) Tj
+T*
+T*
+(Errors are caught early: parser reports line/column for typos or bad args.) Tj
+T*
+T*
+(Working with LLM mode) Tj
+T*
+(- Skip syntax: ask LLM to draft DSL, then review before execute) Tj
+T*
+(- Precise animations: use DSL to lock order \(stack expand, AVL rotations\)) Tj
+T*
+(- Entry points: top nav buttons for DSL Manual / LLM Guide) Tj
+T*
+T*
+(Cheatline: Lexer -> Parser -> Interpreter -> OperationStep -> Animation) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000247 00000 n 
+0000002036 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2106
+%%EOF

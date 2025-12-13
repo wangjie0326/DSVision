@@ -193,7 +193,8 @@ class SequentialStack(LinearStructureBase):
             animation_type="fade",
             duration=0.8,
             data_snapshot=self.to_list(),
-            visual_hints={'new_array': new_data, 'new_capacity': new_capacity}
+            # copy to freeze the empty slots snapshot for the animation
+            visual_hints={'new_array': new_data[:], 'new_capacity': new_capacity}
         )
         self.add_operation_step(step)
 

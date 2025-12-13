@@ -123,28 +123,30 @@ class Interpreter:
         # 🔥 优先级1: 检查当前会话内存
         if decl.name in self.context.structures:
             existing_struct = self.context.structures[decl.name]
-            # 验证类型匹配
             if existing_struct['type'] != backend_type:
-                self.error(f"Structure {decl.name} already exists with different type: {existing_struct['type']} vs {backend_type}")
-            self.log(f"\n✓ 复用现有数据结构: {decl.structure_type} {decl.name} (会话内存)")
+                self.log(f"⚠️ 类型不匹配，重建结构: {decl.name} {existing_struct['type']} -> {backend_type}")
+                self._create_new_structure(decl.name, backend_type)
+            else:
+                self.log(f"\n✓ 复用现有数据结构: {decl.structure_type} {decl.name} (会话内存)")
 
         # 🔥 优先级2: 检查全局structures（跨会话复用）
         elif decl.name in self.structure_id_map:
             structure_id = self.structure_id_map[decl.name]
             if structure_id in self.global_structures:
                 structure = self.global_structures[structure_id]
-                # 验证类型匹配
                 structure_backend_type = self._get_structure_type(structure)
                 if structure_backend_type != backend_type:
-                    self.error(f"Structure {decl.name} already exists with different type: {structure_backend_type} vs {backend_type}")
-
-                self.log(f"\n✓ 复用全局数据结构: {decl.structure_type} {decl.name} (ID: {structure_id[:8]}...)")
-                self.context.structures[decl.name] = {
-                    'type': backend_type,
-                    'instance': structure,
-                    'data': [],
-                    'structure_id': structure_id  # 保存ID
-                }
+                    self.log(f"⚠️ 全局类型不匹配，重建结构: {decl.name} {structure_backend_type} -> {backend_type}")
+                    del self.structure_id_map[decl.name]
+                    self._create_new_structure(decl.name, backend_type)
+                else:
+                    self.log(f"\n✓ 复用全局数据结构: {decl.structure_type} {decl.name} (ID: {structure_id[:8]}...)")
+                    self.context.structures[decl.name] = {
+                        'type': backend_type,
+                        'instance': structure,
+                        'data': [],
+                        'structure_id': structure_id  # 保存ID
+                    }
             else:
                 # ID映射存在但结构不存在，清除映射并创建新的
                 del self.structure_id_map[decl.name]
@@ -287,6 +289,50 @@ class Interpreter:
         elif isinstance(operation, PeekOperation):
             self.log(f"  peek")
             result = structure.peek()
+            self.log(f"    结果: {result}")
+            op_record['details'] = {'result': result}
+
+        elif isinstance(operation, EnqueueOperation):
+            value = self.evaluate_value(operation.value)
+            self.log(f"  enqueue {value}")
+            if hasattr(structure, 'enqueue'):
+                structure.enqueue(value)
+            elif hasattr(structure, 'insert'):
+                structure.insert(structure.size(), value)
+            else:
+                self.error(f"Structure does not support enqueue/insert")
+            op_record['details'] = {'value': value}
+
+        elif isinstance(operation, DequeueOperation):
+            self.log(f"  dequeue")
+            if hasattr(structure, 'dequeue'):
+                result = structure.dequeue()
+            elif hasattr(structure, 'delete'):
+                result = structure.delete(0)
+            else:
+                self.error(f"Structure does not support dequeue/delete")
+            self.log(f"    结果: {result}")
+            op_record['details'] = {'result': result}
+
+        elif isinstance(operation, FrontOperation):
+            self.log(f"  front")
+            if hasattr(structure, 'front'):
+                result = structure.front()
+            elif hasattr(structure, 'get'):
+                result = structure.get(0)
+            else:
+                self.error(f"Structure does not support front/get")
+            self.log(f"    结果: {result}")
+            op_record['details'] = {'result': result}
+
+        elif isinstance(operation, RearOperation):
+            self.log(f"  rear")
+            if hasattr(structure, 'rear'):
+                result = structure.rear()
+            elif hasattr(structure, 'get'):
+                result = structure.get(structure.size() - 1)
+            else:
+                self.error(f"Structure does not support rear/get")
             self.log(f"    结果: {result}")
             op_record['details'] = {'result': result}
 
@@ -501,6 +547,7 @@ class SimpleStructureManager:
         from dsvision.linear.sequential_list import SequentialList
         from dsvision.linear.linked_list import LinearLinkedList
         from dsvision.linear.stack import SequentialStack
+        from dsvision.linear.queue import SequentialQueue
         from dsvision.tree.binary_tree import BinaryTree
         from dsvision.tree.binary_search_tree import BinarySearchTree
         from dsvision.tree.avl_tree import AVLTree
@@ -510,6 +557,7 @@ class SimpleStructureManager:
             'sequential': SequentialList,
             'linked': LinearLinkedList,
             'stack': SequentialStack,
+            'queue': SequentialQueue,
             'binary': BinaryTree,
             'bst': BinarySearchTree,
             'avl': AVLTree,

@@ -532,6 +532,42 @@ HUFFMAN_GENERATE_CODES = """void generateCodes(Node node, String code) {
     generateCodes(node.right, code + "1");
 }"""
 
+### ==================== Queue ====================
+QUEUE_ENQUEUE = """public void enqueue(int value) {
+    if (isFull()) {
+        expand();
+    }
+    rear++;
+    data[rear] = value;
+    if (size == 0) {
+        front = 0;
+    }
+    size++;
+}"""
+
+QUEUE_DEQUEUE = """public Integer dequeue() {
+    if (isEmpty()) return null;
+    int value = data[front];
+    data[front] = -1;
+    front++;
+    size--;
+    if (size == 0) {
+        front = 0;
+        rear = -1;
+    }
+    return value;
+}"""
+
+QUEUE_FRONT = """public Integer front() {
+    if (isEmpty()) return null;
+    return data[front];
+}"""
+
+QUEUE_REAR = """public Integer rear() {
+    if (isEmpty()) return null;
+    return data[rear];
+}"""
+
 # ==================== 代码模板字典 ====================
 JAVA_CODE_TEMPLATES = {
     'sequential_insert': SEQUENTIAL_INSERT,
@@ -541,6 +577,10 @@ JAVA_CODE_TEMPLATES = {
     'stack_push': STACK_PUSH,
     'stack_pop': STACK_POP,
     'stack_peek': STACK_PEEK,
+    'queue_enqueue': QUEUE_ENQUEUE,
+    'queue_dequeue': QUEUE_DEQUEUE,
+    'queue_front': QUEUE_FRONT,
+    'queue_rear': QUEUE_REAR,
     'linked_insert': LINKED_INSERT,
     'linked_delete': LINKED_DELETE,
     'linked_search': LINKED_SEARCH,

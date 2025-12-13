@@ -86,6 +86,15 @@ export default{
     });
   },
 
+  // 队列专用：front / rear
+  getQueueFront(structureId) {
+    return apiClient.get(`/structure/${structureId}/front`);
+  },
+
+  getQueueRear(structureId) {
+    return apiClient.get(`/structure/${structureId}/rear`);
+  },
+
   //清空结构
   clearStructure(structureId) {
     return apiClient.post(`/structure/${structureId}/clear`);
