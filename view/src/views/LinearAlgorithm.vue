@@ -81,7 +81,8 @@
         <input
           v-model="inputValue"
           type="text"
-          :placeholder="currentOperation === 'batch_init' ? 'e.g., 1,2,3,4 or 1 2 3 4' : 'Enter value'"
+          :placeholder="valuePlaceholder"
+          :disabled="disableValueInput"
           class="text-input"
           @keyup.enter="executeOperation"
         />
@@ -94,6 +95,7 @@
           v-model="inputIndex"
           type="number"
           :placeholder="indexPlaceholder"
+          :disabled="disableIndexInput"
           class="text-input"
           @keyup.enter="executeOperation"
         />
@@ -447,7 +449,7 @@ watch(availableOperations, (ops) => {
 }, { immediate: true })
 
 const needsValue = computed(() => {
-  return ['batch_init','insert', 'push', 'enqueue', 'search'].includes(currentOperation.value)
+  return ['batch_init','insert', 'push', 'enqueue', 'search', 'delete'].includes(currentOperation.value)
 })
 
 const batchInput = ref('')
@@ -459,13 +461,30 @@ const needsIndex = computed(() => {
          structureType.value !== 'queue'
 })
 
+const isDeleteOperation = computed(() => currentOperation.value === 'delete')
+
+const disableIndexInput = computed(() => isDeleteOperation.value && inputValue.value !== '')
+const disableValueInput = computed(() => isDeleteOperation.value && inputIndex.value !== '')
+
 const indexPlaceholder = computed(() => {
-  return currentOperation.value === 'insert' ? 'Optional (default: append to end)' : 'Required'
+  if (currentOperation.value === 'insert') return 'Optional (default: append to end)'
+  if (currentOperation.value === 'delete') return 'Index (leave empty to delete by value)'
+  return 'Required'
+})
+
+const valuePlaceholder = computed(() => {
+  if (currentOperation.value === 'batch_init') return 'e.g., 1,2,3,4 or 1 2 3 4'
+  if (currentOperation.value === 'delete') return 'Value (leave empty to delete by index)'
+  return 'Enter value'
 })
 
 const canExecute = computed(() => {
+  if (isDeleteOperation.value) {
+    return inputIndex.value !== '' || inputValue.value !== ''
+  }
+
   if (needsValue.value && !inputValue.value) return false
-  if (needsIndex.value && currentOperation.value === 'delete' && inputIndex.value === '') return false
+  if (needsIndex.value && currentOperation.value !== 'insert' && inputIndex.value === '') return false
   return true
 })
 
@@ -640,8 +659,13 @@ const playOperationSteps = async (steps) => {
     }
 
     // 更新复杂度展示的操作类型（仅已知操作）
-    if (complexityOps.includes(step.operation)) {
-      currentOperation.value = step.operation
+    let opForComplexity = step.operation
+    if (structureType.value === 'queue') {
+      if (step.operation === 'insert') opForComplexity = 'enqueue'
+      if (step.operation === 'delete') opForComplexity = 'dequeue'
+    }
+    if (complexityOps.includes(opForComplexity)) {
+      currentOperation.value = opForComplexity
     }
 
     // 6. 延迟（根据速度调整）——提高默认停留时间，保证代码高亮可见
@@ -684,6 +708,7 @@ const executeOperation = async () => {
     let response
     // 当用户不输入index时，发送null让后端处理默认值
     const index = inputIndex.value === '' ? null : parseInt(inputIndex.value)
+    const value = inputValue.value === '' ? null : inputValue.value
 
     switch (currentOperation.value) {
       case 'batch_init':
@@ -698,7 +723,7 @@ const executeOperation = async () => {
       case 'delete':
       case 'pop':
       case 'dequeue':
-        response = await api.deleteElement(structureId.value, index)
+        response = await api.deleteElement(structureId.value, index, value)
         break
       case 'search':
       case 'peek':
@@ -839,6 +864,20 @@ onMounted(async () => {
   await createOrLoadStructure()
 })
 
+// 监听路由查询参数变化（用于DSL/导入后的同页刷新）
+watch(
+  () => [route.query.importId, route.query._refresh],
+  async (newVals, oldVals) => {
+    const [newId, newRefresh] = newVals || []
+    const [oldId, oldRefresh] = oldVals || []
+    if ((newId && newId !== oldId) || (newRefresh && newRefresh !== oldRefresh)) {
+      fromDSL.value = route.query.fromDSL === 'true'
+      fromImport.value = route.query.fromImport === 'true'
+      await createOrLoadStructure()
+    }
+  }
+)
+
 const createOrLoadStructure = async()=>{
   const importId = route.query.importId
   if(importId){
@@ -864,6 +903,10 @@ const createOrLoadStructure = async()=>{
           capacity.value = response.capacity
         } else if (!capacity.value && (structureType.value === 'sequential' || structureType.value === 'queue')) {
           capacity.value = 5
+        }
+        if (structureType.value === 'queue') {
+          queueFrontIndex.value = response.front_index ?? -1
+          queueRearIndex.value = response.rear_index ?? -1
         }
         if (structureType.value === 'stack') {
           stackStarted.value = true

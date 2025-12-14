@@ -1040,6 +1040,18 @@ watch(() => treeData.value, async (newData) => {
   }
 }, { deep: true })
 
+// 监听路由 importId 变化（同页 DSL/导入刷新）
+watch(
+  () => [route.query.importId, route.query._refresh],
+  async (newVals, oldVals) => {
+    const [newId, newRefresh] = newVals || []
+    const [oldId, oldRefresh] = oldVals || []
+    if ((newId && newId !== oldId) || (newRefresh && newRefresh !== oldRefresh)) {
+      await createOrLoadTreeStructure()
+    }
+  }
+)
+
 // 生命周期
 onMounted(async () => {
   await createOrLoadTreeStructure()

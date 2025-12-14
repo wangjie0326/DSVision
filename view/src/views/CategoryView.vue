@@ -246,7 +246,8 @@ const handleImport = async () => {
           const typeMap = {
             'SequentialList': 'sequential',
             'LinearLinkedList': 'linked',
-            'SequentialStack': 'stack'
+            'SequentialStack': 'stack',
+            'SequentialQueue': 'queue'
           }
           const route = typeMap[structureType] || 'sequential'
           router.push({

@@ -38,7 +38,9 @@ class InitOperation(Operation):
 class InsertOperation(Operation):
     """插入操作 insert 10 at 2"""
     value: Any
-    index: Optional[int] = None
+    index: Optional[int] = None       # 线性结构插入位置；二叉树时作父节点ID
+    parent_id: Optional[int] = None    # 二叉树专用：父节点ID
+    direction: Optional[str] = None    # 二叉树专用：left / right
 
 @dataclass
 class DeleteOperation(Operation):

@@ -73,9 +73,10 @@ export default{
   },
 
   //删除元素
-  deleteElement(structureId,index) {
+  deleteElement(structureId,index,value) {
     return apiClient.post(`/structure/${structureId}/delete`, {
-      index
+      index,
+      value
     });
   },
 

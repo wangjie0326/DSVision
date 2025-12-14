@@ -137,10 +137,22 @@ class Parser:
             self.advance()
             value = self.parse_value()
             index = None
+            direction = None
+
+            # insert ... at <number>
             if self.current_token and self.current_token.type == TokenType.AT:
                 self.advance()
                 index = self.expect(TokenType.NUMBER).value
-            return InsertOperation(value=value, index=index, line=line, column=column)
+
+            # 可选方向（left/right），用于二叉树按父节点插入
+            if self.current_token and self.current_token.type in [TokenType.LEFT, TokenType.RIGHT, TokenType.IDENTIFIER]:
+                dir_token = self.current_token
+                dir_val = str(dir_token.value).lower()
+                if dir_token.type in [TokenType.LEFT, TokenType.RIGHT] or dir_val in ['left', 'right']:
+                    direction = 'left' if dir_val == 'left' else 'right'
+                    self.advance()
+
+            return InsertOperation(value=value, index=index, parent_id=index, direction=direction, line=line, column=column)
 
         # delete at 2 或 delete 5
         elif token.type == TokenType.DELETE:
@@ -428,4 +440,3 @@ if __name__ == "__main__":
 
     print("=== AST ===")
     print(ast_to_dict(ast))
-

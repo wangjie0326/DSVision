@@ -124,8 +124,13 @@ class Interpreter:
         if decl.name in self.context.structures:
             existing_struct = self.context.structures[decl.name]
             if existing_struct['type'] != backend_type:
-                self.log(f"⚠️ 类型不匹配，重建结构: {decl.name} {existing_struct['type']} -> {backend_type}")
-                self._create_new_structure(decl.name, backend_type)
+                # 如果结构来自当前页面（带有 structure_id），优先使用现有结构，避免误重建
+                if 'structure_id' in existing_struct:
+                    self.log(f"⚠️ 类型不匹配，优先复用当前页面结构: {decl.name} {existing_struct['type']} (忽略声明的 {backend_type})")
+                    backend_type = existing_struct['type']
+                else:
+                    self.log(f"⚠️ 类型不匹配，重建结构: {decl.name} {existing_struct['type']} -> {backend_type}")
+                    self._create_new_structure(decl.name, backend_type)
             else:
                 self.log(f"\n✓ 复用现有数据结构: {decl.structure_type} {decl.name} (会话内存)")
 
@@ -214,40 +219,60 @@ class Interpreter:
         elif isinstance(operation, InsertOperation):
             # 评估随机数
             value = self.evaluate_value(operation.value)
-            index = operation.index if operation.index is not None else structure.size()
-            self.log(f"  insert {value} at {index}")
+            # 线性结构缺省 index 使用 size()；树结构保留 None
+            index = operation.index
+            direction = getattr(operation, 'direction', None)
+            parent_id = getattr(operation, 'parent_id', None)
+            self.log(f"  insert {value}" + (f" at {index}" if index is not None else "") + (f" {direction}" if direction else ""))
 
             # 针对不同结构类型区分处理
             if struct_type in ['stack']:
                 structure.push(value)
-            elif struct_type in ['bst', 'binary', 'avl', 'huffman']:
+            elif struct_type in ['binary']:
+                # 支持按父节点左/右插入
+                structure.insert(value, parent_id=parent_id, direction=direction)
+            elif struct_type in ['bst', 'avl', 'huffman']:
                 # 这些树形结构的 insert 不需要 index
                 structure.insert(value)
             else:
+                if index is None:
+                    index = structure.size()
                 structure.insert(index, value)
 
-            op_record['details'] = {'value': value, 'index': index}
+            op_record['details'] = {'value': value, 'index': index, 'direction': direction}
 
         elif isinstance(operation, DeleteOperation):
-            if operation.index is not None:
-                # 按索引删除
-                self.log(f"  delete at {operation.index}")
-                structure.delete(operation.index)
-                op_record['details'] = {'index': operation.index}
-            elif operation.value is not None:
-                # 按值删除
-                value = self.evaluate_value(operation.value)
+            tree_types = {'bst', 'binary', 'avl', 'huffman'}
+
+            # 树结构：只按值删除，直接调用 delete(value)
+            if struct_type in tree_types:
+                # 优先使用 value；如果 DSL 写成 delete at X，也把 X 当值处理
+                raw_value = operation.value if operation.value is not None else operation.index
+                value = self.evaluate_value(raw_value)
                 self.log(f"  delete value {value}")
-                # 先搜索找到索引
-                index = structure.search(value)
-                if index == -1:
-                    self.log(f"    警告: 值 {value} 不存在")
-                else:
-                    structure.delete(index)
-                    self.log(f"    在索引 {index} 处删除")
-                op_record['details'] = {'value': value, 'index': index if index != -1 else None}
+                structure.delete(value)
+                op_record['details'] = {'value': value}
+
             else:
-                self.error("DeleteOperation requires either index or value")
+                if operation.index is not None:
+                    # 按索引删除
+                    self.log(f"  delete at {operation.index}")
+                    structure.delete(operation.index)
+                    op_record['details'] = {'index': operation.index}
+                elif operation.value is not None:
+                    # 按值删除
+                    value = self.evaluate_value(operation.value)
+                    self.log(f"  delete value {value}")
+                    # 先搜索找到索引
+                    index = structure.search(value)
+                    if index == -1:
+                        self.log(f"    警告: 值 {value} 不存在")
+                    else:
+                        structure.delete(index)
+                        self.log(f"    在索引 {index} 处删除")
+                    op_record['details'] = {'value': value, 'index': index if index != -1 else None}
+                else:
+                    self.error("DeleteOperation requires either index or value")
 
         elif isinstance(operation, SearchOperation):
             self.log(f"  search {operation.value}")

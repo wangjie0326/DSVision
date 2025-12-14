@@ -72,6 +72,8 @@ class TokenType(Enum):
     INORDER = "INORDER"
     POSTORDER = "POSTORDER"
     LEVELORDER = "LEVELORDER"
+    LEFT = "LEFT"
+    RIGHT = "RIGHT"
 
     #位置关键字
     AT = "AT"
@@ -176,6 +178,8 @@ class Lexer:
         'levelorder': TokenType.LEVELORDER,
 
         'at': TokenType.AT,
+        'left': TokenType.LEFT,
+        'right': TokenType.RIGHT,
         'get': TokenType.GET,
         'size': TokenType.SIZE,
         'capacity': TokenType.CAPACITY,
@@ -407,7 +411,6 @@ if __name__ == "__main__":
     for token in tokens:
         if token.type != TokenType.NEWLINE:
             print(token)
-
 
 
 

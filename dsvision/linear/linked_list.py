@@ -369,10 +369,98 @@ class LinearLinkedList(LinearStructureBase):
         self.add_operation_step(step)
         return True
 
-    def delete(self, index: int) -> Any:
-        """删除元素 - 完整详细过程"""
+    def delete(self, index: int = None, value: Any = None) -> Any:
+        """删除元素 - 支持按索引或按值删除（按值删除时先遍历找到首个匹配节点）"""
         # 🔥 清空操作历史，避免累积之前的操作
         self._operation_history = []
+
+        # 优先按值删除：遍历查找第一个匹配的节点
+        if value is not None and (index is None or index == ''):
+            step = OperationStep(
+                OperationType.SEARCH,
+                value=value,
+                description=f"开始搜索值为 {value} 的节点以删除",
+                data_snapshot=self.to_list()
+            )
+            self.add_operation_step(step)
+
+            if self._head is None:
+                step = OperationStep(
+                    OperationType.DELETE,
+                    value=value,
+                    description="链表为空，无法删除指定值",
+                    pointers={"head": -1},
+                    data_snapshot=self.to_list()
+                )
+                self.add_operation_step(step)
+                return None
+
+            current = self._head
+            idx = 0
+            while current is not None:
+                step = OperationStep(
+                    OperationType.COMPARE,
+                    value=value,
+                    description=f"位置 {idx}: 比较 {current.value} == {value} ?",
+                    pointers={"head": 0, "current": idx},
+                    highlight_indices=[idx],
+                    compare_indices=[idx],
+                    animation_type="highlight",
+                    duration=0.6,
+                    data_snapshot=self.to_list()
+                )
+                self.add_operation_step(step)
+
+                if current.value == value or str(current.value) == str(value):
+                    step = OperationStep(
+                        OperationType.SEARCH,
+                        index=idx,
+                        value=value,
+                        description=f"找到目标值 {value}，准备删除位置 {idx}",
+                        pointers={"head": 0, "current": idx},
+                        highlight_indices=[idx],
+                        animation_type="highlight",
+                        duration=0.8,
+                        data_snapshot=self.to_list()
+                    )
+                    self.add_operation_step(step)
+                    index = idx
+                    break
+
+                # 移动指针到下一个节点
+                if current.next is not None:
+                    step = OperationStep(
+                        OperationType.POINTER_MOVE,
+                        description=f"current = current.next，移动到位置 {idx + 1}",
+                        pointers={"head": 0, "current": idx + 1},
+                        highlight_indices=[idx, idx + 1],
+                        animation_type="move",
+                        duration=0.5,
+                        data_snapshot=self.to_list()
+                    )
+                    self.add_operation_step(step)
+
+                current = current.next
+                idx += 1
+
+            if index is None:
+                step = OperationStep(
+                    OperationType.DELETE,
+                    value=value,
+                    description=f"未找到值为 {value} 的节点，删除失败",
+                    data_snapshot=self.to_list()
+                )
+                self.add_operation_step(step)
+                return None
+
+        if index is None:
+            step = OperationStep(
+                OperationType.DELETE,
+                description="删除失败：未提供索引或值",
+                data_snapshot=self.to_list()
+            )
+            self.add_operation_step(step)
+            return None
 
         if index < 0 or index >= self._size:
             step = OperationStep(
@@ -721,4 +809,3 @@ class LinearLinkedList(LinearStructureBase):
             result.append(current.value)
             current = current.next
         return result
-

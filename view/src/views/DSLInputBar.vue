@@ -87,6 +87,38 @@
       <div v-if="statusMessage" class="status-message" :class="statusType">
         {{ statusMessage }}
       </div>
+
+      <!-- LLM 推理可视化 -->
+      <div v-if="currentMode === 'llm' && llmShowcase" class="llm-visualizer">
+        <div class="llm-label">
+          <span class="glow-dot"></span>
+          LLM Chat
+        </div>
+        <div class="llm-panels">
+          <div class="panel glass">
+            <div class="panel-title">Reasoning</div>
+            <div class="typing-line" :class="{ active: llmStage === 'reasoning' || llmStage === 'dsl' }">
+              <pre>{{ llmReasoning }}</pre>
+              <span class="caret" v-if="llmStage === 'reasoning'"></span>
+            </div>
+          </div>
+          <div class="panel code">
+            <div class="panel-title">DSL</div>
+            <div class="typing-block" :class="{ active: llmStage === 'dsl' || llmStage === 'complete' }">
+              <pre>{{ llmDSL }}</pre>
+              <span class="caret" v-if="llmStage === 'dsl'"></span>
+            </div>
+          </div>
+        </div>
+        <div class="stage-footer" v-if="llmStage === 'complete'">
+          <span class="pill success">Ready</span>
+        </div>
+        <div class="cloud-wrapper" v-if="llmStage === 'reject'">
+          <div class="cloud-bubble">
+            {{ cloudMessage }}
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -133,6 +165,11 @@ const currentLLMModel = ref('gpt-3.5-turbo')  // LLM 模型显示
 
 // LLM 会话状态
 const llmSessionId = ref(null)  // LLM 会话 ID
+const llmShowcase = ref(false)
+const llmStage = ref('idle') // idle | reasoning | dsl | complete | reject
+const llmReasoning = ref('')
+const llmDSL = ref('')
+const cloudMessage = ref('')
 
 const exampleButtons = [
   { type: 'sequential', label: 'Sequential' },
@@ -163,22 +200,41 @@ const canExecute = computed(() => {
   return llmInput.value.trim().length > 0
 })
 
-// 🔥 从树结构中提取所有节点值（中序遍历）
+watch(currentMode, (mode) => {
+  if (mode === 'llm') {
+    llmShowcase.value = false
+    llmStage.value = 'idle'
+    llmReasoning.value = ''
+    llmDSL.value = ''
+    cloudMessage.value = ''
+  }
+})
+
+// 🔥 从树结构中提取节点值/ID（中序遍历）
 const extractTreeValues = (node) => {
   if (!node) return []
-
   const values = []
-
-  // 递归中序遍历
   const inorder = (n) => {
     if (!n) return
     if (n.left) inorder(n.left)
     values.push(n.value)
     if (n.right) inorder(n.right)
   }
-
   inorder(node)
   return values
+}
+
+const extractTreeNodes = (node) => {
+  if (!node) return []
+  const nodes = []
+  const traverse = (n) => {
+    if (!n) return
+    nodes.push({ id: n.node_id, value: n.value })
+    traverse(n.left)
+    traverse(n.right)
+  }
+  traverse(node)
+  return nodes
 }
 
 // 执行代码
@@ -261,10 +317,23 @@ const executeDSL = async () => {
 }
 
 // 执行 LLM
+const typeWriter = async (text, targetRef, speed = 12) => {
+  targetRef.value = ''
+  for (let i = 0; i < text.length; i++) {
+    targetRef.value += text[i]
+    await new Promise(resolve => setTimeout(resolve, speed))
+  }
+}
+
 const executeLLM = async () => {
   try {
     statusMessage.value = '正在推理中...'
     statusType.value = 'info'
+    llmShowcase.value = true
+    llmStage.value = 'reasoning'
+    llmReasoning.value = '模型推理中...'
+    llmDSL.value = ''
+    cloudMessage.value = ''
 
     // 🔥 构建上下文对象 - 使用当前页面的状态
     let context = null
@@ -277,15 +346,20 @@ const executeLLM = async () => {
         currentData = props.currentElements.filter(el => el !== null && el !== undefined)
       } else if (props.category === 'tree' && props.currentTreeData) {
         // 树结构：提取树节点值（中序遍历）
-        currentData = extractTreeValues(props.currentTreeData)
+        currentData = extractTreeValues(props.currentTreeData.root || props.currentTreeData)
       }
+
+      const treeNodes = (props.category === 'tree' && props.currentTreeData)
+        ? extractTreeNodes(props.currentTreeData.root || props.currentTreeData)
+        : []
 
       context = {
         current_page: {
           category: props.category,  // 'linear' 或 'tree'
           type: props.currentStructureType,  // 'sequential', 'bst', etc.
           structure_id: props.currentStructureId,
-          data: currentData
+          data: currentData,
+          nodes: treeNodes
         }
       }
 
@@ -299,6 +373,8 @@ const executeLLM = async () => {
     if (!response.success) {
       statusMessage.value = `错误: ${response.error}`
       statusType.value = 'error'
+      cloudMessage.value = response.error || '无法生成 DSL 代码'
+      llmStage.value = 'reject'
       setTimeout(() => { statusMessage.value = '' }, 5000)
       return
     }
@@ -310,11 +386,19 @@ const executeLLM = async () => {
 
     // 如果 DSL 代码为空，显示 LLM 的解释（通常是拒绝信息）
     if (!dslCode || dslCode.trim() === '') {
+      cloudMessage.value = explanation || '无法生成 DSL 代码'
+      llmStage.value = 'reject'
       statusMessage.value = explanation || '无法生成 DSL 代码'
       statusType.value = 'info'
       setTimeout(() => { statusMessage.value = '' }, 5000)
       return
     }
+
+    llmReasoning.value = ''
+    await typeWriter(explanation || '', llmReasoning, 18)
+    llmStage.value = 'dsl'
+    await typeWriter(dslCode, llmDSL, 12)
+    llmStage.value = 'complete'
 
     statusMessage.value = `✓ 推理成功! DSL: ${dslCode.substring(0, 50)}...`
     statusType.value = 'success'
@@ -373,6 +457,8 @@ const executeLLM = async () => {
     console.error('❌ LLM 推理失败:', error)
     statusMessage.value = '推理失败: ' + (error.response?.data?.error || error.message)
     statusType.value = 'error'
+    cloudMessage.value = error.response?.data?.error || error.message || '推理失败'
+    llmStage.value = 'reject'
     setTimeout(() => { statusMessage.value = '' }, 5000)
   }
 }
@@ -608,6 +694,135 @@ const loadExample = async (exampleType) => {
 .status-message.error {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* LLM visualizer (同步首页动画风格) */
+.llm-visualizer {
+  margin-top: 1rem;
+  background: #0b1221;
+  border: 1px solid #111827;
+  border-radius: 14px;
+  padding: 1rem;
+  color: #e5e7eb;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.llm-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+}
+
+.glow-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22d3ee;
+  box-shadow: 0 0 12px #22d3ee, 0 0 24px #22d3ee;
+}
+
+.llm-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.panel {
+  border-radius: 12px;
+  padding: 0.75rem;
+  border: 1px solid #1f2937;
+}
+
+.panel.glass {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.panel.code {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.panel-title {
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.typing-line,
+.typing-block {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.6rem;
+  min-height: 60px;
+  position: relative;
+}
+
+.typing-line.active,
+.typing-block.active {
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35);
+}
+
+.typing-line pre,
+.typing-block pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.85rem;
+}
+
+.caret {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 6px;
+  height: 16px;
+  background: #22d3ee;
+  animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.stage-footer {
+  margin-top: 0.5rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid #22d3ee;
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.1);
+}
+
+.pill.success {
+  background: rgba(34, 211, 238, 0.15);
+}
+
+.cloud-wrapper {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: center;
+}
+
+.cloud-bubble {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #fcd34d;
+  max-width: 100%;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 768px) {

@@ -241,10 +241,76 @@ class SequentialList(LinearStructureBase):
         self.add_operation_step(step)
         return True
 
-    def delete(self, index: int) -> Any:
-        """删除元素 - 详细过程版"""
+    def delete(self, index: int = None, value: Any = None) -> Any:
+        """删除元素 - 支持按索引或按值删除（按值删除会找到第一个匹配项）"""
         # 🔥 清空操作历史，避免累积之前的操作
         self._operation_history = []
+
+        # 如果传入值，则先查找对应索引并展示遍历动画
+        if value is not None and (index is None or index == ''):
+            step = OperationStep(
+                OperationType.SEARCH,
+                value=value,
+                description=f'按值删除：开始查找第一个值为 {value} 的元素',
+                data_snapshot=self.to_list(),
+                code_template='sequential_delete',
+                code_line=1,
+                code_highlight=[1]
+            )
+            self.add_operation_step(step)
+
+            found_idx = -1
+            for i in range(self._size):
+                step = OperationStep(
+                    OperationType.COMPARE,
+                    index=i,
+                    value=value,
+                    description=f'比较位置 {i}: {self._data[i]} == {value} ?',
+                    pointer_position=i,
+                    highlight_indices=[i],
+                    compare_indices=[i],
+                    animation_type="highlight",
+                    duration=0.4,
+                    data_snapshot=self.to_list(),
+                    code_template='sequential_delete',
+                    code_line=2,
+                    code_highlight=[2, 3, 4]
+                )
+                self.add_operation_step(step)
+
+                if self._data[i] == value or str(self._data[i]) == str(value):
+                    found_idx = i
+                    step = OperationStep(
+                        OperationType.SEARCH,
+                        index=i,
+                        value=value,
+                        description=f'✓ 找到第一个匹配值 {value}，索引 {i}',
+                        highlight_indices=[i],
+                        animation_type="highlight",
+                        duration=0.7,
+                        data_snapshot=self.to_list()
+                    )
+                    self.add_operation_step(step)
+                    break
+
+            if found_idx == -1:
+                step = OperationStep(
+                    OperationType.DELETE,
+                    description=f'删除失败：未找到值 {value}',
+                    data_snapshot=self.to_list()
+                )
+                self.add_operation_step(step)
+                return None
+            index = found_idx
+
+        if index is None:
+            step = OperationStep(
+                OperationType.DELETE,
+                description='删除失败：未提供索引或值',
+                data_snapshot=self.to_list()
+            )
+            self.add_operation_step(step)
+            return None
 
         # === 步骤1: 检查索引 ===
         if index < 0 or index >= self._size:
@@ -552,7 +618,5 @@ class SequentialList(LinearStructureBase):
         self.add_operation_step(step)
 
         return True
-
-
 
 

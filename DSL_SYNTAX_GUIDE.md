@@ -43,6 +43,9 @@ Sequential myList {
 
 **树结构**
 - `BST` / `AVL`：`insert n`、`delete n`、`search n`、`traverse inorder|preorder|postorder|levelorder`、`min`、`max`
+- `Binary`（任意形状二叉树）：`build [1,2,null,4]`（层序），或按节点 ID 精确插入：
+  - `insert v`（自动按层序填充空位）
+  - `insert 42 at 123 left` 将 42 插到 node_id=123 的左子节点；`right` 同理
 - `Huffman`：
   - 文本：`build_text "HELLO"`、`show_codes`、`encode "..."`、`decode "..."`  
   - 数字：`build_numbers [2, 4, 6, 8]`

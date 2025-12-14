@@ -296,6 +296,7 @@ def delete_element(structure_id):
     删除元素-调用delete方法
     请求体:{
         "delete":0,#要删除的位置
+        "value":xxx # 可选，按值删除第一个匹配项
     }
     """
     try:
@@ -305,11 +306,15 @@ def delete_element(structure_id):
 
         data = request.json
         index = data.get('index')
+        value = data.get('value')
 
         # 清空历史
         structure.clear_operation_history()
-        #调用delete方法
-        deleted_value = structure.delete(index)
+        # 调用 delete 方法，优先尝试带 value 的调用，兼容只接受索引的结构
+        try:
+            deleted_value = structure.delete(index, value)
+        except TypeError:
+            deleted_value = structure.delete(index)
 
         return jsonify({
             'success': deleted_value is not None,
@@ -768,7 +773,9 @@ def export_structure(structure_id):
                 'category': 'linear',
                 'data': structure.to_list(),
                 'size': structure.size(),
-                'capacity': getattr(structure, '_capacity', None)
+                'capacity': getattr(structure, '_capacity', None),
+                'front_index': getattr(structure, 'get_front_index', lambda: None)(),
+                'rear_index': getattr(structure, 'get_rear_index', lambda: None)()
             }
         else:
             #树结构
@@ -840,6 +847,7 @@ def import_structure():
             'SequentialList': ('sequential', SequentialList),
             'LinearLinkedList': ('linked', LinearLinkedList),
             'SequentialStack': ('stack', SequentialStack),
+            'SequentialQueue': ('queue', SequentialQueue),
             'BinaryTree': ('binary', BinaryTree),
             'BinarySearchTree': ('bst', BinarySearchTree),
             'AVLTree': ('avl', AVLTree),
@@ -852,7 +860,7 @@ def import_structure():
         structure_type, structure_class = type_mapping[structure_type_name]
 
         # 创建结构实例
-        if structure_type in ['sequential', 'stack']:
+        if structure_type in ['sequential', 'stack', 'queue']:
             capacity = data.get('capacity', 100)
             structure = structure_class(capacity=capacity)
         else:
@@ -867,6 +875,10 @@ def import_structure():
                 for value in linear_data:
                     structure.push(value)
                     print(f"  ✓ Push: {value}")
+            elif structure_type == 'queue':
+                for value in linear_data:
+                    structure.enqueue(value)
+                    print(f"  ✓ Enqueue: {value}")
             else:
                 # 顺序表/链表：使用 initlist 批量初始化
                 if hasattr(structure, 'initlist') and linear_data:
@@ -1285,7 +1297,8 @@ def llm_chat():
                     'category': current_page.get('category', ''),
                     'type': current_page.get('type', ''),
                     'structure_id': current_page.get('structure_id', ''),
-                    'data': current_page.get('data', [])
+                    'data': current_page.get('data', []),
+                    'nodes': current_page.get('nodes', [])
                 }
             elif 'current_structure' in context:
                 # 向后兼容旧格式
@@ -1299,13 +1312,18 @@ def llm_chat():
         if current_struct_info:
             struct_type = current_struct_info.get('type', '')
             struct_data = current_struct_info.get('data', [])
+            struct_nodes = current_struct_info.get('nodes', [])
             category = current_struct_info.get('category', '')
             structure_id = current_struct_info.get('structure_id', '')
 
             # 构建上下文前缀
             if structure_id and structure_id in structures:
                 # 用户在现有结构基础上操作
-                context_prefix = f"[当前页面：{category} - {struct_type}，已有数据：{','.join(map(str, struct_data))}，structure_id: {structure_id}]\n用户想要："
+                nodes_brief = ''
+                if struct_nodes:
+                    pairs = [f"{n.get('value')}#{n.get('id')}" for n in struct_nodes[:8]]
+                    nodes_brief = f"，节点(value#id)：{', '.join(pairs)}"
+                context_prefix = f"[当前页面：{category} - {struct_type}，已有数据：{','.join(map(str, struct_data))}{nodes_brief}，structure_id: {structure_id}]\n用户想要："
                 enhanced_message = context_prefix + user_message
             else:
                 # 旧格式或新建结构

@@ -12,6 +12,9 @@
 
     <!-- 中央结构类型选择区域 -->
     <div class="structures-wrapper">
+      <div class="hero-text">
+        <span class="typewriter">{{ displayedText }}<span class="cursor" v-if="showCursor">|</span></span>
+      </div>
       <div class="structures">
         <button
           v-for="(structure, index) in structures"
@@ -38,6 +41,9 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const hoveredIndex = ref(null)
 const fadeOut = ref(false)
+const displayedText = ref('')
+const showCursor = ref(true)
+const fullText = 'Select one of the following tree structures:'
 
 const structures = [
   { id: 'binary', label: 'Binary Tree' },
@@ -59,6 +65,19 @@ const goBack = () => {
     router.push('/category')
   }, 800)
 }
+
+// 打字机效果
+let typeIndex = 0
+const typeNext = () => {
+  if (typeIndex <= fullText.length) {
+    displayedText.value = fullText.slice(0, typeIndex)
+    typeIndex++
+    setTimeout(typeNext, 40)
+  } else {
+    showCursor.value = false
+  }
+}
+typeNext()
 </script>
 
 <style scoped>
@@ -103,8 +122,28 @@ const goBack = () => {
 .structures-wrapper {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+
+.hero-text {
+  font-family: 'Georgia', serif;
+  font-size: 1.7rem;
+  margin-bottom: 2.4rem;
+  color: #111827;
+}
+
+.typewriter {
+  white-space: nowrap;
+}
+
+.cursor {
+  animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
 }
 
 .structures {
