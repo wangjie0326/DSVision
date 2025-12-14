@@ -154,6 +154,10 @@
     <!-- 状态栏 - 放在操作面板下方 -->
     <div class="status-bar">
       <div class="status-info">
+        <span class="status-label">Name:</span>
+        <span class="status-value">{{ structureName }}</span>
+      </div>
+      <div class="status-info">
         <span class="status-label">Nodes:</span>
         <span class="status-value">{{ treeData?.size || 0 }}</span>
       </div>
@@ -324,6 +328,7 @@
     <!-- 🔥 DSL 输入栏 - 传递当前页面状态 -->
     <DSLInputBar
       :currentStructureType="structureType"
+      :currentStructureName="structureName"
       :currentStructureId="structureId"
       :currentTreeData="treeData"
       category="tree"
@@ -366,6 +371,7 @@ const route = useRoute()
 // 数据状态
 const structureType = ref(route.params.type || 'binary')
 const structureId = ref(null)
+const structureName = ref(route.query.structName || generateDefaultName(route.params.type || 'binary'))
 const treeData = ref(null)
 const currentOperation = ref('insert')
 const inputValue = ref('')
@@ -413,6 +419,17 @@ const structureTitle = computed(() => {
   }
   return titles[structureType.value] || 'Tree Structure Visualization'
 })
+
+function generateDefaultName(type) {
+  const baseMap = {
+    binary: 'myBinary',
+    bst: 'myBST',
+    avl: 'myAVL',
+    huffman: 'myHuffman'
+  }
+  const base = baseMap[type] || 'myTree'
+  return `${base}${Math.floor(Date.now() % 10000)}`
+}
 
 const availableOperations = computed(() => {
   const ops = {
@@ -583,8 +600,8 @@ const playTreeAnimationSteps = async (steps) => {
       }
 
       // 更新当前执行行和高亮行
-      currentCodeLine.value = step.code_line
-      currentCodeHighlight.value = step.code_highlight || []
+      currentCodeLine.value = currentLanguage.value === 'cpp' ? step.code_line : null
+      currentCodeHighlight.value = currentLanguage.value === 'cpp' ? (step.code_highlight || []) : []
 
       console.log('🔥 代码行高亮:', step.code_line, step.code_highlight)
     }
@@ -867,6 +884,11 @@ const createStructure = async () => {
   try {
     const response = await api.createTreeStructure(structureType.value)
     structureId.value = response.structure_id
+    if (response.name) {
+      structureName.value = response.name
+    } else if (!structureName.value) {
+      structureName.value = generateDefaultName(structureType.value)
+    }
     console.log('Tree structure created:', response)
   } catch (error) {
     console.error('Failed to create tree structure:', error)
@@ -955,6 +977,9 @@ const executeOperation = async () => {
       console.log('收到响应:', response)
 
       const steps = response.operation_history || []
+      if (response.name) {
+        structureName.value = response.name
+      }
       console.log('操作步骤数:', steps.length)
 
       // 🔥 关键: 先播放动画,再更新最终数据
@@ -1047,6 +1072,9 @@ watch(
     const [newId, newRefresh] = newVals || []
     const [oldId, oldRefresh] = oldVals || []
     if ((newId && newId !== oldId) || (newRefresh && newRefresh !== oldRefresh)) {
+      if (route.query.structName) {
+        structureName.value = route.query.structName
+      }
       await createOrLoadTreeStructure()
     }
   }
@@ -1076,6 +1104,11 @@ const createOrLoadTreeStructure = async () => {
         console.warn('⚠️ 后端返回的树数据为空')
         lastOperation.value = '导入的树结构为空'
       } else {
+        if (response.name) {
+          structureName.value = response.name
+        } else if (route.query.structName) {
+          structureName.value = route.query.structName
+        }
         console.log(`✅ 成功加载树结构: ${response.tree_data.size} 个节点`)
 
         // 🔥 恢复状态
@@ -1087,6 +1120,9 @@ const createOrLoadTreeStructure = async () => {
           console.log('🎬 检测到从DSL跳转，将播放构建/遍历动画')
 
           // 对遍历类步骤，直接使用已有树作为舞台，避免空白闪烁
+          if (route.query.structName) {
+            structureName.value = route.query.structName
+          }
           treeData.value = response.tree_data
           await nextTick()
           calculateTreeLayout()
@@ -1100,7 +1136,7 @@ const createOrLoadTreeStructure = async () => {
           // 清除URL中的fromDSL参数
           router.replace({
             path: route.path,
-            query: { importId: route.query.importId }
+            query: { importId: route.query.importId, structName: structureName.value }
           })
         } else {
           // 正常加载（不播放动画）
@@ -1164,6 +1200,11 @@ const createNewTreeStructure = async () => {
   try {
     const response = await api.createTreeStructure(structureType.value)
     structureId.value = response.structure_id
+    if (response.name) {
+      structureName.value = response.name
+    } else if (!structureName.value) {
+      structureName.value = generateDefaultName(structureType.value)
+    }
     console.log('新建树结构:', response)
   } catch (error) {
     console.error('创建树结构失败:', error)

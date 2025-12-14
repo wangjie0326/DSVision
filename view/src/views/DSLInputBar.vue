@@ -89,7 +89,14 @@
       </div>
 
       <!-- LLM 推理可视化 -->
-      <div v-if="currentMode === 'llm' && llmShowcase" class="llm-visualizer">
+      <div
+        v-if="currentMode === 'llm' && llmShowcase"
+        class="llm-visualizer"
+        :class="{
+          'float-in': !llmFadingOut,
+          'fade-out': llmFadingOut
+        }"
+      >
         <div class="llm-label">
           <span class="glow-dot"></span>
           LLM Chat
@@ -136,6 +143,10 @@ const props = defineProps({
     type: String,
     default: null
   },
+  currentStructureName: {
+    type: String,
+    default: null
+  },
   currentStructureId: {
     type: String,
     default: null
@@ -166,6 +177,7 @@ const currentLLMModel = ref('gpt-3.5-turbo')  // LLM 模型显示
 // LLM 会话状态
 const llmSessionId = ref(null)  // LLM 会话 ID
 const llmShowcase = ref(false)
+const llmFadingOut = ref(false)
 const llmStage = ref('idle') // idle | reasoning | dsl | complete | reject
 const llmReasoning = ref('')
 const llmDSL = ref('')
@@ -207,6 +219,7 @@ watch(currentMode, (mode) => {
     llmReasoning.value = ''
     llmDSL.value = ''
     cloudMessage.value = ''
+    llmFadingOut.value = false
   }
 })
 
@@ -275,6 +288,11 @@ const executeDSL = async () => {
       const category = firstStruct.category  // 'linear' 或 'tree'
       const type = firstStruct.type
       const structureId = firstStruct.structure_id
+      const structName = firstStruct.name
+      // 复用当前名称（若同一结构），避免频繁改名导致混乱
+      const resolvedName = (props.currentStructureId && props.currentStructureId === structureId && props.currentStructureName)
+        ? props.currentStructureName
+        : (structName || props.currentStructureName)
 
       console.log('📊 跳转信息:', { category, type, structureId })
 
@@ -287,18 +305,18 @@ const executeDSL = async () => {
         if (currentPath === targetPath && currentImportId === structureId) {
           // 已经在目标页面且是同一个结构，强制刷新
           console.log('🔄 当前页面已是目标页面，强制刷新...')
-          window.location.href = `${targetPath}?importId=${structureId}&fromDSL=true&_refresh=${Date.now()}`
+          window.location.href = `${targetPath}?importId=${structureId}&fromDSL=true&structName=${encodeURIComponent(resolvedName || '')}&_refresh=${Date.now()}`
         } else {
           // 跳转到新页面
           if (category === 'linear') {
             router.push({
               path: `/linear/${type}`,
-              query: { importId: structureId, fromDSL: 'true' }
+              query: { importId: structureId, fromDSL: 'true', structName: resolvedName }
             })
           } else {
             router.push({
               path: `/tree/${type}`,
-              query: { importId: structureId, fromDSL: 'true' }
+              query: { importId: structureId, fromDSL: 'true', structName: resolvedName }
             })
           }
         }
@@ -329,6 +347,7 @@ const executeLLM = async () => {
   try {
     statusMessage.value = '正在推理中...'
     statusType.value = 'info'
+    llmFadingOut.value = false
     llmShowcase.value = true
     llmStage.value = 'reasoning'
     llmReasoning.value = '模型推理中...'
@@ -357,6 +376,7 @@ const executeLLM = async () => {
         current_page: {
           category: props.category,  // 'linear' 或 'tree'
           type: props.currentStructureType,  // 'sequential', 'bst', etc.
+          name: props.currentStructureName || '',
           structure_id: props.currentStructureId,
           data: currentData,
           nodes: treeNodes
@@ -426,9 +446,11 @@ const executeLLM = async () => {
         if (currentPath === targetPath && currentImportId === structureId) {
           // 已经在目标页面且是同一个结构，强制刷新
           console.log('🔄 当前页面已是目标页面，强制刷新...')
+          llmFadingOut.value = true
           window.location.href = `${targetPath}?importId=${structureId}&fromDSL=true&_refresh=${Date.now()}`
         } else {
           // 跳转到新页面
+          llmFadingOut.value = true
           if (category === 'linear') {
             router.push({
               path: `/linear/${type}`,
@@ -441,6 +463,9 @@ const executeLLM = async () => {
             })
           }
         }
+        setTimeout(() => {
+          llmShowcase.value = false
+        }, 500)
       }, 800)
     } else if (response.execution?.error) {
       statusMessage.value = `推理成功但执行失败: ${response.execution.error}`
@@ -699,12 +724,23 @@ const loadExample = async (exampleType) => {
 /* LLM visualizer (同步首页动画风格) */
 .llm-visualizer {
   margin-top: 1rem;
-  background: #0b1221;
-  border: 1px solid #111827;
-  border-radius: 14px;
-  padding: 1rem;
-  color: #e5e7eb;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  color: #0f172a;
+  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.12);
+  transform-origin: bottom;
+}
+
+.llm-visualizer.float-in {
+  animation: floatUp 0.45s ease;
+}
+
+.llm-visualizer.fade-out {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
 .llm-label {
@@ -733,15 +769,15 @@ const loadExample = async (exampleType) => {
 .panel {
   border-radius: 12px;
   padding: 0.75rem;
-  border: 1px solid #1f2937;
+  border: 1px solid #e2e8f0;
 }
 
 .panel.glass {
-  background: rgba(255, 255, 255, 0.04);
+  background: #ffffff;
 }
 
 .panel.code {
-  background: rgba(15, 23, 42, 0.6);
+  background: #f1f5f9;
 }
 
 .panel-title {
@@ -752,8 +788,8 @@ const loadExample = async (exampleType) => {
 
 .typing-line,
 .typing-block {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #fff;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 0.6rem;
   min-height: 60px;
@@ -762,8 +798,8 @@ const loadExample = async (exampleType) => {
 
 .typing-line.active,
 .typing-block.active {
-  border-color: #22d3ee;
-  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35);
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.25);
 }
 
 .typing-line pre,
@@ -780,7 +816,7 @@ const loadExample = async (exampleType) => {
   bottom: 10px;
   width: 6px;
   height: 16px;
-  background: #22d3ee;
+  background: #0ea5e9;
   animation: blink 1s step-start infinite;
 }
 
@@ -800,13 +836,13 @@ const loadExample = async (exampleType) => {
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 700;
-  border: 1px solid #22d3ee;
-  color: #22d3ee;
-  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid #0ea5e9;
+  color: #0b7bc1;
+  background: rgba(14, 165, 233, 0.1);
 }
 
 .pill.success {
-  background: rgba(34, 211, 238, 0.15);
+  background: rgba(14, 165, 233, 0.15);
 }
 
 .cloud-wrapper {
@@ -823,6 +859,11 @@ const loadExample = async (exampleType) => {
   border: 1px solid #fcd34d;
   max-width: 100%;
   font-size: 0.9rem;
+}
+
+@keyframes floatUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 768px) {

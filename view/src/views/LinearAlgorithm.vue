@@ -124,6 +124,10 @@
     <!-- 状态栏 - 放在操作面板下方 -->
     <div class="status-bar">
       <div class="status-info">
+        <span class="status-label">Name:</span>
+        <span class="status-value">{{ structureName }}</span>
+      </div>
+      <div class="status-info">
         <span class="status-label">Elements:</span>
         <span class="status-value">{{ elements.length }}</span>
       </div>
@@ -310,6 +314,7 @@
     <!-- 🔥 新增: DSL 输入栏 - 传递当前页面状态 -->
     <DSLInputBar
       :currentStructureType="structureType"
+      :currentStructureName="structureName"
       :currentStructureId="structureId"
       :currentElements="elements"
       category="linear"
@@ -351,6 +356,7 @@ const route = useRoute()
 // 数据状态
 const structureType = ref(route.params.type || 'sequential')
 const structureId = ref(null)
+const structureName = ref(route.query.structName || generateDefaultName(route.params.type || 'sequential'))
 const elements = ref([])
 const capacity = ref(null)
 const stackStarted = ref(false)
@@ -409,6 +415,17 @@ const structureTitle = computed(() => {
   }
   return titles[structureType.value] || 'Data Structure Visualization'
 })
+
+function generateDefaultName(type) {
+  const baseMap = {
+    sequential: 'myList',
+    linked: 'myLinkedList',
+    stack: 'myStack',
+    queue: 'myQueue'
+  }
+  const base = baseMap[type] || 'myStructure'
+  return `${base}${Math.floor(Date.now() % 10000)}`
+}
 
 const availableOperations = computed(() => {
   const ops = {
@@ -597,8 +614,8 @@ const playOperationSteps = async (steps) => {
       }
 
       // 更新当前执行行和高亮行
-      currentCodeLine.value = step.code_line
-      currentCodeHighlight.value = step.code_highlight || []
+      currentCodeLine.value = currentLanguage.value === 'cpp' ? step.code_line : null
+      currentCodeHighlight.value = currentLanguage.value === 'cpp' ? (step.code_highlight || []) : []
 
       console.log('🔥 代码行高亮:', step.code_line, step.code_highlight)
     }
@@ -740,6 +757,9 @@ const executeOperation = async () => {
     if (response) {
       console.log('收到响应:', response)
       const steps = response.operation_history || []
+      if (response.name) {
+        structureName.value = response.name
+      }
 
       // 🔥 关键修改：播放动画
       if (steps.length > 0) {
@@ -873,6 +893,9 @@ watch(
     if ((newId && newId !== oldId) || (newRefresh && newRefresh !== oldRefresh)) {
       fromDSL.value = route.query.fromDSL === 'true'
       fromImport.value = route.query.fromImport === 'true'
+      if (route.query.structName) {
+        structureName.value = route.query.structName
+      }
       await createOrLoadStructure()
     }
   }
@@ -896,6 +919,11 @@ const createOrLoadStructure = async()=>{
         console.warn('后端返回的数据为空')
         lastOperation.value = '导入的数据结构为空'
       } else {
+        if (response.name) {
+          structureName.value = response.name
+        } else if (route.query.structName) {
+          structureName.value = route.query.structName
+        }
         console.log(`✓ 成功加载 ${response.data.length} 个元素:`, response.data)
 
         // 恢复状态
@@ -965,6 +993,11 @@ const createNewStructure = async () => {
 
     const response = await api.createStructure(structureType.value, cap)
     structureId.value = response.structure_id
+    if (response.name) {
+      structureName.value = response.name
+    } else if (!structureName.value) {
+      structureName.value = generateDefaultName(structureType.value)
+    }
     console.log('新建数据结构:', response)
 
     // 🔥 立即获取初始状态，显示容量槽位

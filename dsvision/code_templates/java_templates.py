@@ -171,6 +171,86 @@ LINKED_SEARCH = """public int search(int value) {
     return -1;  // 未找到
 }"""
 
+# ==================== 普通二叉树代码模板 ====================
+BINARY_INSERT = """public void insert(int value) {
+    Node newNode = new Node(value);
+    if (root == null) {
+        root = newNode;
+        return;
+    }
+
+    Queue<Node> q = new LinkedList<>();
+    q.offer(root);
+
+    while (!q.isEmpty()) {
+        Node node = q.poll();
+        if (node.left == null) {
+            node.left = newNode;
+            return;
+        } else {
+            q.offer(node.left);
+        }
+        if (node.right == null) {
+            node.right = newNode;
+            return;
+        } else {
+            q.offer(node.right);
+        }
+    }
+}"""
+
+BINARY_DELETE = """public boolean delete(int value) {
+    if (root == null) return false;
+
+    Node target = null;
+    Node last = null;
+    Node parentOfLast = null;
+
+    Queue<Node> q = new LinkedList<>();
+    q.offer(root);
+
+    while (!q.isEmpty()) {
+        Node node = q.poll();
+        if (node.value == value) target = node;
+        last = node;
+        if (node.left != null) {
+            parentOfLast = node;
+            q.offer(node.left);
+        }
+        if (node.right != null) {
+            parentOfLast = node;
+            q.offer(node.right);
+        }
+    }
+
+    if (target == null) return false;
+
+    // 覆盖并删除最后节点
+    target.value = last.value;
+    if (parentOfLast != null) {
+        if (parentOfLast.left == last) parentOfLast.left = null;
+        else parentOfLast.right = null;
+    } else {
+        root = null;
+    }
+    return true;
+}"""
+
+BINARY_SEARCH = """public Node search(int value) {
+    if (root == null) return null;
+
+    Queue<Node> q = new LinkedList<>();
+    q.offer(root);
+
+    while (!q.isEmpty()) {
+        Node node = q.poll();
+        if (node.value == value) return node;
+        if (node.left != null) q.offer(node.left);
+        if (node.right != null) q.offer(node.right);
+    }
+    return null;
+}"""
+
 # ==================== 二叉搜索树代码模板 ====================
 BST_INSERT = """public void insert(int value) {
     root = insertNode(root, value);
@@ -584,6 +664,10 @@ JAVA_CODE_TEMPLATES = {
     'linked_insert': LINKED_INSERT,
     'linked_delete': LINKED_DELETE,
     'linked_search': LINKED_SEARCH,
+    # 普通二叉树
+    'binary_insert': BINARY_INSERT,
+    'binary_delete': BINARY_DELETE,
+    'binary_search': BINARY_SEARCH,
     'bst_insert': BST_INSERT,
     'bst_delete': BST_DELETE,
     'bst_search': BST_SEARCH,

@@ -239,7 +239,10 @@ class BinarySearchTree(TreeStructureBase):
         step = OperationStep(
             operation=OperationType.DELETE,
             value=value,
-            description=f"开始删除节点{value}"
+            description=f"开始删除节点{value}",
+            code_template='bst_delete',
+            code_line=1,
+            code_highlight=[1, 2]
         )
         self.add_operation_step(step)
 
@@ -247,7 +250,10 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 operation=OperationType.DELETE,
                 value=value,
-                description="删除失败：树为空"
+                description="删除失败：树为空",
+                code_template='bst_delete',
+                code_line=2,
+                code_highlight=[1, 2]
             )
             self.add_operation_step(step)
             return False
@@ -258,7 +264,10 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 operation=OperationType.DELETE,
                 value=value,
-                description=f"成功删除节点 {value}"
+                description=f"成功删除节点 {value}",
+                code_template='bst_delete',
+                code_line=24,
+                code_highlight=[24]
             )
             self.add_operation_step(step)
             return True
@@ -266,7 +275,10 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.DELETE,
                 value=value,
-                description=f"删除失败：未找到节点 {value}"
+                description=f"删除失败：未找到节点 {value}",
+                code_template='bst_delete',
+                code_line=24,
+                code_highlight=[24]
             )
             self.add_operation_step(step)
             return False
@@ -350,7 +362,10 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.DELETE,
                 value=value,
-                description=f"节点 {value} 有两个子节点，查找右子树最小值"
+                description=f"节点 {value} 有两个子节点，查找右子树最小值",
+                code_template='bst_delete',
+                code_line=23,
+                code_highlight=[23]
             )
             self.add_operation_step(step)
 
@@ -359,7 +374,10 @@ class BinarySearchTree(TreeStructureBase):
             step = OperationStep(
                 OperationType.DELETE,
                 value=value,
-                description=f"用右子树最小值 {min_node.value} 替换 {value}"
+                description=f"用右子树最小值 {min_node.value} 替换 {value}",
+                code_template='bst_delete',
+                code_line=23,
+                code_highlight=[23]
             )
             self.add_operation_step(step)
 
@@ -445,5 +463,4 @@ class BinarySearchTree(TreeStructureBase):
             'size': self._size,
             'height': self.get_height()
         }
-
 

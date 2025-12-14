@@ -144,6 +144,85 @@ LINKED_SEARCH = """def search(self, value):
 
     return -1  # 未找到"""
 
+# ==================== 二叉树（普通） ====================
+BINARY_INSERT = """from collections import deque
+
+def insert(self, value):
+    \"\"\"层序插入：找到第一个空的左/右子节点位置\"\"\"
+    if not self.root:
+        self.root = Node(value)
+        return
+
+    q = deque([self.root])
+    while q:
+        node = q.popleft()
+        if not node.left:
+            node.left = Node(value)
+            return
+        q.append(node.left)
+        if not node.right:
+            node.right = Node(value)
+            return
+        q.append(node.right)"""
+
+BINARY_DELETE = """from collections import deque
+
+def delete(self, value):
+    \"\"\"用最后一个节点替换目标节点，再删除最后一个节点\"\"\"
+    if not self.root:
+        return False
+
+    target = None
+    last = None
+    parent_of_last = None
+    q = deque([(self.root, None)])
+
+    while q:
+        node, parent = q.popleft()
+        if node.value == value:
+            target = node
+        last = node
+        parent_of_last = parent
+        if node.left:
+            q.append((node.left, node))
+        if node.right:
+            q.append((node.right, node))
+
+    if target is None:
+        return False
+
+    # 用最后节点值覆盖
+    target.value = last.value
+
+    # 删除最后节点
+    if parent_of_last:
+        if parent_of_last.left is last:
+            parent_of_last.left = None
+        else:
+            parent_of_last.right = None
+    else:
+        self.root = None
+
+    return True"""
+
+BINARY_SEARCH = """from collections import deque
+
+def search(self, value):
+    \"\"\"层序搜索，返回节点或 None\"\"\"
+    if not self.root:
+        return None
+
+    q = deque([self.root])
+    while q:
+        node = q.popleft()
+        if node.value == value:
+            return node
+        if node.left:
+            q.append(node.left)
+        if node.right:
+            q.append(node.right)
+    return None"""
+
 # ==================== 二叉搜索树代码模板 ====================
 BST_INSERT = """def insert(self, value):
     # 创建新节点
@@ -510,6 +589,10 @@ PYTHON_CODE_TEMPLATES = {
     'linked_insert': LINKED_INSERT,
     'linked_delete': LINKED_DELETE,
     'linked_search': LINKED_SEARCH,
+    # 普通二叉树
+    'binary_insert': BINARY_INSERT,
+    'binary_delete': BINARY_DELETE,
+    'binary_search': BINARY_SEARCH,
     'bst_insert': BST_INSERT,
     'bst_delete': BST_DELETE,
     'bst_search': BST_SEARCH,

@@ -76,6 +76,7 @@ CORS(app)
 
 #存储数据结构实例
 structures = {}
+structure_names = {}
 
 @app.route('/', methods=['GET'])
 def index():
@@ -144,10 +145,15 @@ def structure_create():
         else:
             return jsonify({'error': f'未知的数据结构类型: {structure_type}'}), 400
 
+        # 记录默认名称（便于前端展示）；手动创建的名称可在未来扩展
+        default_name = f"{structure_type}_{structure_id[:4]}"
+        structure_names[structure_id] = default_name
+
         return jsonify({
             'success': True,
             'structure_id': structure_id,
             'type': structure_type,
+            'name': structure_names.get(structure_id),
             'message':f"成功创建{structure_type}结构"
         })
 
@@ -174,6 +180,7 @@ def get_state(structure_id):
             'is_empty':structure.is_empty(),
             'operation_history':[step.to_dict() for step in structure.get_operation_history()],
             'capacity':getattr(structure,'_capacity',None), #没懂getattr
+            'name': structure_names.get(structure_id),
             'front_index': getattr(structure, 'get_front_index', lambda: None)(),
             'rear_index': getattr(structure, 'get_rear_index', lambda: None)()
         })
@@ -488,10 +495,13 @@ def tree_create():
         else:
             return jsonify({'error': f'未知的树类型: {structure_type}'}), 400
 
+        structure_names[structure_id] = f"{structure_type}_{structure_id[:4]}"
+
         return jsonify({
             'success': True,
             'structure_id': structure_id,
             'type': structure_type,
+            'name': structure_names.get(structure_id),
             'message': f"成功创建{structure_type}树结构"
         })
     except Exception as e:
@@ -510,7 +520,8 @@ def get_tree_state(structure_id):
             'tree_data': structure.get_tree_data(),
             'size': structure.size(),
             'is_empty': structure.is_empty(),
-            'operation_history': [step.to_dict() for step in structure.get_operation_history()]
+            'operation_history': [step.to_dict() for step in structure.get_operation_history()],
+            'name': structure_names.get(structure_id)
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -703,7 +714,8 @@ def traverse_tree(structure_id):
             'traversal_result': result,
             'traversal_method': 'recursive' if use_recursion else 'iterative',
             'tree_data': structure.get_tree_data(),
-            'operation_history': [step.to_dict() for step in structure.get_operation_history()]
+            'operation_history': [step.to_dict() for step in structure.get_operation_history()],
+            'name': structure_names.get(structure_id)
         })
 
     except Exception as e:
@@ -1069,6 +1081,8 @@ def execute_dsl():
                 # 🔥 添加操作历史，支持前端动画播放（只包含最后一个操作的步骤）
                 struct_data['operation_history'] = [step.to_dict() for step in structure.get_operation_history()]
 
+                # 记录名称映射，便于后续状态查询展示
+                structure_names[structure_id] = struct_name
                 response_data['structures'].append(struct_data)
 
         print(f"\n✓ 成功执行,返回 {len(response_data['structures'])} 个结构\n")
@@ -1288,6 +1302,9 @@ def llm_chat():
         # 🔥 如果有上下文，构建增强的消息
         enhanced_message = user_message
         current_struct_info = None
+        msg_lower = user_message.lower()
+        rebuild_keywords = ['重新生成', '重建', '重新创建', '新建一个新的', '重新造', '重新搞', '换个名字', 'rename', 'rebuild', 'regenerate']
+        rebuild_request = any(k in msg_lower for k in rebuild_keywords)
 
         # 支持两种格式：current_page（新格式）或 current_structure（旧格式）
         if context:
@@ -1297,6 +1314,7 @@ def llm_chat():
                     'category': current_page.get('category', ''),
                     'type': current_page.get('type', ''),
                     'structure_id': current_page.get('structure_id', ''),
+                    'name': current_page.get('name', ''),
                     'data': current_page.get('data', []),
                     'nodes': current_page.get('nodes', [])
                 }
@@ -1315,6 +1333,7 @@ def llm_chat():
             struct_nodes = current_struct_info.get('nodes', [])
             category = current_struct_info.get('category', '')
             structure_id = current_struct_info.get('structure_id', '')
+            struct_name = current_struct_info.get('name', '')
 
             # 构建上下文前缀
             if structure_id and structure_id in structures:
@@ -1323,11 +1342,15 @@ def llm_chat():
                 if struct_nodes:
                     pairs = [f"{n.get('value')}#{n.get('id')}" for n in struct_nodes[:8]]
                     nodes_brief = f"，节点(value#id)：{', '.join(pairs)}"
-                context_prefix = f"[当前页面：{category} - {struct_type}，已有数据：{','.join(map(str, struct_data))}{nodes_brief}，structure_id: {structure_id}]\n用户想要："
+                name_brief = f"，name: {struct_name}" if struct_name else ''
+                rebuild_brief = "，rebuild: true" if rebuild_request else "，rebuild: false"
+                context_prefix = f"[当前页面：{category} - {struct_type}，已有数据：{','.join(map(str, struct_data))}{nodes_brief}{name_brief}{rebuild_brief}，structure_id: {structure_id}]\n用户想要："
                 enhanced_message = context_prefix + user_message
             else:
                 # 旧格式或新建结构
-                context_prefix = f"[当前数据结构：{struct_type}，数据：{','.join(map(str, struct_data))}]\n"
+                name_brief = f"，name: {struct_name}" if struct_name else ''
+                rebuild_brief = "，rebuild: true" if rebuild_request else "，rebuild: false"
+                context_prefix = f"[当前数据结构：{struct_type}{name_brief}{rebuild_brief}，数据：{','.join(map(str, struct_data))}]\n"
                 enhanced_message = context_prefix + user_message
 
             print(f"🔥 增强后的消息（带上下文）:\n{enhanced_message}\n")
@@ -1369,9 +1392,18 @@ def llm_chat():
 
                 interpreter = interpreters[session_id]
 
+                # 若用户明确要求重建/新建，清理同名的上下文和映射，强制新建
+                if rebuild_request:
+                    for struct_decl in ast.structures:
+                        name = struct_decl.name
+                        if name in interpreter.context.structures:
+                            del interpreter.context.structures[name]
+                        if hasattr(interpreter, 'structure_id_map') and name in interpreter.structure_id_map:
+                            del interpreter.structure_id_map[name]
+
                 # 🔥 如果有当前页面的structure_id，在执行前强制使用当前页面的结构
                 # 这样interpreter就会操作当前页面的结构，而不是会话中旧的结构
-                if current_struct_info and current_struct_info.get('structure_id'):
+                if current_struct_info and current_struct_info.get('structure_id') and not rebuild_request:
                     current_sid = current_struct_info['structure_id']
                     if current_sid in structures:
                         # 从DSL代码中提取结构名称（例如 "BST myBST { ... }" -> "myBST"）
@@ -1397,6 +1429,7 @@ def llm_chat():
                                 'data': [],
                                 'structure_id': current_sid
                             }
+                            structure_names[current_sid] = struct_name
 
                             # 🔥 调试：打印结构的实际数据
                             try:
