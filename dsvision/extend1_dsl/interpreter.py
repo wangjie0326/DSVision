@@ -5,6 +5,8 @@ DSL解释器 (Interpreter)
 
 import json
 import random
+import re
+import string
 from typing import Dict, Any, List, Optional
 from .ast_nodes import *
 
@@ -82,6 +84,17 @@ class Interpreter:
             return [self.evaluate_value(v) for v in value]
         else:
             return value
+
+    def _parse_random_call_from_string(self, text: str) -> Optional[RandomCall]:
+        """尝试从字符串形式的 random(...) 解析出 RandomCall"""
+        match = re.match(r'^\s*random\s*\(\s*(\d+)(?:\s*,\s*(\d+))?\s*\)\s*$', text, re.IGNORECASE)
+        if not match:
+            return None
+        first = int(match.group(1))
+        second = match.group(2)
+        if second is not None:
+            return RandomCall(min_value=first, max_value=int(second), line=0, column=0)
+        return RandomCall(min_value=0, max_value=first, line=0, column=0)
 
     def execute(self,program: Program) -> Dict[str, Any]:
         """执行整个程序"""
@@ -413,10 +426,21 @@ class Interpreter:
                 structure.reverse()
 
         elif isinstance(operation, BuildTextOperation):
-            self.log(f"  build_text \"{operation.text}\"")
+            text_value = operation.text
+            random_call = text_value if isinstance(text_value, RandomCall) else None
+            if isinstance(text_value, str):
+                random_call = self._parse_random_call_from_string(text_value)
+
+            if random_call:
+                # 生成随机字符串，长度在[min, max]之间
+                length = random.randint(random_call.min_value, random_call.max_value)
+                letters = string.ascii_lowercase
+                text_value = ''.join(random.choice(letters) for _ in range(length))
+                self.log(f"    random({random_call.min_value}, {random_call.max_value}) -> \"{text_value}\" (len={length})")
+            self.log(f"  build_text \"{text_value}\"")
             if hasattr(structure, 'build_from_string'):
-                structure.build_from_string(operation.text)
-            op_record['details'] = {'text': operation.text}
+                structure.build_from_string(text_value)
+            op_record['details'] = {'text': text_value}
 
         elif isinstance(operation, BuildNumbersOperation):
             numbers = self.evaluate_value(operation.numbers)

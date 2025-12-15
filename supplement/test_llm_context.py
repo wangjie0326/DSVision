@@ -5,7 +5,7 @@ Test LLM context handling - verify the system prompt correctly processes context
 
 import sys
 import os
-sys.path.insert(0, '/Users/jiewang/WJ_Undergrad/Academy/大三上期学业/数据结构课设/DSVision')
+sys.path.insert(0, '/')
 
 from dsvision.extend2_llm.llm_service import LLMService
 

@@ -414,8 +414,8 @@ const codeHighlightMap = {
     stack_push: { line: 1, highlight: [1, 4, 9] },
     stack_pop: { line: 1, highlight: [1, 5, 10] },
     stack_peek: { line: 1, highlight: [1, 5, 8] },
-    queue_enqueue: { line: 1, highlight: [1, 6, 10] },
-    queue_dequeue: { line: 1, highlight: [1, 6, 12] },
+    queue_enqueue: { line: 6, highlight: [6, 7] },
+    queue_dequeue: { line: 3, highlight: [3, 4, 5] },
     queue_front: { line: 1, highlight: [1, 4, 8] },
     queue_rear: { line: 1, highlight: [1, 4, 8] },
   },
@@ -431,8 +431,8 @@ const codeHighlightMap = {
     stack_push: { line: 1, highlight: [1, 6, 10] },
     stack_pop: { line: 1, highlight: [1, 6, 10] },
     stack_peek: { line: 1, highlight: [1, 6, 10] },
-    queue_enqueue: { line: 1, highlight: [1, 8, 14] },
-    queue_dequeue: { line: 1, highlight: [1, 8, 16] },
+    queue_enqueue: { line: 6, highlight: [6, 7] },
+    queue_dequeue: { line: 3, highlight: [3, 4, 5] },
     queue_front: { line: 1, highlight: [1, 6, 10] },
     queue_rear: { line: 1, highlight: [1, 6, 10] },
   }
@@ -1011,6 +1011,14 @@ const createOrLoadStructure = async()=>{
         if (fromDSL.value && operationHistory.value.length > 0) {
           console.log(`🎬 播放DSL动画，共 ${operationHistory.value.length} 步`)
           lastOperation.value = '▶ 正在播放操作动画...'
+          // 预先展示第一帧，避免页面短暂空白（LLM 自动执行时更明显）
+          const firstSnapshot = operationHistory.value.find(step => step.data_snapshot && step.data_snapshot.length > 0)?.data_snapshot
+          if (firstSnapshot && firstSnapshot.length > 0) {
+            elements.value = [...firstSnapshot]
+          } else if (response.data && response.data.length > 0) {
+            // 没有快照时至少保持最终状态，避免闪烁
+            elements.value = [...response.data]
+          }
           await playOperationSteps(operationHistory.value)
           elements.value = response.data
           lastOperation.value = `✓ DSL 执行完成 (${elements.value.length} 个元素)`

@@ -278,7 +278,12 @@ class Parser:
         # build_text "HELLO"
         elif token.type == TokenType.BUILD_TEXT:
             self.advance()
-            text = self.expect(TokenType.STRING).value
+            if self.current_token.type == TokenType.STRING:
+                text = self.advance().value
+            elif self.current_token.type == TokenType.RANDOM:
+                text = self.parse_random_call()
+            else:
+                self.error("Expected STRING or random(...) after build_text")
             return BuildTextOperation(text=text, line=line, column=column)
 
         # 🔥 build_numbers [2, 4, 6, 8]

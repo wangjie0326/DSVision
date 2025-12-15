@@ -4,7 +4,7 @@ Test script to verify DSL interpreter session persistence
 """
 
 import sys
-sys.path.insert(0, '/Users/jiewang/WJ_Undergrad/Academy/大三上期学业/数据结构课设/DSVision')
+sys.path.insert(0, '/')
 
 from dsvision.extend1_dsl.lexer import Lexer
 from dsvision.extend1_dsl.parser import Parser

@@ -24,7 +24,7 @@ DSVision 是由 Jie Wang 开发的一个交互式的数据结构可视化教学�
 
 ## 🎯 界面预览
 
-![First Page](UI-First Page.png)
+![First Page](supplement/UI-First Page.png)
 
 ## 🛠️ 技术栈
 
@@ -245,9 +245,9 @@ npm run format
 ## 📝 DSL 完整语法
 
 详细的 DSL 语法参考，请查看：
-- [DSL 快速参考](DSL_QUICK_REFERENCE.md)
-- [DSL 语法指南](DSL_SYNTAX_GUIDE.md)
-- [DSL 演示指南](DSL_PRESENTATION_GUIDE.md)
+- [DSL 快速参考](supplement/DSL_QUICK_REFERENCE.md)
+- [DSL 语法指南](supplement/DSL_SYNTAX_GUIDE.md)
+- [DSL 演示指南](supplement/DSL_PRESENTATION_GUIDE.md)
 
 ## 📄 许可证
 
