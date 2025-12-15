@@ -5,8 +5,8 @@ DSVision 是由 Jie Wang 开发的一个交互式的数据结构可视化教学�
 ## ✨ 主要特性
 
 - **丰富的数据结构支持**
-  - 线性结构：顺序表、链表、栈
-  - 树形结构：二叉树、二叉搜索树（BST）、平衡二叉树（AVL）、哈夫曼树
+  - 线性结构：顺序表、链表、栈、队列（含扩容动画）
+  - 树形结构：二叉树、二叉搜索树（BST）、平衡二叉树（AVL 旋转）、哈夫曼树（文本/数字两种构建）
 
 - **实时可视化动画**
   - 逐步演示每个操作的执行过程
@@ -24,7 +24,7 @@ DSVision 是由 Jie Wang 开发的一个交互式的数据结构可视化教学�
 
 ## 🎯 界面预览
 
-![First Page](supplement/UI-First Page.png)
+![概览](dsvision_firstpage_overview.png)
 
 ## 🛠️ 技术栈
 
@@ -51,6 +51,7 @@ DSVision/
 │   ├── operation/      # 操作步骤记录
 │   ├── extend1_dsl/    # 自定义 DSL 解释器
 │   └── extend2_llm/    # LLM 自然语言服务
+├── supplement/         # 说明文档、演示稿、测试脚本
 ├── view/               # Vue 3 前端应用
 │   ├── src/
 │   │   ├── views/      # 页面组件
@@ -123,7 +124,7 @@ python controller/app.py
 
 ```bash
 cd view
-npm install 20
+npm install
 ```
 
 #### 启动开发服务器
@@ -183,21 +184,15 @@ Huffman myHuffman {
 
 系统会自动转换为对应的 DSL 代码并执行。
 
-## 🎮 功能说明
-
-### 线性结构可视化
-- **顺序表**：支持随机访问、插入、删除操作
-- **链表**：动态演示指针移动和节点链接
-- **栈**：LIFO 操作的直观展示
-
-### 树结构可视化
-- **二叉搜索树**：展示查找、插入、删除过程
-- **AVL 树**：自动平衡的旋转操作动画
-- **哈夫曼树**：编码树构建和编解码过程
-
-### 操作控制
-- 播放/暂停动画
-- 步进模式（逐步执行）
+## 📚 文档与指南
+- `supplement/DSL_SYNTAX_GUIDE.md`：DSL 语法说明
+- `supplement/DSL_QUICK_REFERENCE.md`：DSL 速查表
+- `supplement/DSL_PRESENTATION_GUIDE.md`：演示讲稿/流程
+- `supplement/CODE_PANEL_FEATURE.md`：代码面板与高亮说明
+- `supplement/EXPANSION_FEATURE.md`：扩容动画说明
+- `supplement/TEST_DATA_EXAMPLES.md`：示例数据与测试脚本说明
+- `view/public/dsl-manual.pdf`：DSL 使用手册（PDF）
+- `数据结构课设-题目1-线性与树形数据结构的可视化模拟器.pdf`：课程项目设计说明
 - 调节动画速度
 - 查看操作历史
 
