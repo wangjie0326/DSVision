@@ -185,14 +185,8 @@ Huffman myHuffman {
 系统会自动转换为对应的 DSL 代码并执行。
 
 ## 📚 文档与指南
-- `supplement/DSL_SYNTAX_GUIDE.md`：DSL 语法说明
-- `supplement/DSL_QUICK_REFERENCE.md`：DSL 速查表
-- `supplement/DSL_PRESENTATION_GUIDE.md`：演示讲稿/流程
-- `supplement/CODE_PANEL_FEATURE.md`：代码面板与高亮说明
-- `supplement/EXPANSION_FEATURE.md`：扩容动画说明
-- `supplement/TEST_DATA_EXAMPLES.md`：示例数据与测试脚本说明
 - `view/public/dsl-manual.pdf`：DSL 使用手册（PDF）
-- `数据结构课设-题目1-线性与树形数据结构的可视化模拟器.pdf`：课程项目设计说明
+- `数据结构课设-题目1-线性与树形数据结构的可视化模拟器.pdf`：课程项目说明（PDF）
 - 调节动画速度
 - 查看操作历史
 
@@ -242,7 +236,6 @@ npm run format
 详细的 DSL 语法参考，请查看：
 - [DSL 快速参考](supplement/DSL_QUICK_REFERENCE.md)
 - [DSL 语法指南](supplement/DSL_SYNTAX_GUIDE.md)
-- [DSL 演示指南](supplement/DSL_PRESENTATION_GUIDE.md)
 
 ## 📄 许可证
 
