@@ -247,8 +247,8 @@ class LinearLinkedList(LinearStructureBase):
             duration=0.5,
             data_snapshot=self.to_list(),
             code_template='linked_insert_tail',
-            code_line=7,
-            code_highlight=[7, 8, 9, 10]
+            code_line=12,
+            code_highlight=[12, 13, 14, 15]
         )
         self.add_operation_step(step)
 
@@ -261,7 +261,10 @@ class LinearLinkedList(LinearStructureBase):
                 highlight_indices=[i],
                 animation_type="highlight",
                 duration=0.4,
-                data_snapshot=self.to_list()
+                data_snapshot=self.to_list(),
+                code_template='linked_insert_tail',
+                code_line=13,
+                code_highlight=[12, 13, 14, 15]
             )
             self.add_operation_step(step)
 
@@ -272,7 +275,10 @@ class LinearLinkedList(LinearStructureBase):
                 highlight_indices=[i, i + 1],
                 animation_type="move",
                 duration=0.5,
-                data_snapshot=self.to_list()
+                data_snapshot=self.to_list(),
+                code_template='linked_insert_tail',
+                code_line=14,
+                code_highlight=[12, 13, 14, 15]
             )
             self.add_operation_step(step)
 
@@ -571,7 +577,10 @@ class LinearLinkedList(LinearStructureBase):
             highlight_indices=[0],
             animation_type="highlight",
             duration=0.5,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='linked_delete',
+            code_line=11,
+            code_highlight=[10, 11, 12]
         )
         self.add_operation_step(step)
 
@@ -584,7 +593,10 @@ class LinearLinkedList(LinearStructureBase):
                 highlight_indices=[i],
                 animation_type="highlight",
                 duration=0.4,
-                data_snapshot=self.to_list()
+                data_snapshot=self.to_list(),
+                code_template='linked_delete',
+                code_line=12,
+                code_highlight=[12, 13]
             )
             self.add_operation_step(step)
 
@@ -595,7 +607,10 @@ class LinearLinkedList(LinearStructureBase):
                 highlight_indices=[i, i + 1],
                 animation_type="move",
                 duration=0.5,
-                data_snapshot=self.to_list()
+                data_snapshot=self.to_list(),
+                code_template='linked_delete',
+                code_line=13,
+                code_highlight=[12, 13]
             )
             self.add_operation_step(step)
 
@@ -610,7 +625,10 @@ class LinearLinkedList(LinearStructureBase):
             highlight_indices=[index - 1, index],
             animation_type="highlight",
             duration=0.7,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='linked_delete',
+            code_line=12,
+            code_highlight=[12, 13]
         )
         self.add_operation_step(step)
 
@@ -623,7 +641,10 @@ class LinearLinkedList(LinearStructureBase):
                 highlight_indices=[index - 1, index],
                 animation_type="highlight",
                 duration=0.5,
-                data_snapshot=self.to_list()
+                data_snapshot=self.to_list(),
+                code_template='linked_delete',
+                code_line=16,
+                code_highlight=[15, 16, 17]
             )
             self.add_operation_step(step)
 
@@ -635,7 +656,10 @@ class LinearLinkedList(LinearStructureBase):
                 animation_type="move",
                 duration=0.6,
                 visual_hints={"show_arrow": True, "from": index - 1, "to": index + 1},
-                data_snapshot=self.to_list()
+                data_snapshot=self.to_list(),
+                code_template='linked_delete',
+                code_line=17,
+                code_highlight=[16, 17]
             )
             self.add_operation_step(step)
         else:
@@ -646,7 +670,10 @@ class LinearLinkedList(LinearStructureBase):
                 highlight_indices=[index - 1, index],
                 animation_type="move",
                 duration=0.6,
-                data_snapshot=self.to_list()
+                data_snapshot=self.to_list(),
+                code_template='linked_delete',
+                code_line=17,
+                code_highlight=[16, 17]
             )
             self.add_operation_step(step)
 
@@ -658,7 +685,10 @@ class LinearLinkedList(LinearStructureBase):
             description=f"Step 3: 删除节点（值={deleted_value}）",
             animation_type="fade",
             duration=0.6,
-            data_snapshot=self.to_list()
+            data_snapshot=self.to_list(),
+            code_template='linked_delete',
+            code_line=18,
+            code_highlight=[18, 19]
         )
         self.add_operation_step(step)
 
@@ -734,7 +764,7 @@ class LinearLinkedList(LinearStructureBase):
             )
             self.add_operation_step(step)
 
-            if current.value == value:
+            if current.value == value or str(current.value) == str(value):
                 step = OperationStep(
                     OperationType.SEARCH,
                     index=index,

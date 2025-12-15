@@ -172,8 +172,24 @@ LINKED_SEARCH = """public int search(int value) {
 }"""
 
 # ==================== 普通二叉树代码模板 ====================
-BINARY_INSERT = """public void insert(int value) {
+BINARY_INSERT = """public void insert(int value, Integer parentId, String direction) {
     Node newNode = new Node(value);
+
+    // 定向插入：若给定父节点ID和方向，优先尝试
+    if (parentId != null && direction != null) {
+        Node parent = findNodeById(root, parentId);
+        if (parent != null) {
+            if ("left".equals(direction) && parent.left == null) {
+                parent.left = newNode;
+                return;
+            }
+            if ("right".equals(direction) && parent.right == null) {
+                parent.right = newNode;
+                return;
+            }
+        }
+    }
+
     if (root == null) {
         root = newNode;
         return;

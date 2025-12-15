@@ -147,8 +147,18 @@ LINKED_SEARCH = """def search(self, value):
 # ==================== 二叉树（普通） ====================
 BINARY_INSERT = """from collections import deque
 
-def insert(self, value):
-    \"\"\"层序插入：找到第一个空的左/右子节点位置\"\"\"
+def insert(self, value, parent_id=None, direction=None):
+    \"\"\"层序插入或指定父节点的左/右子节点插入\"\"\"
+    if parent_id is not None and direction in ('left', 'right'):
+        parent = self.find_by_id(parent_id)
+        if parent:
+            if direction == 'left' and parent.left is None:
+                parent.left = Node(value)
+                return
+            if direction == 'right' and parent.right is None:
+                parent.right = Node(value)
+                return
+
     if not self.root:
         self.root = Node(value)
         return

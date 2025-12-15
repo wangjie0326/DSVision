@@ -184,17 +184,30 @@ LINKED_SEARCH = """int search(int value) {
 }"""
 
 # ==================== 二叉树代码模板 ====================
-BINARY_INSERT = """void insert(int value) {
-    // 创建新节点
+BINARY_INSERT = """void insert(int value, int parentId = -1, const string& direction = \"\") {
     Node* newNode = new Node(value);
 
-    // 如果树为空，新节点作为根节点
+    // 若传入父节点ID且方向明确，优先定向插入
+    if (parentId != -1 && (direction == "left" || direction == "right")) {
+        Node* parent = findNodeById(root, parentId);
+        if (parent != nullptr) {
+            if (direction == "left" && parent->left == nullptr) {
+                parent->left = newNode;
+                return;
+            }
+            if (direction == "right" && parent->right == nullptr) {
+                parent->right = newNode;
+                return;
+            }
+        }
+    }
+
+    // 否则层序遍历找到第一个空位置
     if (root == nullptr) {
         root = newNode;
         return;
     }
 
-    // 层序遍历找到第一个空位置
     queue<Node*> q;
     q.push(root);
 
@@ -202,7 +215,6 @@ BINARY_INSERT = """void insert(int value) {
         Node* current = q.front();
         q.pop();
 
-        // 检查左子节点
         if (current->left == nullptr) {
             current->left = newNode;
             return;
@@ -210,7 +222,6 @@ BINARY_INSERT = """void insert(int value) {
             q.push(current->left);
         }
 
-        // 检查右子节点
         if (current->right == nullptr) {
             current->right = newNode;
             return;

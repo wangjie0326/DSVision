@@ -399,6 +399,62 @@ const currentCodeLine = ref(null)  // 当前执行的代码行
 const currentCodeHighlight = ref([])  // 当前高亮的代码行
 const currentOperationName = ref('')  // 当前操作名称
 const currentLanguage = ref('cpp')  // 当前选择的编程语言
+const lastCodeStep = ref(null)  // 记录最近一步的代码行信息，便于语言切换时复用
+// 多语言高亮映射（简化版，避免错误跳转）
+const codeHighlightMap = {
+  python: {
+    sequential_insert: { line: 1, highlight: [1, 6, 12] },
+    sequential_delete: { line: 1, highlight: [1, 6, 12] },
+    sequential_search: { line: 1, highlight: [1, 5, 10] },
+    linked_insert: { line: 12, highlight: [12, 16, 20] },
+    linked_insert_head: { line: 10, highlight: [10, 11, 12] },
+    linked_insert_tail: { line: 12, highlight: [12, 16, 20] },
+    linked_delete: { line: 1, highlight: [1, 6, 14] },
+    linked_search: { line: 1, highlight: [1, 6, 12] },
+    stack_push: { line: 1, highlight: [1, 4, 9] },
+    stack_pop: { line: 1, highlight: [1, 5, 10] },
+    stack_peek: { line: 1, highlight: [1, 5, 8] },
+    queue_enqueue: { line: 1, highlight: [1, 6, 10] },
+    queue_dequeue: { line: 1, highlight: [1, 6, 12] },
+    queue_front: { line: 1, highlight: [1, 4, 8] },
+    queue_rear: { line: 1, highlight: [1, 4, 8] },
+  },
+  java: {
+    sequential_insert: { line: 1, highlight: [1, 8, 16] },
+    sequential_delete: { line: 1, highlight: [1, 8, 16] },
+    sequential_search: { line: 1, highlight: [1, 6, 12] },
+    linked_insert: { line: 15, highlight: [15, 18, 22] },
+    linked_insert_head: { line: 11, highlight: [11, 12, 13] },
+    linked_insert_tail: { line: 15, highlight: [15, 18, 22] },
+    linked_delete: { line: 1, highlight: [1, 10, 18] },
+    linked_search: { line: 1, highlight: [1, 8, 16] },
+    stack_push: { line: 1, highlight: [1, 6, 10] },
+    stack_pop: { line: 1, highlight: [1, 6, 10] },
+    stack_peek: { line: 1, highlight: [1, 6, 10] },
+    queue_enqueue: { line: 1, highlight: [1, 8, 14] },
+    queue_dequeue: { line: 1, highlight: [1, 8, 16] },
+    queue_front: { line: 1, highlight: [1, 6, 10] },
+    queue_rear: { line: 1, highlight: [1, 6, 10] },
+  }
+}
+
+const resolveCodeHighlight = (templateKey, langKey, stepInfo = null) => {
+  const alt = codeHighlightMap[langKey]?.[templateKey]
+  const line = stepInfo?.codeLine ?? alt?.line ?? null
+  const highlight = (stepInfo?.codeHighlight && stepInfo.codeHighlight.length > 0)
+    ? stepInfo.codeHighlight
+    : (alt?.highlight ?? [])
+  return { line, highlight }
+}
+
+const applyHighlightForLanguage = (templateKey, langKey) => {
+  const stepInfo = lastCodeStep.value && lastCodeStep.value.template === templateKey
+    ? lastCodeStep.value
+    : null
+  const { line, highlight } = resolveCodeHighlight(templateKey, langKey, stepInfo)
+  currentCodeLine.value = line
+  currentCodeHighlight.value = highlight
+}
 
 // 历史记录
 const operationHistory = ref([])
@@ -613,9 +669,18 @@ const playOperationSteps = async (steps) => {
         await loadCodeTemplate(step.code_template)
       }
 
-      // 更新当前执行行和高亮行
-      currentCodeLine.value = currentLanguage.value === 'cpp' ? step.code_line : null
-      currentCodeHighlight.value = currentLanguage.value === 'cpp' ? (step.code_highlight || []) : []
+      // 更新当前执行行和高亮行（多语言映射）
+      const langKey = currentLanguage.value
+      const templateKey = step.code_template
+      const stepInfo = {
+        template: templateKey,
+        codeLine: step.code_line,
+        codeHighlight: step.code_highlight
+      }
+      const { line, highlight } = resolveCodeHighlight(templateKey, langKey, stepInfo)
+      currentCodeLine.value = line
+      currentCodeHighlight.value = highlight
+      lastCodeStep.value = stepInfo
 
       console.log('🔥 代码行高亮:', step.code_line, step.code_highlight)
     }
@@ -879,6 +944,7 @@ const loadCodeTemplate = async (templateKey, language = null) => {
   }
 }
 
+
 // 生命周期
 onMounted(async () => {
   await createOrLoadStructure()
@@ -1039,10 +1105,11 @@ const handleLanguageChange = async (language) => {
     // Format: "sequential::insert()" -> "sequential_insert"
     const parts = currentOperationName.value.split('::')
     if (parts.length === 2) {
-    const structureType = parts[0]
-    const operation = parts[1].replace('()', '')
+      const structureType = parts[0]
+      const operation = parts[1].replace('()', '')
       const templateKey = `${structureType}_${operation}`
       await loadCodeTemplate(templateKey, language)
+      applyHighlightForLanguage(templateKey, language)
     }
   }
 }

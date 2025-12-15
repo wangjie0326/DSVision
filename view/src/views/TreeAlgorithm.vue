@@ -402,6 +402,48 @@ const currentCodeLine = ref(null)  // 当前执行的代码行
 const currentCodeHighlight = ref([])  // 当前高亮的代码行
 const currentOperationName = ref('')  // 当前操作名称
 const currentLanguage = ref('cpp')  // 当前选择的编程语言
+const lastCodeStep = ref(null)  // 记录最近的代码行信息，便于语言切换时复用
+// 语言高亮映射（非 C++ 时使用简单行定位）
+const codeHighlightMap = {
+  python: {
+    binary_insert: { line: 1, highlight: [1, 3, 10] },
+    binary_delete: { line: 1, highlight: [1, 5, 25] },
+    binary_search: { line: 1, highlight: [1, 6, 15] },
+    bst_insert: { line: 1, highlight: [1, 6, 15] },
+    bst_delete: { line: 1, highlight: [1, 8, 25] },
+    bst_search: { line: 1, highlight: [1, 8, 15] },
+    avl_insert: { line: 1, highlight: [1, 5, 20] },
+    huffman_build: { line: 1, highlight: [1, 4, 12] },
+  },
+  java: {
+    binary_insert: { line: 1, highlight: [1, 6, 20] },
+    binary_delete: { line: 1, highlight: [1, 8, 30] },
+    binary_search: { line: 1, highlight: [1, 8, 20] },
+    bst_insert: { line: 1, highlight: [1, 8, 18] },
+    bst_delete: { line: 1, highlight: [1, 10, 28] },
+    bst_search: { line: 1, highlight: [1, 8, 18] },
+    avl_insert: { line: 1, highlight: [1, 8, 20] },
+    huffman_build: { line: 1, highlight: [1, 6, 16] },
+  }
+}
+
+const resolveCodeHighlight = (templateKey, langKey, stepInfo = null) => {
+  const alt = codeHighlightMap[langKey]?.[templateKey]
+  const line = stepInfo?.codeLine ?? alt?.line ?? null
+  const highlight = (stepInfo?.codeHighlight && stepInfo.codeHighlight.length > 0)
+    ? stepInfo.codeHighlight
+    : (alt?.highlight ?? [])
+  return { line, highlight }
+}
+
+const applyHighlightForLanguage = (templateKey, langKey) => {
+  const stepInfo = lastCodeStep.value && lastCodeStep.value.template === templateKey
+    ? lastCodeStep.value
+    : null
+  const { line, highlight } = resolveCodeHighlight(templateKey, langKey, stepInfo)
+  currentCodeLine.value = line
+  currentCodeHighlight.value = highlight
+}
 
 // 🔥 布局相关状态
 const nodePositions = ref({})  // { nodeId: { x, y } }
@@ -599,9 +641,18 @@ const playTreeAnimationSteps = async (steps) => {
         await loadCodeTemplate(step.code_template)
       }
 
-      // 更新当前执行行和高亮行
-      currentCodeLine.value = currentLanguage.value === 'cpp' ? step.code_line : null
-      currentCodeHighlight.value = currentLanguage.value === 'cpp' ? (step.code_highlight || []) : []
+      // 更新当前执行行和高亮行（多语言映射）
+      const langKey = currentLanguage.value
+      const templateKey = step.code_template
+      const stepInfo = {
+        template: templateKey,
+        codeLine: step.code_line,
+        codeHighlight: step.code_highlight
+      }
+      const { line, highlight } = resolveCodeHighlight(templateKey, langKey, stepInfo)
+      currentCodeLine.value = line
+      currentCodeHighlight.value = highlight
+      lastCodeStep.value = stepInfo
 
       console.log('🔥 代码行高亮:', step.code_line, step.code_highlight)
     }
@@ -831,13 +882,31 @@ const playTreeAnimationSteps = async (steps) => {
       console.log('   -> 确认动画延迟:', delay, 'ms')
       await new Promise(resolve => setTimeout(resolve, delay))
     } else {
-      // 其他步骤显示红色高亮
-      if (step.node_id && step.node_id !== -1) {
-        highlightedNodes.value = [step.node_id]
-      } else if (step.highlight_indices) {
-        highlightedNodes.value = step.highlight_indices
-      } else {
-        highlightedNodes.value = []
+      // 其他步骤显示红色高亮；遍历时仅在访问节点时高亮，跳过入栈/出栈等辅助动作
+      let skipHighlight = false
+      if (currentOperation.value === 'traverse' && step.description) {
+        const desc = step.description
+        const lower = desc.toLowerCase()
+        if (
+          desc.includes('入栈') ||
+          desc.includes('压栈') ||
+          desc.includes('出栈') ||
+          desc.includes('弹栈') ||
+          lower.includes('push') ||
+          lower.includes('pop')
+        ) {
+          skipHighlight = true
+        }
+      }
+
+      if (!skipHighlight) {
+        if (step.node_id && step.node_id !== -1) {
+          highlightedNodes.value = [step.node_id]
+        } else if (step.highlight_indices) {
+          highlightedNodes.value = step.highlight_indices
+        } else {
+          highlightedNodes.value = []
+        }
       }
 
       // 🔥 关键修复：在warning/rotate/settle动画期间，保持浅绿色脉冲状态
@@ -1212,7 +1281,6 @@ const createNewTreeStructure = async () => {
   }
 }
 
-// 🔥 加载代码模板
 const loadCodeTemplate = async (templateKey, language = null) => {
   try {
     // 如果没有指定语言，使用当前选择的语言
@@ -1280,6 +1348,7 @@ const handleLanguageChange = async (language) => {
       const operation = parts[1].replace('()', '')
       const templateKey = `${structureType}_${operation}`
       await loadCodeTemplate(templateKey, language)
+      applyHighlightForLanguage(templateKey, language)
     }
   }
 }
