@@ -149,6 +149,7 @@ class AVLTree(BinarySearchTree):
         )
         self.add_operation_step(step)
 
+
         return y
 
     def _rotate_left(self, z: TreeNode) -> TreeNode:
